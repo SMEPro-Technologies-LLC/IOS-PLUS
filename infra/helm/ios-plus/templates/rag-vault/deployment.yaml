@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-vault
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: rag-vault
+spec:
+  replicas: {{ .Values.ragVault.replicaCount }}
+  selector:
+    matchLabels:
+      app: rag-vault
+  template:
+    metadata:
+      labels:
+        app: rag-vault
+    spec:
+      serviceAccountName: ios-plus-sa
+      containers:
+        - name: rag-vault
+          image: "{{ .Values.ragVault.image.repository }}:{{ .Values.ragVault.image.tag }}"
+          imagePullPolicy: {{ .Values.ragVault.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.ragVault.service.grpcPort }}
+              name: grpc
+          envFrom:
+            - configMapRef:
+                name: ios-plus-config
+          env:
+            - name: DATABASE_URL_RAG_READER
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-db-secrets
+                  key: rag-reader-url
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-secrets
+                  key: openai-api-key
+          resources:
+            requests:
+              cpu: {{ .Values.ragVault.resources.requests.cpu | quote }}
+              memory: {{ .Values.ragVault.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.ragVault.resources.limits.cpu | quote }}
+              memory: {{ .Values.ragVault.resources.limits.memory }}

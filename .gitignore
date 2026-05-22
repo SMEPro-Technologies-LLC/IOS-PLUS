@@ -1,0 +1,42 @@
+# Node
+node_modules/
+dist/
+.turbo/
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Keys (never commit)
+*.pem
+*.key
+*.pub
+/etc/ios-plus/
+
+# Database seeds (populated from UCO Excel — not committed)
+db/seeds/stubs/*.csv
+!db/seeds/stubs/.gitkeep
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/.terraform.lock.hcl
+
+# Helm
+infra/helm/ios-plus/charts/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Coverage
+coverage/
+
+# OS
+.DS_Store
+Thumbs.db

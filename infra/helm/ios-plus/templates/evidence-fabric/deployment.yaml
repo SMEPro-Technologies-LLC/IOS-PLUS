@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evidence-fabric
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: evidence-fabric
+spec:
+  replicas: {{ .Values.evidenceFabric.replicaCount }}
+  selector:
+    matchLabels:
+      app: evidence-fabric
+  template:
+    metadata:
+      labels:
+        app: evidence-fabric
+    spec:
+      serviceAccountName: ios-plus-sa
+      containers:
+        - name: evidence-fabric
+          image: "{{ .Values.evidenceFabric.image.repository }}:{{ .Values.evidenceFabric.image.tag }}"
+          imagePullPolicy: {{ .Values.evidenceFabric.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.evidenceFabric.service.grpcPort }}
+              name: grpc
+          envFrom:
+            - configMapRef:
+                name: ios-plus-config
+          env:
+            - name: DATABASE_URL_AUDIT_WRITER
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-db-secrets
+                  key: audit-writer-url
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-vault-secret
+                  key: vault-token
+          resources:
+            requests:
+              cpu: {{ .Values.evidenceFabric.resources.requests.cpu | quote }}
+              memory: {{ .Values.evidenceFabric.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.evidenceFabric.resources.limits.cpu | quote }}
+              memory: {{ .Values.evidenceFabric.resources.limits.memory }}

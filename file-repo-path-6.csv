@@ -1,0 +1,7 @@
+﻿File,Repo Path,Role
+validate_uco_seed.py,scripts/db/,"Core validator — 12 checks, JSON + Markdown output, exit 0/1"
+security-scan.yml,.github/workflows/,CI workflow — uco-seed-validation job + 6 other security jobs
+uco-seed-validation-cronjob.yaml,infra/helm/…/cronjobs/,Daily 03:00 UTC on-cluster check
+uco-seed-validation-job.yaml,infra/helm/…/jobs/,One-shot post-deploy gate (Helm hook capable)
+Dockerfile.ops,docker/,"Multi-stage ops image (psycopg2 + openpyxl, non-root uid=1001)"
+values-uco-patch.yaml,infra/helm/ios-plus/,Merge into values.yaml — all ucoSeedValidation.* keys

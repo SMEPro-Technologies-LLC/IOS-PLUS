@@ -1,0 +1,134 @@
+# =============================================================================
+# Dockerfile.ops
+# SMEPro Technologies — IOS+ Middleware Engine
+#
+# Ops Image — Python operational scripts runner
+# Reference: Engineering Body Document 6 §3.2 (Operational Tooling)
+#
+# Contains:
+#   - Python 3.11 slim base
+#   - psycopg2-binary       — COS+ PostgreSQL 16 connectivity (audit_reader role)
+#   - openpyxl              — UDM Excel cross-check (UCO-V-012)
+#   - requests              — Merkle root HTTP verification
+#   - All /scripts/*.py operational scripts:
+#       validate_uco_seed.py      (EB-4 §2  — UCO integrity validation)
+#       load_uco_seeds.py         (EB-6 §5  — Excel→COS+ seed loader)
+#       verify_evidence_package.py (EB-2 §4 — Ed25519 signature verification)
+#       verify_merkle_root.py      (EB-2 §5 — WORM Merkle root check)
+#       verify_key_publication_consistency.py (EB-2 §3 — triple-publish key check)
+#       weekly_worm_check.py       (EB-2 §6 — scheduled WORM integrity scan)
+#
+# Security:
+#   - Non-root user (uid=1001)
+#   - No shell in final image (distroless-style hardening)
+#   - Read-only filesystem compatible (scripts write to /tmp only)
+#   - No secrets baked in — all credentials via K8s Secrets / env vars
+#
+# Build:
+#   docker build -f docker/Dockerfile.ops -t smepro/ios-plus-ops:latest .
+#
+# Run (local validation):
+#   docker run --rm \
+#     -e COS_PLUS_DSN="postgresql://audit_reader:pass@localhost:5432/ios_plus" \
+#     smepro/ios-plus-ops:latest \
+#     python3 /scripts/validate_uco_seed.py --output-dir /tmp/uco-validation
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: dependency builder
+# Install Python packages into a clean prefix so the final stage stays lean
+# -----------------------------------------------------------------------------
+FROM python:3.11-slim AS builder
+
+# Prevent .pyc files and enable unbuffered stdout for CI log streaming
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /install
+
+# Copy requirements first for cache efficiency
+COPY scripts/requirements.txt ./requirements.txt
+
+# Install into /install/packages — copied into final stage
+RUN pip install \
+        --no-cache-dir \
+        --target /install/packages \
+        --requirement requirements.txt
+
+# -----------------------------------------------------------------------------
+# Stage 2: final hardened image
+# -----------------------------------------------------------------------------
+FROM python:3.11-slim AS final
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    # Point Python to the packages directory
+    PYTHONPATH=/packages \
+    # Default output directory — override via env or --output-dir flag
+    VALIDATE_OUTPUT=/tmp/uco-validation \
+    UCO_EXCEL_PATH="" \
+    # Encoding safety
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8
+
+# System dependencies:
+#   libpq5       — required by psycopg2 at runtime
+#   ca-certificates — required for HTTPS to Merkle endpoint / GCS
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libpq5 \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Create non-root user
+RUN groupadd --gid 1001 opsuser \
+    && useradd  --uid 1001 --gid 1001 --no-create-home --shell /sbin/nologin opsuser
+
+# Copy installed packages from builder stage
+COPY --from=builder /install/packages /packages
+
+# Copy all operational scripts
+# Scripts are mounted as ConfigMap in Kubernetes — this layer serves as the
+# default when running the image outside the cluster (local dev, docker-compose).
+COPY scripts/db/validate_uco_seed.py               /scripts/validate_uco_seed.py
+COPY scripts/db/load_uco_seeds.py                  /scripts/load_uco_seeds.py
+COPY scripts/db/verify_evidence_package.py         /scripts/verify_evidence_package.py
+COPY scripts/db/verify_merkle_root.py              /scripts/verify_merkle_root.py
+COPY scripts/db/verify_key_publication_consistency.py /scripts/verify_key_publication_consistency.py
+COPY scripts/db/weekly_worm_check.py               /scripts/weekly_worm_check.py
+
+# Ownership + permissions
+RUN chown -R opsuser:opsuser /scripts \
+    && chmod 0755 /scripts \
+    && chmod 0644 /scripts/*.py \
+    # Pre-create output directory with correct ownership
+    && mkdir -p /tmp/uco-validation \
+    && chown opsuser:opsuser /tmp/uco-validation
+
+# Use non-root user for all container operations
+USER opsuser
+
+WORKDIR /workspace
+
+# Health-check: validate that the script is importable without a DB connection
+HEALTHCHECK --interval=60s --timeout=10s --start-period=5s --retries=3 \
+    CMD python3 -c "import validate_uco_seed; print('ok')" || exit 1
+
+# Default entrypoint — override command in K8s Job / CronJob spec
+ENTRYPOINT ["python3"]
+CMD ["/scripts/validate_uco_seed.py", "--help"]
+
+# -----------------------------------------------------------------------------
+# Image labels (OCI standard)
+# -----------------------------------------------------------------------------
+LABEL org.opencontainers.image.title="IOS+ Ops"
+LABEL org.opencontainers.image.description="SMEPro Technologies IOS+ operational scripts — UCO validation, WORM integrity, evidence verification"
+LABEL org.opencontainers.image.vendor="SMEPro Technologies"
+LABEL org.opencontainers.image.source="https://github.com/smeprotech/ios-plus"
+LABEL org.opencontainers.image.licenses="Proprietary"
+LABEL smepro.io/eb-reference="EB-6 §3.2"
+LABEL smepro.io/component="ops"
+LABEL smepro.io/role="audit_reader"

@@ -1,0 +1,198 @@
+# ============================================================
+# IOS+ Helm Chart — Default Values
+# Override with values.production.yaml for prod deployments
+# SMEPro Technologies — EB Doc 6 §2
+# ============================================================
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  namespace: ios-plus
+
+# ── Middleware Engine ─────────────────────────────────────────
+middlewareEngine:
+  enabled: true
+  replicaCount: 3
+  image:
+    repository: smepro/ios-plus-middleware-engine
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "2"
+      memory: "8Gi"
+    limits:
+      cpu: "4"
+      memory: "16Gi"
+  env:
+    LOG_LEVEL: "info"
+    PORT: "3000"
+    NODE_ENV: "production"
+  service:
+    type: ClusterIP
+    port: 3000
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+# ── Gate 530 Sidecar ──────────────────────────────────────────
+gate530:
+  enabled: true
+  image:
+    repository: smepro/ios-plus-gate-530
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  config:
+    ipcSocketPath: /tmp/gate530.sock
+    failClosedOnTimeout: true
+    timeoutMs: 50
+    sessionCacheTtlSeconds: 900
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+
+# ── Evidence Fabric ───────────────────────────────────────────
+evidenceFabric:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: smepro/ios-plus-evidence-fabric
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+  vault:
+    addr: ""           # Override in values.production.yaml
+    keyPath: "transit/keys/ios-evidence-signing"
+    mountPath: "transit"
+  service:
+    type: ClusterIP
+    grpcPort: 50051
+
+# ── RAG Vault ─────────────────────────────────────────────────
+ragVault:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: smepro/ios-plus-rag-vault
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+  config:
+    embeddingModel: "text-embedding-3-large"
+    embeddingDimensions: 3072
+    maxChunksPerQuery: 12
+    similarityThreshold: 0.72
+  service:
+    type: ClusterIP
+    grpcPort: 50052
+
+# ── COS+ Database (PostgreSQL 16) ─────────────────────────────
+cosPlus:
+  enabled: true
+  image:
+    repository: pgvector/pgvector
+    tag: "pg16"
+    pullPolicy: IfNotPresent
+  persistence:
+    enabled: true
+    size: 200Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: "4"
+      memory: "16Gi"
+    limits:
+      cpu: "8"
+      memory: "32Gi"
+  config:
+    sharedBuffers: "16GB"
+    walLevel: "replica"
+    archiveTimeout: 900     # 15-minute RPO
+    maxConnections: 200
+  service:
+    type: ClusterIP
+    port: 5432
+
+# ── Redis HA (Gate 530 session cache) ─────────────────────────
+redis:
+  enabled: true
+  architecture: replication
+  auth:
+    enabled: true
+    existingSecret: ios-plus-redis-secret
+    existingSecretPasswordKey: redis-password
+  replica:
+    replicaCount: 3
+  master:
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "1"
+        memory: "2Gi"
+
+# ── Jobs ──────────────────────────────────────────────────────
+jobs:
+  ucoEmbedding:
+    enabled: true
+    image:
+      repository: smepro/ios-plus-rag-vault
+      tag: "1.0.0"
+  ragIngestion:
+    enabled: true
+    image:
+      repository: smepro/ios-plus-rag-vault
+      tag: "1.0.0"
+
+# ── CronJobs ──────────────────────────────────────────────────
+cronJobs:
+  wormIntegrityCheck:
+    enabled: true
+    schedule: "0 2 * * *"      # 02:00 UTC daily
+    image:
+      repository: smepro/ios-plus-ops
+      tag: "1.0.0"
+  merkleRootPublisher:
+    enabled: true
+    schedule: "*/15 * * * *"   # every 15 min (RPO alignment)
+    image:
+      repository: smepro/ios-plus-ops
+      tag: "1.0.0"
+  keyConsistencyCheck:
+    enabled: true
+    schedule: "0 * * * *"      # hourly
+    image:
+      repository: smepro/ios-plus-ops
+      tag: "1.0.0"
+
+# ── Secrets (populated from HashiCorp Vault / K8s secrets) ───
+secrets:
+  vaultToken: ""
+  databasePasswords:
+    iosApp: ""
+    auditWriter: ""
+    auditReader: ""
+    ragReader: ""
+    ragWriter: ""
+    cosAdmin: ""
+  openaiApiKey: ""
+  dnsTxtZone: "_ios-signing-key.smeprotech.com"

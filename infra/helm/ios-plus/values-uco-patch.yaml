@@ -1,0 +1,80 @@
+##############################################################################
+# values-uco-patch.yaml — UCO Seed Validation additions
+# SMEPro Technologies — IOS+ Middleware Engine
+#
+# Merge these values into infra/helm/ios-plus/values.yaml
+# Reference: Engineering Body Document 6 §3.2, EB-4 §2
+#
+# Sections added:
+#   ucoSeedValidation  — CronJob + one-shot Job configuration
+#   ops.image          — Ops container image (Dockerfile.ops)
+##############################################################################
+
+# ---------------------------------------------------------------------------
+# Ops image — used by uco-seed-validation CronJob / Job
+# Build from docker/Dockerfile.ops
+# ---------------------------------------------------------------------------
+ops:
+  image:
+    repository: gcr.io/smepro-prod/ios-plus-ops
+    tag: ""          # Defaults to .Chart.AppVersion
+    pullPolicy: IfNotPresent
+
+# ---------------------------------------------------------------------------
+# UCO Seed Validation
+# CronJob:  runs daily at 03:00 UTC (see templates/cronjobs/uco-seed-validation.yaml)
+# One-shot: triggered post-deploy or manually  (see templates/jobs/uco-seed-validation-job.yaml)
+# ---------------------------------------------------------------------------
+ucoSeedValidation:
+  # -- Enable/disable the daily CronJob
+  enabled: true
+
+  # -- Cron schedule (UTC). Offset from worm-integrity-check (02:00) to
+  #    avoid simultaneous DB load spikes.
+  schedule: "0 3 * * *"
+
+  # -- Hard timeout for the validation job (seconds)
+  timeoutSeconds: 300
+
+  # -- How long to retain completed Job pods (seconds)
+  ttlAfterFinished: 86400   # 24 hours
+
+  # -- Trigger a one-shot Job on this Helm release (set to true for post-deploy)
+  runJobNow: false
+
+  # -- Post-deploy Job configuration
+  postDeployJob:
+    enabled: false
+    # -- Register as a Helm post-install/post-upgrade hook
+    helmHook: true
+    # -- Hard timeout for the one-shot Job (seconds — allow extra time for
+    #    COS+ to settle after migration)
+    timeoutSeconds: 600
+    ttlAfterFinished: 3600  # 1 hour
+
+  # -- Resource requests/limits for the validator container
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+  # -- Node selector (optional — target compliance node pool)
+  nodeSelector: {}
+  #  cloud.google.com/gke-nodepool: compliance-ops
+
+  # -- Tolerations (optional)
+  tolerations: []
+
+# ---------------------------------------------------------------------------
+# COS+ secrets — audit_reader role (read-only)
+# Secret must contain key 'dsn' with PostgreSQL DSN string.
+# Reference: EB-3 §3.2 — audit_reader role definition
+# ---------------------------------------------------------------------------
+cosPlus:
+  # Name of the K8s Secret holding the audit_reader DSN
+  auditReaderSecretName: cos-plus-audit-reader
+  # Name of the K8s Secret holding the ios_app DSN (used by middleware engine)
+  appSecretName: cos-plus-app

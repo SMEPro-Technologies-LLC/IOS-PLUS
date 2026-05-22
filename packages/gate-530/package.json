@@ -1,0 +1,16 @@
+{
+  "name": "@ios-plus/gate-530",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" } },
+  "scripts": { "build": "tsc --project tsconfig.json", "typecheck": "tsc --noEmit", "clean": "rm -rf dist" },
+  "dependencies": {
+    "@ios-plus/shared": "*",
+    "@ios-plus/cos-plus": "*",
+    "ioredis": "^5.3.0"
+  },
+  "devDependencies": { "@types/ioredis": "^4.28.0", "typescript": "^5.4.0" }
+}

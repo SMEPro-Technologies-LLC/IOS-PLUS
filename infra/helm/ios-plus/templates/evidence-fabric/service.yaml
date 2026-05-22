@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: evidence-fabric
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: evidence-fabric
+  ports:
+    - port: {{ .Values.evidenceFabric.service.grpcPort }}
+      targetPort: {{ .Values.evidenceFabric.service.grpcPort }}
+      name: grpc
+  type: {{ .Values.evidenceFabric.service.type }}

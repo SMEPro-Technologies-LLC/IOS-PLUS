@@ -1,0 +1,24 @@
+# IOS+ Monorepo CODEOWNERS
+# SMEPro Technologies — Engineering
+
+# Default owner for all files
+*                                           @smepro/engineering
+
+# Core packages — require senior engineering review
+packages/middleware-engine/**               @smepro/senior-engineering
+packages/gate-530/**                        @smepro/senior-engineering @smepro/compliance
+packages/evidence-fabric/**                 @smepro/senior-engineering @smepro/security
+
+# Database migrations — require DBA + compliance review
+db/migrations/**                            @smepro/dba @smepro/compliance
+db/grants/**                                @smepro/dba @smepro/security
+
+# Infrastructure — require DevOps + security review
+infra/**                                    @smepro/devops @smepro/security
+.github/workflows/**                        @smepro/devops @smepro/senior-engineering
+
+# Helm chart production values — gated
+infra/helm/ios-plus/values.production.yaml  @smepro/devops @smepro/cto
+
+# Cryptographic scripts — highest gate
+scripts/ceremony/**                         @smepro/security @smepro/cto

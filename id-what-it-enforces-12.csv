@@ -1,0 +1,13 @@
+﻿ID,What it enforces,Fail condition
+V-001,Total active nodes = 350,Any deviation
+V-002,BLOCK=192 / APPROVE=108 / ESCALATE=50,Any single bucket off
+V-003,Risk weight floor ≥ 5 on every node,Any node below 5
+V-004,Per-sector counts match all 20 UDM sectors,Missing/extra sector or wrong count
+V-005,XSC cross-cutting nodes = 19,Any deviation
+V-006,All 30 required columns non-NULL on every active node,Any NULL on required field
+V-007,agency_registry ≥ 80 agencies + FK integrity from uco_nodes,Orphan agency code or count below floor
+V-008,naics_decoder FK integrity — all codes in uco_nodes resolve,Any unresolvable NAICS code
+V-009,code_crosswalk covers all 6 code systems (CIP/SIC/NAICS/SOC/ISIC/HS-HTS),Any system absent
+V-010,All 20 RAG Vault partitions represented in uco_nodes.embedding_partition,Fewer than 20 distinct partitions
+V-011,Gate 530 dimensions 1–6 all present,Missing dimension or out-of-range value
+V-012,Excel UDM row count = DB node count (optional — CI dispatch only),Row count mismatch = schema drift

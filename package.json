@@ -1,0 +1,30 @@
+{
+  "name": "ios-plus-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": ">=20.12.2" },
+  "workspaces": [
+    "packages/shared",
+    "packages/middleware-engine",
+    "packages/gate-530",
+    "packages/evidence-fabric",
+    "packages/rag-vault",
+    "packages/cos-plus",
+    "packages/uco-resolver"
+  ],
+  "scripts": {
+    "build":           "turbo run build",
+    "test":            "turbo run test",
+    "lint":            "turbo run lint",
+    "typecheck":       "turbo run typecheck",
+    "clean":           "turbo run clean",
+    "db:migrate":      "flyway migrate",
+    "db:verify-worm":  "psql $DATABASE_URL_AUDIT_READER -f scripts/db/verify_worm_triggers.sql",
+    "ops:verify-keys": "python3 scripts/ops/verify_key_publication_consistency.py",
+    "dev":             "docker compose up -d"
+  },
+  "devDependencies": {
+    "turbo":      "^1.13.0",
+    "typescript": "^5.4.0"
+  }
+}

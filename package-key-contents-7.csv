@@ -1,0 +1,8 @@
+﻿Package,Key Contents
+"'@ios-plus/shared","UCONode (30-col), EvidencePackage, GateDecisionRecord, InferenceRequest/Response, all enums"
+"'@ios-plus/uco-resolver",NAICS profile → UCO node selector; XSC-5xxx always injected; Redis-backed cache
+"'@ios-plus/middleware-engine",L1–L7 layer modules + pipeline orchestrator + Express REST transport
+"'@ios-plus/gate-530",6-dimension evaluator; IPC Unix socket /tmp/gate530.sock; failClosedOnTimeout=true
+"'@ios-plus/evidence-fabric",Ed25519 over JCS/RFC 8785; WORM commit via audit_writer; Merkle root publisher
+"'@ios-plus/rag-vault","20-partition HNSW search; ef_search per risk tier (CRITICAL=128, HIGH=64, MEDIUM=40)"
+"'@ios-plus/cos-plus",Per-role connection pools for all 6 named PostgreSQL roles; P99 < 8ms

@@ -1,0 +1,7 @@
+﻿Script,Purpose
+scripts/ceremony/key_ceremony.sh,Ed25519 keygen → Vault transit → triple-publish
+scripts/ops/verify_key_publication_consistency.py,DB vs. DNS vs. filesystem cross-check
+scripts/ops/verify_evidence_package.py,Ed25519/JCS signature re-verification
+scripts/ops/verify_merkle_root.py,SHA-256 Merkle batch computation + DNS publish
+scripts/ops/weekly_worm_check.py,Full integrity audit: triggers + row counts + UCO matrix
+scripts/db/load_uco_seeds.py,"Excel → COS+ loader (all 350 nodes, openpyxl)"

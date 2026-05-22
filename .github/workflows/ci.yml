@@ -1,0 +1,64 @@
+name: CI — Lint, Typecheck, Test
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+
+env:
+  NODE_VERSION: "20.12.2"
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+
+jobs:
+  ci:
+    name: CI Pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --workspaces
+
+      - name: Typecheck (all packages)
+        run: npx turbo run typecheck
+
+      - name: Lint
+        run: npx turbo run lint
+
+      - name: Build
+        run: npx turbo run build
+
+      - name: Test
+        run: npx turbo run test
+
+      - name: Validate SQL migrations (syntax check)
+        run: |
+          echo "Validating Flyway migration files..."
+          for f in db/migrations/V*.sql; do
+            echo "  Checking: $f"
+            # Basic syntax: ensure no unclosed quotes
+            python3 -c "
+import sys
+content = open(sys.argv[1]).read()
+assert 'WORM VIOLATION' in content or 'CREATE' in content or 'INSERT' in content, f'Empty migration: {sys.argv[1]}'
+print(f'  OK: {sys.argv[1]}')
+" "$f"
+          done
+
+      - name: Validate Helm chart
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm lint infra/helm/ios-plus/

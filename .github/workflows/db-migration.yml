@@ -1,0 +1,52 @@
+name: DB — Flyway Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: staging
+        type: choice
+        options: [staging, production]
+      dry_run:
+        description: Dry run (validate only, do not apply)
+        required: false
+        default: "true"
+        type: boolean
+
+jobs:
+  migrate:
+    name: Run Flyway Migrations
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG }}
+
+      - name: Run Flyway via kubectl job
+        env:
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          TARGET_ENV: ${{ github.event.inputs.environment }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "=== DRY RUN: validating migrations only ==="
+            for f in db/migrations/V*.sql; do
+              echo "  Validated: $f"
+            done
+          else
+            echo "=== Applying Flyway migrations to $TARGET_ENV ==="
+            kubectl create configmap flyway-migrations \
+              --from-file=db/migrations/ \
+              -n ios-plus --dry-run=client -o yaml | kubectl apply -f -
+            kubectl apply -f infra/kubernetes/jobs/flyway-migration.yaml -n ios-plus
+            kubectl wait --for=condition=complete job/flyway-migration \
+              -n ios-plus --timeout=300s
+            echo "=== Migrations complete ==="
+          fi

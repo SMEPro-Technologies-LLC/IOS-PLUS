@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: uco-embedding
+  namespace: {{ .Values.global.namespace }}
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: uco-embedding
+          image: "{{ .Values.jobs.ucoEmbedding.image.repository }}:{{ .Values.jobs.ucoEmbedding.image.tag }}"
+          command: ["node", "dist/jobs/embed-uco-nodes.js"]
+          envFrom:
+            - configMapRef:
+                name: ios-plus-config
+          env:
+            - name: DATABASE_URL_RAG_WRITER
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-db-secrets
+                  key: rag-writer-url
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-secrets
+                  key: openai-api-key
+      serviceAccountName: ios-plus-sa

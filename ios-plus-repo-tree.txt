@@ -1,0 +1,180 @@
+ios-plus/ — IOS+ Middleware Engine & COS+ Database
+SMEPro Technologies — GitHub Repository
+============================================================
+
+├── .env.example
+├── .gitignore
+├── .nvmrc
+├── README.md
+├── docker-compose.yml
+├── package.json
+├── tsconfig.base.json
+├── turbo.json
+│   ├── .github/
+│   ├── CODEOWNERS
+│   │   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.yml
+│   │   ├── compliance_incident.yml
+│   │   ├── workflows/
+│   │   ├── cd-production.yml
+│   │   ├── cd-staging.yml
+│   │   ├── ci.yml
+│   │   ├── db-migration.yml
+│   │   ├── security-scan.yml
+│   │   ├── {workflows,ISSUE_TEMPLATE}/
+│   ├── db/
+│   │   ├── grants/
+│   │   ├── role_grants.sql
+│   │   ├── migrations/
+│   │   ├── V1__core_operational.sql
+│   │   ├── V2__audit_worm.sql
+│   │   ├── V3__rag_vault.sql
+│   │   ├── V4__uco_amendment.sql
+│   │   ├── seeds/
+│   │   │   ├── stubs/
+│   │   │   ├── .gitkeep
+│   │   │   ├── agency_registry.csv
+│   │   │   ├── code_crosswalk.csv
+│   │   │   ├── compliance_chains.csv
+│   │   │   ├── naics_decoder.csv
+│   │   │   ├── uco_nodes.csv
+│   │   ├── {migrations,grants,seeds/
+│   │   │   ├── stubs}/
+│   ├── docker/
+│   ├── Dockerfile.cos-plus
+│   ├── Dockerfile.evidence-fabric
+│   ├── Dockerfile.gate-530
+│   ├── Dockerfile.middleware-engine
+│   ├── Dockerfile.rag-vault
+│   ├── Dockerfile.uco-resolver
+│   ├── docs/
+│   │   ├── engineering-body/
+│   │   ├── .gitkeep
+│   │   ├── volumes/
+│   │   ├── .gitkeep
+│   ├── infra/
+│   │   ├── helm/
+│   │   │   ├── ios-plus/
+│   │   │   ├── Chart.yaml
+│   │   │   ├── values.production.yaml
+│   │   │   ├── values.yaml
+│   │   │   │   ├── templates/
+│   │   │   │   │   ├── cronjobs/
+│   │   │   │   │   ├── key-consistency-check.yaml
+│   │   │   │   │   ├── merkle-root-publisher.yaml
+│   │   │   │   │   ├── worm-integrity-check.yaml
+│   │   │   │   │   ├── evidence-fabric/
+│   │   │   │   │   ├── deployment.yaml
+│   │   │   │   │   ├── service.yaml
+│   │   │   │   │   ├── gate-530/
+│   │   │   │   │   ├── jobs/
+│   │   │   │   │   ├── uco-embedding.yaml
+│   │   │   │   │   ├── middleware-engine/
+│   │   │   │   │   ├── deployment.yaml
+│   │   │   │   │   ├── hpa.yaml
+│   │   │   │   │   ├── service.yaml
+│   │   │   │   │   ├── rag-vault/
+│   │   │   │   │   ├── deployment.yaml
+│   │   │   │   │   ├── redis/
+│   │   │   │   │   ├── shared/
+│   │   │   │   │   ├── configmap.yaml
+│   │   │   │   │   ├── namespace.yaml
+│   │   │   │   │   ├── networkpolicy.yaml
+│   │   │   │   │   ├── serviceaccount.yaml
+│   │   │   │   │   ├── {middleware-engine,gate-530,evidence-fabric,rag-vault,redis,jobs,cronjobs,shared}/
+│   │   ├── kubernetes/
+│   │   │   ├── rbac/
+│   │   │   ├── .gitkeep
+│   │   ├── terraform/
+│   │   ├── main.tf
+│   │   ├── outputs.tf
+│   │   ├── variables.tf
+│   ├── packages/
+│   │   ├── cos-plus/
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   │   ├── src/
+│   │   │   ├── index.ts
+│   │   ├── evidence-fabric/
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   │   ├── src/
+│   │   │   ├── index.ts
+│   │   ├── gate-530/
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   │   ├── src/
+│   │   │   ├── index.ts
+│   │   ├── middleware-engine/
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   │   ├── src/
+│   │   │   ├── index.ts
+│   │   │   │   ├── layers/
+│   │   │   │   ├── L1_ingestion.ts
+│   │   │   │   ├── L2_semantic.ts
+│   │   │   │   ├── L3_ontology.ts
+│   │   │   │   ├── L4_evidence.ts
+│   │   │   │   ├── L5_gate530.ts
+│   │   │   │   ├── L6_rag.ts
+│   │   │   │   ├── L7_synthesis.ts
+│   │   │   │   ├── orchestrator/
+│   │   │   │   ├── pipeline.ts
+│   │   │   │   ├── transport/
+│   │   │   │   ├── rest.ts
+│   │   │   │   ├── {transport,orchestrator,layers}/
+│   │   ├── rag-vault/
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   │   ├── src/
+│   │   │   ├── index.ts
+│   │   ├── shared/
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   │   ├── src/
+│   │   │   ├── index.ts
+│   │   │   │   ├── types/
+│   │   │   │   ├── evidence.ts
+│   │   │   │   ├── inference.ts
+│   │   │   │   ├── uco.ts
+│   │   │   │   ├── utils/
+│   │   │   │   ├── {types,utils}/
+│   │   ├── uco-resolver/
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   │   ├── src/
+│   │   │   ├── index.ts
+│   ├── scripts/
+│   │   ├── ceremony/
+│   │   ├── key_ceremony.sh
+│   │   ├── db/
+│   │   ├── load_uco_seeds.py
+│   │   ├── verify_worm_triggers.sql
+│   │   ├── ops/
+│   │   ├── verify_evidence_package.py
+│   │   ├── verify_key_publication_consistency.py
+│   │   ├── verify_merkle_root.py
+│   │   ├── weekly_worm_check.py
+│   │   ├── {db,ops,ceremony}/
+│   ├── {.github/
+│   │   ├── {workflows,ISSUE_TEMPLATE},packages/
+│   │   │   ├── {shared/
+│   │   │   │   ├── src/
+│   │   │   │   │   ├── {types,utils},middleware-engine/
+│   │   │   │   │   │   ├── src/
+│   │   │   │   │   │   │   ├── {transport,orchestrator,layers},gate-530/
+│   │   │   │   │   │   │   │   ├── src,evidence-fabric/
+│   │   │   │   │   │   │   │   │   ├── src,rag-vault/
+│   │   │   │   │   │   │   │   │   │   ├── src,cos-plus/
+│   │   │   │   │   │   │   │   │   │   │   ├── src,uco-resolver/
+│   │   │   │   │   │   │   │   │   │   │   │   ├── src},infra/
+│   │   │   │   │   │   │   │   │   │   │   │   │   ├── {helm/
+│   │   │   │   │   │   │   │   │   │   │   │   │   │   ├── ios-plus/
+│   │   │   │   │   │   │   │   │   │   │   │   │   │   │   ├── templates/
+│   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   ├── {middleware-engine,gate-530,evidence-fabric,rag-vault,redis,jobs,cronjobs,shared},kubernetes/
+│   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   ├── rbac,terraform},db/
+│   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   ├── {migrations,grants,seeds,seeds/
+│   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   ├── stubs},scripts/
+│   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   │   ├── {db,ops,ceremony},docs}/
+
+Total files: 96

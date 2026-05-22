@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: middleware-engine
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: middleware-engine
+    app.kubernetes.io/component: middleware-engine
+spec:
+  replicas: {{ .Values.middlewareEngine.replicaCount }}
+  selector:
+    matchLabels:
+      app: middleware-engine
+  template:
+    metadata:
+      labels:
+        app: middleware-engine
+    spec:
+      serviceAccountName: ios-plus-sa
+      containers:
+        - name: middleware-engine
+          image: "{{ .Values.middlewareEngine.image.repository }}:{{ .Values.middlewareEngine.image.tag }}"
+          imagePullPolicy: {{ .Values.middlewareEngine.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.middlewareEngine.service.port }}
+          envFrom:
+            - configMapRef:
+                name: ios-plus-config
+          env:
+            - name: PORT
+              value: {{ .Values.middlewareEngine.service.port | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.middlewareEngine.env.LOG_LEVEL | quote }}
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-secrets
+                  key: redis-url
+            - name: DATABASE_URL_IOS_APP
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-db-secrets
+                  key: ios-app-url
+          resources:
+            requests:
+              cpu: {{ .Values.middlewareEngine.resources.requests.cpu | quote }}
+              memory: {{ .Values.middlewareEngine.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.middlewareEngine.resources.limits.cpu | quote }}
+              memory: {{ .Values.middlewareEngine.resources.limits.memory }}
+          volumeMounts:
+            - name: gate530-socket
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.middlewareEngine.service.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: {{ .Values.middlewareEngine.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+        - name: gate-530-sidecar
+          image: "{{ .Values.gate530.image.repository }}:{{ .Values.gate530.image.tag }}"
+          imagePullPolicy: {{ .Values.gate530.image.pullPolicy }}
+          env:
+            - name: GATE530_IPC_SOCKET
+              value: {{ .Values.gate530.config.ipcSocketPath | quote }}
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-secrets
+                  key: redis-url
+          resources:
+            requests:
+              cpu: {{ .Values.gate530.resources.requests.cpu | quote }}
+              memory: {{ .Values.gate530.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.gate530.resources.limits.cpu | quote }}
+              memory: {{ .Values.gate530.resources.limits.memory }}
+          volumeMounts:
+            - name: gate530-socket
+              mountPath: /tmp
+      volumes:
+        - name: gate530-socket
+          emptyDir: {}

@@ -1,0 +1,51 @@
+name: Bug Report
+description: Report a bug in the IOS+ platform
+title: "[BUG] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug. Please fill out all fields.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      options:
+        - middleware-engine
+        - gate-530
+        - evidence-fabric
+        - rag-vault
+        - cos-plus
+        - uco-resolver
+        - infra/helm
+        - db/migrations
+        - scripts
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      placeholder: What happened? What did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version / Git SHA
+    validations:
+      required: true

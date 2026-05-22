@@ -1,0 +1,257 @@
+{{/*
+uco-seed-validation-job.yaml
+SMEPro Technologies — IOS+ Middleware Engine
+
+Helm Job — UCO Seed Integrity Validation (One-Shot / Post-Deployment)
+Reference: Engineering Body Documents 1 §6.4, 3 §4.1, 4 §2
+
+This is a one-shot Kubernetes Job intended for:
+  1. Post-deployment validation after Flyway V4 migration (EB-6 §5.3)
+  2. Manual ad-hoc validation via `helm upgrade --set ucoSeedValidation.runJobNow=true`
+  3. GitOps pipelines that apply the manifest directly after db-migration.yml
+
+The Job is only rendered when .Values.ucoSeedValidation.runJobNow is true
+OR when .Values.ucoSeedValidation.postDeployJob.enabled is true.
+
+Usage (Helm):
+  helm upgrade ios-plus ./infra/helm/ios-plus \
+    --set ucoSeedValidation.runJobNow=true \
+    --wait \
+    --timeout 10m
+
+Usage (kubectl apply):
+  kubectl apply -f infra/helm/ios-plus/templates/jobs/uco-seed-validation-job.yaml
+
+Difference from CronJob:
+  - CronJob  → scheduled daily (03:00 UTC), ongoing monitoring
+  - This Job → one-shot, triggered on deploy or manually, fails deployment
+               pipeline if UCO seed integrity is not confirmed
+*/}}
+{{- if or .Values.ucoSeedValidation.runJobNow .Values.ucoSeedValidation.postDeployJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "ios-plus.fullname" . }}-uco-seed-validation-{{ now | date "20060102-150405" }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ios-plus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: uco-seed-validation-job
+    smepro.io/security-class: compliance-validation
+    smepro.io/job-type: post-deploy-validation
+    smepro.io/eb-reference: "EB-3-EB-4-EB-6"
+  annotations:
+    smepro.io/uco-checks: "12"
+    smepro.io/expected-nodes: "350"
+    smepro.io/trigger: {{ .Values.ucoSeedValidation.runJobNow | ternary "manual" "post-deploy" | quote }}
+    smepro.io/description: "One-shot UCO seed integrity validation — post-deployment gate"
+    # Helm hook: run after all resources are deployed
+    {{- if .Values.ucoSeedValidation.postDeployJob.helmHook }}
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- end }}
+spec:
+  # Hard deadline — fail if not complete within 10 minutes
+  activeDeadlineSeconds: {{ .Values.ucoSeedValidation.postDeployJob.timeoutSeconds | default 600 }}
+  backoffLimit: 1       # One retry, then fail the deployment pipeline
+  completions: 1
+  parallelism: 1
+  ttlSecondsAfterFinished: {{ .Values.ucoSeedValidation.postDeployJob.ttlAfterFinished | default 3600 }}
+
+  template:
+    metadata:
+      labels:
+        {{- include "ios-plus.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: uco-seed-validation-job
+        smepro.io/job-type: post-deploy-validation
+      annotations:
+        sidecar.istio.io/inject: "false"
+        prometheus.io/scrape: "false"
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "ios-plus.serviceAccountName" . }}-ops
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+
+      {{- with .Values.ucoSeedValidation.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.ucoSeedValidation.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      initContainers:
+        # ------------------------------------------------------------------
+        # Wait for COS+ to be ready (especially important post-migration)
+        # ------------------------------------------------------------------
+        - name: wait-for-cos-plus
+          image: {{ .Values.ops.image.repository }}:{{ .Values.ops.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.ops.image.pullPolicy | default "IfNotPresent" }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Waiting for COS+ readiness post-migration..."
+              python3 -c "
+              import psycopg2, os, sys, time
+              dsn = os.environ['COS_PLUS_DSN']
+              # Post-migration: allow up to 60 seconds for PG to settle
+              for attempt in range(20):
+                  try:
+                      conn = psycopg2.connect(dsn, connect_timeout=5)
+                      # Verify the V4 migration tables exist before proceeding
+                      cur = conn.cursor()
+                      cur.execute(\"SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'uco_nodes'\")
+                      row = cur.fetchone()
+                      if row[0] == 0:
+                          raise Exception('uco_nodes table not found — V4 migration incomplete')
+                      conn.close()
+                      print('COS+ ready with V4 schema confirmed.')
+                      sys.exit(0)
+                  except Exception as e:
+                      print(f'Attempt {attempt+1}/20: {e}')
+                      time.sleep(3)
+              print('FATAL: COS+ not ready after 60 seconds post-migration')
+              sys.exit(1)
+              "
+          env:
+            - name: COS_PLUS_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cosPlus.auditReaderSecretName | default "cos-plus-audit-reader" }}
+                  key: dsn
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+
+        # ------------------------------------------------------------------
+        # Verify Flyway V4 migration checksum integrity before validating seeds
+        # Reference: EB-6 §5.3 — post-migration validation sequence
+        # ------------------------------------------------------------------
+        - name: verify-migration-checksum
+          image: {{ .Values.ops.image.repository }}:{{ .Values.ops.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.ops.image.pullPolicy | default "IfNotPresent" }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Verifying Flyway migration checksums..."
+              python3 -c "
+              import psycopg2, os, sys
+              dsn = os.environ['COS_PLUS_DSN']
+              conn = psycopg2.connect(dsn)
+              cur = conn.cursor()
+              # Check all 4 migrations succeeded
+              cur.execute('''
+                  SELECT version, description, success
+                  FROM flyway_schema_history
+                  ORDER BY installed_rank
+              ''')
+              rows = cur.fetchall()
+              failed = [r for r in rows if not r[2]]
+              if failed:
+                  for r in failed:
+                      print(f'FAILED migration: V{r[0]} — {r[1]}')
+                  sys.exit(1)
+              versions = [r[0] for r in rows]
+              required = ['1', '2', '3', '4']
+              missing = [v for v in required if v not in versions]
+              if missing:
+                  print(f'Missing migrations: {missing}')
+                  sys.exit(1)
+              print(f'All {len(rows)} migrations verified: {versions}')
+              conn.close()
+              "
+          env:
+            - name: COS_PLUS_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cosPlus.auditReaderSecretName | default "cos-plus-audit-reader" }}
+                  key: dsn
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+
+      containers:
+        # ------------------------------------------------------------------
+        # Main: UCO Seed Validator (12 checks)
+        # ------------------------------------------------------------------
+        - name: uco-seed-validator
+          image: {{ .Values.ops.image.repository }}:{{ .Values.ops.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.ops.image.pullPolicy | default "IfNotPresent" }}
+          command:
+            - python3
+            - /scripts/validate_uco_seed.py
+            - --output-dir
+            - /tmp/uco-validation
+
+          env:
+            - name: COS_PLUS_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.cosPlus.auditReaderSecretName | default "cos-plus-audit-reader" }}
+                  key: dsn
+            - name: VALIDATE_OUTPUT
+              value: /tmp/uco-validation
+            - name: UCO_EXCEL_PATH
+              value: ""
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+
+          resources:
+            requests:
+              cpu: {{ .Values.ucoSeedValidation.resources.requests.cpu | default "100m" | quote }}
+              memory: {{ .Values.ucoSeedValidation.resources.requests.memory | default "256Mi" | quote }}
+            limits:
+              cpu: {{ .Values.ucoSeedValidation.resources.limits.cpu | default "500m" | quote }}
+              memory: {{ .Values.ucoSeedValidation.resources.limits.memory | default "512Mi" | quote }}
+
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+
+      volumes:
+        - name: tmp-dir
+          emptyDir:
+            sizeLimit: 100Mi
+        - name: scripts
+          configMap:
+            name: {{ include "ios-plus.fullname" . }}-ops-scripts
+            defaultMode: 0755
+
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+{{- end }}

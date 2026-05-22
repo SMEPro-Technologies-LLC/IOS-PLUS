@@ -1,0 +1,196 @@
+{{/*
+uco-seed-validation.yaml
+SMEPro Technologies — IOS+ Middleware Engine
+
+Helm CronJob — UCO Seed Integrity Validation (On-Cluster)
+Reference: Engineering Body Documents 1 §6, 3 §4.1, 4 §2
+
+Runs validate_uco_seed.py daily at 03:00 UTC against the live COS+ database
+via the audit_reader role (read-only — never cos_admin).
+
+Results are written to the pod's /tmp/uco-validation directory and surfaced
+via structured log lines that Loki / Cloud Logging can ingest for alerting.
+
+UCO checks performed (12 total):
+  UCO-V-001  Total nodes = 350
+  UCO-V-002  BLOCK=192 / APPROVE=108 / ESCALATE=50
+  UCO-V-003  Risk weight floor ≥ 5
+  UCO-V-004  Per-sector node counts (19 NAICS + XSC)
+  UCO-V-005  XSC cross-cutting nodes = 19
+  UCO-V-006  All 30 required columns non-NULL
+  UCO-V-007  agency_registry ≥ 80 agencies + FK integrity
+  UCO-V-008  naics_decoder FK integrity
+  UCO-V-009  code_crosswalk covers 6 code systems
+  UCO-V-010  20 RAG Vault partitions represented
+  UCO-V-011  Gate 530 dimensions 1–6 all present
+  UCO-V-012  Excel UDM cross-check (disabled in cluster run)
+*/}}
+{{- if .Values.ucoSeedValidation.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "ios-plus.fullname" . }}-uco-seed-validation
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ios-plus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: uco-seed-validation
+    smepro.io/security-class: compliance-validation
+    smepro.io/eb-reference: "EB-3-EB-4"
+  annotations:
+    smepro.io/uco-checks: "12"
+    smepro.io/expected-nodes: "350"
+    smepro.io/description: "Daily UCO seed integrity check — 350 nodes, 12 validators"
+spec:
+  # Daily at 03:00 UTC — offset from worm-integrity-check (02:00) to avoid
+  # simultaneous DB load spikes on COS+.
+  schedule: {{ .Values.ucoSeedValidation.schedule | default "0 3 * * *" | quote }}
+  timeZone: "UTC"
+  concurrencyPolicy: Forbid          # Never run two validation jobs simultaneously
+  successfulJobsHistoryLimit: 7      # Retain 7 days of success history
+  failedJobsHistoryLimit: 14         # Retain 14 days of failure history for audit
+  startingDeadlineSeconds: 600       # Allow up to 10 min late start
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "ios-plus.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: uco-seed-validation
+        smepro.io/job-type: scheduled-validation
+    spec:
+      # Fail fast — validation should complete in < 5 minutes
+      activeDeadlineSeconds: {{ .Values.ucoSeedValidation.timeoutSeconds | default 300 }}
+      backoffLimit: 2
+      ttlSecondsAfterFinished: {{ .Values.ucoSeedValidation.ttlAfterFinished | default 86400 }}
+      template:
+        metadata:
+          labels:
+            {{- include "ios-plus.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: uco-seed-validation
+          annotations:
+            # Exclude from Istio sidecar injection — this is a batch job
+            sidecar.istio.io/inject: "false"
+            # Prometheus scraping disabled for batch jobs
+            prometheus.io/scrape: "false"
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: {{ include "ios-plus.serviceAccountName" . }}-ops
+
+          # Security context — run as non-root
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            fsGroup: 1001
+            seccompProfile:
+              type: RuntimeDefault
+
+          # Prefer nodes in the compliance node pool if labeled
+          {{- with .Values.ucoSeedValidation.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.ucoSeedValidation.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+          initContainers:
+            # Verify COS+ is reachable before starting validation
+            - name: wait-for-cos-plus
+              image: {{ .Values.ops.image.repository }}:{{ .Values.ops.image.tag | default .Chart.AppVersion }}
+              imagePullPolicy: {{ .Values.ops.image.pullPolicy | default "IfNotPresent" }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  echo "Probing COS+ connectivity..."
+                  python3 -c "
+                  import psycopg2, os, sys, time
+                  dsn = os.environ['COS_PLUS_DSN']
+                  for attempt in range(10):
+                      try:
+                          conn = psycopg2.connect(dsn, connect_timeout=5)
+                          conn.close()
+                          print('COS+ reachable.')
+                          sys.exit(0)
+                      except Exception as e:
+                          print(f'Attempt {attempt+1}/10: {e}')
+                          time.sleep(3)
+                  print('FATAL: COS+ unreachable after 10 attempts')
+                  sys.exit(1)
+                  "
+              env:
+                - name: COS_PLUS_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.cosPlus.auditReaderSecretName | default "cos-plus-audit-reader" }}
+                      key: dsn
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "100m"
+                  memory: "128Mi"
+
+          containers:
+            - name: uco-seed-validator
+              image: {{ .Values.ops.image.repository }}:{{ .Values.ops.image.tag | default .Chart.AppVersion }}
+              imagePullPolicy: {{ .Values.ops.image.pullPolicy | default "IfNotPresent" }}
+              command:
+                - python3
+                - /scripts/validate_uco_seed.py
+                - --output-dir
+                - /tmp/uco-validation
+
+              env:
+                # audit_reader DSN — read-only role; never use cos_admin here
+                - name: COS_PLUS_DSN
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.cosPlus.auditReaderSecretName | default "cos-plus-audit-reader" }}
+                      key: dsn
+                - name: VALIDATE_OUTPUT
+                  value: /tmp/uco-validation
+                # Excel cross-check is disabled in cluster runs (no Excel file mounted)
+                # Enable only in CI workflow via --excel flag
+                - name: UCO_EXCEL_PATH
+                  value: ""
+
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false   # Writes reports to /tmp
+                capabilities:
+                  drop: ["ALL"]
+
+              resources:
+                requests:
+                  cpu: {{ .Values.ucoSeedValidation.resources.requests.cpu | default "100m" | quote }}
+                  memory: {{ .Values.ucoSeedValidation.resources.requests.memory | default "256Mi" | quote }}
+                limits:
+                  cpu: {{ .Values.ucoSeedValidation.resources.limits.cpu | default "500m" | quote }}
+                  memory: {{ .Values.ucoSeedValidation.resources.limits.memory | default "512Mi" | quote }}
+
+              volumeMounts:
+                - name: tmp-dir
+                  mountPath: /tmp
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+
+          volumes:
+            - name: tmp-dir
+              emptyDir:
+                sizeLimit: 100Mi
+            - name: scripts
+              configMap:
+                name: {{ include "ios-plus.fullname" . }}-ops-scripts
+                defaultMode: 0755
+
+          imagePullSecrets:
+            {{- toYaml .Values.imagePullSecrets | nindent 12 }}
+{{- end }}

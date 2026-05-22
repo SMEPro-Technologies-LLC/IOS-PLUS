@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: middleware-engine
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: middleware-engine
+  ports:
+    - port: {{ .Values.middlewareEngine.service.port }}
+      targetPort: {{ .Values.middlewareEngine.service.port }}
+  type: {{ .Values.middlewareEngine.service.type }}

@@ -1,0 +1,8 @@
+﻿Layer,Files
+TypeScript packages,"7 packages (shared, uco-resolver, middleware-engine, gate-530, evidence-fabric, rag-vault, cos-plus)"
+Flyway migrations,"V1–V4 (core_operational, audit_worm, rag_vault, uco_amendment)"
+GitHub Actions,"ci, cd-staging, cd-production, db-migration, security-scan (with 12-check UCO validator)"
+Helm chart,"Full chart with HPA, 4 CronJobs, NetworkPolicy, Vault agent"
+Seed CSVs,"uco_nodes.csv, agency_registry.csv, naics_decoder.csv, code_crosswalk.csv, compliance_chains.csv"
+Python ops scripts,"7 scripts (seed validation, key ceremony, WORM audit, Merkle verification)"
+Docker,6 package Dockerfiles + docker-compose.yml + Dockerfile.ops

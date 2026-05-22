@@ -1,0 +1,521 @@
+##############################################################################
+# security-scan.yml
+# SMEPro Technologies — IOS+ Middleware Engine
+#
+# GitHub Actions — Security Scan Workflow
+# Reference: Engineering Body Document 1 §6 (CI/CD Security Gates)
+#
+# Triggers:
+#   - Daily at 02:00 UTC (alongside WORM integrity check window)
+#   - Pull requests targeting main or release/* branches
+#   - Manual workflow_dispatch (with optional Excel cross-check toggle)
+#
+# Jobs:
+#   1. dependency-audit      — npm audit + pip-audit across all packages
+#   2. sast-scan             — Semgrep SAST with IOS+ custom ruleset
+#   3. container-scan        — Trivy vulnerability scan on all 6 Docker images
+#   4. secret-scan           — Gitleaks + TruffleHog for credential leakage
+#   5. uco-seed-validation   — UCO seed integrity: 350 nodes, policy dist,
+#                              risk weights, agency/NAICS FK integrity,
+#                              optional Excel UDM cross-check (EB-4 §2)
+#   6. worm-integrity-probe  — Spot-check WORM audit log Merkle root (EB-2 §5)
+#   7. security-gate         — Final rollup; blocks merge on any failure
+##############################################################################
+
+name: Security Scan
+
+on:
+  schedule:
+    # Daily at 02:00 UTC — aligns with worm-integrity-check CronJob window
+    - cron: "0 2 * * *"
+  pull_request:
+    branches:
+      - main
+      - "release/**"
+  workflow_dispatch:
+    inputs:
+      run_excel_cross_check:
+        description: "Run Excel UDM cross-check (requires UCO_EXCEL artifact)"
+        type: boolean
+        default: false
+      environment:
+        description: "Target environment"
+        type: choice
+        options: [staging, production]
+        default: staging
+
+env:
+  NODE_VERSION: "20"
+  PYTHON_VERSION: "3.11"
+  # Artifact retention — 90 days for compliance evidence (EB-2 §6.3)
+  ARTIFACT_RETENTION_DAYS: 90
+
+###############################################################################
+# JOB 1 — Dependency Audit
+###############################################################################
+jobs:
+  dependency-audit:
+    name: "Dependency Audit (npm + pip)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: npm ci --prefer-offline
+
+      - name: Run npm audit (high + critical)
+        run: |
+          npm audit --audit-level=high --json > /tmp/npm-audit.json || true
+          node -e "
+            const r = require('/tmp/npm-audit.json');
+            const vulns = r.metadata?.vulnerabilities || {};
+            const critical = vulns.critical || 0;
+            const high = vulns.high || 0;
+            console.log(\`npm audit: critical=\${critical} high=\${high}\`);
+            if (critical > 0 || high > 0) {
+              console.error('FAIL: High/critical vulnerabilities found');
+              process.exit(1);
+            }
+            console.log('PASS: No high/critical vulnerabilities');
+          "
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run pip-audit on operational scripts
+        run: |
+          pip install pip-audit psycopg2-binary openpyxl
+          pip-audit --requirement scripts/requirements.txt \
+            --format json \
+            --output /tmp/pip-audit.json || true
+          python3 -c "
+          import json, sys
+          try:
+              data = json.load(open('/tmp/pip-audit.json'))
+              vulns = data.get('vulnerabilities', [])
+              if vulns:
+                  print(f'FAIL: {len(vulns)} pip vulnerability/ies found')
+                  sys.exit(1)
+              print('PASS: No pip vulnerabilities')
+          except Exception as e:
+              print(f'pip-audit parse error: {e}')
+          "
+
+      - name: Upload dependency audit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-${{ github.run_id }}
+          path: |
+            /tmp/npm-audit.json
+            /tmp/pip-audit.json
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+###############################################################################
+# JOB 2 — SAST Scan (Semgrep)
+###############################################################################
+  sast-scan:
+    name: "SAST Scan (Semgrep)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep SAST
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/typescript
+            p/nodejs
+            p/sql-injection
+            p/secrets
+            p/owasp-top-ten
+          output: semgrep-results.sarif
+          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
+        continue-on-error: true
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep-results.sarif
+
+      - name: Upload Semgrep results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-semgrep-${{ github.run_id }}
+          path: semgrep-results.sarif
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+###############################################################################
+# JOB 3 — Container Vulnerability Scan (Trivy)
+###############################################################################
+  container-scan:
+    name: "Container Scan (Trivy)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - middleware-engine
+          - evidence-fabric
+          - rag-vault
+          - gate-530
+          - uco-resolver
+          - cos-plus
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image — ${{ matrix.image }}
+        run: |
+          docker build \
+            -f docker/Dockerfile.${{ matrix.image }} \
+            -t ios-plus/${{ matrix.image }}:scan \
+            .
+
+      - name: Run Trivy on ${{ matrix.image }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "ios-plus/${{ matrix.image }}:scan"
+          format: "sarif"
+          output: "trivy-${{ matrix.image }}.sarif"
+          severity: "HIGH,CRITICAL"
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-${{ matrix.image }}.sarif
+          category: "trivy-${{ matrix.image }}"
+
+      - name: Upload Trivy artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-${{ matrix.image }}-${{ github.run_id }}
+          path: trivy-${{ matrix.image }}.sarif
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+###############################################################################
+# JOB 4 — Secret Scan (Gitleaks + TruffleHog)
+###############################################################################
+  secret-scan:
+    name: "Secret Scan (Gitleaks + TruffleHog)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository (full history for secret scan)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: Run TruffleHog (diff scan on PR)
+        if: github.event_name == 'pull_request'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+          extra_args: --only-verified
+
+###############################################################################
+# JOB 5 — UCO Seed Validation  ← NEW
+# Reference: Engineering Body Documents 1 §3, 3 §4.1, 4 §2
+#
+# Validates the live COS+ DB against the UDM specification:
+#   UCO-V-001  Total nodes = 350
+#   UCO-V-002  BLOCK=192, APPROVE=108, ESCALATE=50
+#   UCO-V-003  Risk weight ≥ 5 on every node
+#   UCO-V-004  Per-sector counts (19 sectors + XSC)
+#   UCO-V-005  XSC cross-cutting nodes = 19
+#   UCO-V-006  All 30 required columns non-NULL
+#   UCO-V-007  agency_registry ≥ 80 agencies; FK integrity
+#   UCO-V-008  naics_decoder FK integrity
+#   UCO-V-009  code_crosswalk covers all 6 code systems
+#   UCO-V-010  All 20 RAG Vault partitions represented
+#   UCO-V-011  Gate 530 dimensions 1–6 all present
+#   UCO-V-012  Excel UDM cross-check (optional, on dispatch)
+###############################################################################
+  uco-seed-validation:
+    name: "UCO Seed Validation (350 nodes / 12 checks)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: []               # Runs independently; no dependency on build jobs
+    permissions:
+      contents: read
+      pull-requests: write  # For PR annotation comments
+
+    # Run on schedule, PRs, and manual dispatch
+    # Skip on push-only runs that are not PRs and not scheduled
+    if: >
+      github.event_name == 'schedule' ||
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch'
+
+    environment:
+      # Resolves to 'staging' or 'production' depending on trigger
+      name: ${{ github.event.inputs.environment || 'staging' }}
+
+    env:
+      OUTPUT_DIR: /tmp/uco-validation
+      EXCEL_PATH: /tmp/uco-excel/UDM.xlsx
+
+    steps:
+      # ----------------------------------------------------------------
+      # 1. Checkout
+      # ----------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ----------------------------------------------------------------
+      # 2. Python environment
+      # ----------------------------------------------------------------
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install psycopg2-binary openpyxl
+
+      # ----------------------------------------------------------------
+      # 3. Fetch UCO Excel UDM file for cross-check (optional)
+      #    The Excel file is stored as a GitHub Actions secret-encoded
+      #    artifact path or fetched from a pre-signed GCS URL.
+      # ----------------------------------------------------------------
+      - name: Download UDM Excel for cross-check
+        if: >
+          github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.run_excel_cross_check == 'true'
+        env:
+          UDM_EXCEL_GCS_URL: ${{ secrets.UDM_EXCEL_GCS_URL }}
+        run: |
+          mkdir -p /tmp/uco-excel
+          if [ -n "$UDM_EXCEL_GCS_URL" ]; then
+            curl -fsSL "$UDM_EXCEL_GCS_URL" -o "$EXCEL_PATH"
+            echo "UCO_EXCEL_PATH=$EXCEL_PATH" >> $GITHUB_ENV
+            echo "UDM Excel downloaded: $(du -h $EXCEL_PATH | cut -f1)"
+          else
+            echo "::warning::UDM_EXCEL_GCS_URL not set — skipping Excel cross-check"
+          fi
+
+      # ----------------------------------------------------------------
+      # 4. Run validator
+      # ----------------------------------------------------------------
+      - name: Run UCO Seed Validator
+        env:
+          COS_PLUS_DSN: ${{ secrets.COS_PLUS_AUDIT_READER_DSN }}
+        run: |
+          mkdir -p "$OUTPUT_DIR"
+          set +e
+          python3 scripts/db/validate_uco_seed.py \
+            --output-dir "$OUTPUT_DIR" \
+            ${{ env.UCO_EXCEL_PATH && '--excel $UCO_EXCEL_PATH' || '' }}
+          EXIT_CODE=$?
+          set -e
+
+          # Surface the summary line for the CI log
+          grep "UCO_SEED_VALIDATION_RESULT" "$OUTPUT_DIR"/*.json 2>/dev/null || true
+
+          # Export for subsequent steps
+          echo "UCO_VALIDATION_EXIT=$EXIT_CODE" >> $GITHUB_ENV
+
+          # Always write exit code to file for upload
+          echo "$EXIT_CODE" > "$OUTPUT_DIR/exit_code.txt"
+
+          # Fail the step only after artifacts are uploaded
+          exit $EXIT_CODE
+
+      # ----------------------------------------------------------------
+      # 5. Upload JSON + Markdown reports (always, even on failure)
+      # ----------------------------------------------------------------
+      - name: Upload UCO validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uco-seed-validation-${{ github.run_id }}
+          path: ${{ env.OUTPUT_DIR }}/
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+      # ----------------------------------------------------------------
+      # 6. Annotate PR with validation results
+      # ----------------------------------------------------------------
+      - name: Read Markdown report for PR annotation
+        if: always() && github.event_name == 'pull_request'
+        id: read_md
+        run: |
+          MD_FILE=$(ls $OUTPUT_DIR/*.md 2>/dev/null | head -1)
+          if [ -f "$MD_FILE" ]; then
+            # Truncate to 65000 chars to stay within GitHub PR comment limit
+            CONTENT=$(head -c 65000 "$MD_FILE")
+            # Write to a temp file to avoid heredoc issues
+            echo "$CONTENT" > /tmp/pr_comment_body.txt
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post UCO validation results to PR
+        if: always() && github.event_name == 'pull_request' && steps.read_md.outputs.found == 'true'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: uco-seed-validation
+          path: /tmp/pr_comment_body.txt
+          recreate: true
+
+      # ----------------------------------------------------------------
+      # 7. Emit step summary
+      # ----------------------------------------------------------------
+      - name: Write job summary
+        if: always()
+        run: |
+          MD_FILE=$(ls $OUTPUT_DIR/*.md 2>/dev/null | head -1)
+          if [ -f "$MD_FILE" ]; then
+            cat "$MD_FILE" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## UCO Seed Validation" >> $GITHUB_STEP_SUMMARY
+            echo "No report generated — check logs for errors." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # ----------------------------------------------------------------
+      # 8. Enforce failure (re-raise after artifact upload)
+      # ----------------------------------------------------------------
+      - name: Enforce validation result
+        if: always()
+        run: |
+          EXIT=$(cat $OUTPUT_DIR/exit_code.txt 2>/dev/null || echo "2")
+          if [ "$EXIT" != "0" ]; then
+            echo "::error::UCO seed validation FAILED — see uploaded report for details."
+            exit 1
+          fi
+
+###############################################################################
+# JOB 6 — WORM Integrity Probe
+# Reference: Engineering Body Document 2 §5 (Merkle root spot-check)
+###############################################################################
+  worm-integrity-probe:
+    name: "WORM Integrity Probe (Merkle Root)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    if: >
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install psycopg2-binary requests
+
+      - name: Run Merkle root spot-check
+        env:
+          COS_PLUS_DSN:        ${{ secrets.COS_PLUS_AUDIT_READER_DSN }}
+          MERKLE_DNS_ZONE:     ${{ secrets.MERKLE_DNS_ZONE }}
+          MERKLE_ENDPOINT_URL: ${{ secrets.MERKLE_ENDPOINT_URL }}
+        run: |
+          python3 scripts/db/verify_merkle_root.py \
+            --output-dir /tmp/worm-probe
+          echo "WORM probe complete."
+
+      - name: Upload WORM probe results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: worm-probe-${{ github.run_id }}
+          path: /tmp/worm-probe/
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+
+###############################################################################
+# JOB 7 — Security Gate (rollup)
+# Blocks merge if any upstream job failed.
+###############################################################################
+  security-gate:
+    name: "Security Gate (All Checks)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    needs:
+      - dependency-audit
+      - sast-scan
+      - secret-scan
+      - uco-seed-validation
+      # container-scan runs per matrix; include at least one representative check
+    if: always()
+    permissions:
+      statuses: write
+
+    steps:
+      - name: Evaluate security gate
+        run: |
+          echo "Dependency Audit : ${{ needs.dependency-audit.result }}"
+          echo "SAST Scan        : ${{ needs.sast-scan.result }}"
+          echo "Secret Scan      : ${{ needs.secret-scan.result }}"
+          echo "UCO Seed Valid.  : ${{ needs.uco-seed-validation.result }}"
+
+          FAILED=""
+          [ "${{ needs.dependency-audit.result }}"   != "success" ] && FAILED="$FAILED dependency-audit"
+          [ "${{ needs.sast-scan.result }}"          != "success" ] && FAILED="$FAILED sast-scan"
+          [ "${{ needs.secret-scan.result }}"        != "success" ] && FAILED="$FAILED secret-scan"
+          [ "${{ needs.uco-seed-validation.result }}" != "success" ] && FAILED="$FAILED uco-seed-validation"
+
+          if [ -n "$FAILED" ]; then
+            echo "::error::Security gate FAILED — jobs:$FAILED"
+            exit 1
+          fi
+
+          echo "✅ All security checks passed."

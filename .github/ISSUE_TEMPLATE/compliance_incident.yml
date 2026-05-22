@@ -1,0 +1,54 @@
+name: Compliance Incident
+description: Report a compliance or WORM violation incident
+title: "[COMPLIANCE] "
+labels: ["compliance", "incident", "high-priority"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **CONFIDENTIAL** — Compliance incidents are reviewed by the compliance and security teams.
+        Do NOT include PII, customer data, or sensitive evidence package IDs in this form.
+
+  - type: dropdown
+    id: incident_type
+    attributes:
+      label: Incident Type
+      options:
+        - WORM trigger violation
+        - Gate 530 policy bypass
+        - UCO node evaluation failure
+        - Evidence package signature mismatch
+        - Key publication inconsistency
+        - Merkle root mismatch
+        - Unauthorized role access
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Incident Description
+      placeholder: Describe the compliance incident without including sensitive data.
+    validations:
+      required: true
+
+  - type: input
+    id: detected_at
+    attributes:
+      label: Detected At (ISO 8601 UTC)
+      placeholder: "2026-05-22T16:00:00Z"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - P1 — Critical (production impacted, evidence chain broken)
+        - P2 — High (compliance rule violated, no data loss)
+        - P3 — Medium (anomaly detected, monitoring escalated)
+        - P4 — Low (investigation only)
+    validations:
+      required: true

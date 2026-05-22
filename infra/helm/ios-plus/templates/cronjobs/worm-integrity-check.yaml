@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: worm-integrity-check
+  namespace: {{ .Values.global.namespace }}
+spec:
+  schedule: {{ .Values.cronJobs.wormIntegrityCheck.schedule | quote }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: worm-check
+              image: "{{ .Values.cronJobs.wormIntegrityCheck.image.repository }}:{{ .Values.cronJobs.wormIntegrityCheck.image.tag }}"
+              command: ["python3", "scripts/ops/weekly_worm_check.py"]
+              env:
+                - name: DATABASE_URL_AUDIT_READER
+                  valueFrom:
+                    secretKeyRef:
+                      name: ios-plus-db-secrets
+                      key: audit-reader-url
+          serviceAccountName: ios-plus-sa

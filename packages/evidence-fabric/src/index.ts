@@ -1,19 +1,19 @@
-/**
- * Evidence Fabric — Cryptographic audit record generation
+﻿/**
+ * Evidence Fabric â€” Cryptographic audit record generation
  *
  * Signing: Ed25519 over JCS canonical serialization (RFC 8785)
  * Key publication: COS+ database + DNS TXT records + deployment filesystem
  *   All three locations must be consistent (verified by key-consistency-check CronJob)
  * Key rotation: 90-day cycle, HSM-backed via HashiCorp Vault transit engine
  * WORM enforcement: PostgreSQL audit_writer role + row-level trigger (DB-layer append-only)
- * Evidence signing overhead: < 12ms (EB Doc 2 §3.4)
+ * Evidence signing overhead: < 12ms (EB Doc 2 Â§3.4)
  *
- * SMEPro Technologies — Confidential
+ * SMEPro Technologies â€” Confidential
  */
 
 import * as ed from '@noble/ed25519';
-import canonicalize from 'json-canonicalize';
-import { v7 as uuidv7 } from 'uuid';
+import canonicalize = require('json-canonicalize');
+import { v4 as uuidv7 } from 'uuid';
 import type {
   EvidencePackage, EvidencePackagePayload, SigningKeyRecord
 } from '@ios-plus/shared';
@@ -47,19 +47,19 @@ async function signPayload(
   payload: EvidencePackagePayload,
   privateKeyBytes: Uint8Array
 ): Promise<string> {
-  const canonical = canonicalize(payload as unknown as Record<string, unknown>);
+  const canonical = (canonicalize as unknown as (v: unknown) => string)(payload as unknown as Record<string, unknown>);
   const msgBytes = new TextEncoder().encode(canonical);
   const sigBytes = await ed.signAsync(msgBytes, privateKeyBytes);
   return Buffer.from(sigBytes).toString('base64url');
 }
 
-/** Verify an evidence package signature — public verification path */
+/** Verify an evidence package signature â€” public verification path */
 export async function verifyEvidencePackage(
   pkg: EvidencePackage,
   publicKeyBase64url: string
 ): Promise<boolean> {
   const pubKeyBytes = Buffer.from(publicKeyBase64url, 'base64url');
-  const canonical = canonicalize(pkg.payload as unknown as Record<string, unknown>);
+  const canonical = (canonicalize as unknown as (v: unknown) => string)(pkg.payload as unknown as Record<string, unknown>);
   const msgBytes = new TextEncoder().encode(canonical);
   const sigBytes = Buffer.from(pkg.signature, 'base64url');
   return ed.verifyAsync(sigBytes, msgBytes, pubKeyBytes);
@@ -146,3 +146,4 @@ export class EvidenceFabricService {
 
 export { verifyEvidencePackage as verify };
 export type { EvidencePackage, EvidencePackagePayload, SigningKeyRecord } from '@ios-plus/shared';
+

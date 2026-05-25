@@ -1,0 +1,10 @@
+﻿Variable,Dev value (local only)
+COS_DB_PASSWORD_COS_ADMIN,"any strong password, e.g. cosadmin_dev_2026"
+COS_DB_PASSWORD_IOS_APP,iosapp_dev_2026
+COS_DB_PASSWORD_AUDIT_WRITER,auditwr_dev_2026
+COS_DB_PASSWORD_AUDIT_READER,auditrd_dev_2026
+COS_DB_PASSWORD_RAG_READER,ragrd_dev_2026
+COS_DB_PASSWORD_RAG_WRITER,ragwr_dev_2026
+REDIS_PASSWORD,redis_dev_2026
+VAULT_TOKEN,root (Vault dev mode — safe locally)
+OPENAI_API_KEY,your key or sk-placeholder for now

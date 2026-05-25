@@ -1,19 +1,105 @@
-/**
+﻿/**
  * IOS+ Middleware Engine — entry point
  * YBR-L4 Tier 2: Orchestration layer
  * 3 replicas, 16Gi RAM per EB Doc 6 §2.1
  */
 import { createRestApp } from "./transport/rest.js";
-import pino from "pino";
+import { pino } from "pino";
+import { CosConnectionRegistry } from "@ios-plus/cos-plus";
+import { UCOResolver } from "@ios-plus/uco-resolver";
+import { EvidenceFabricService } from "@ios-plus/evidence-fabric";
+import { RAGVaultService } from "@ios-plus/rag-vault";
+import type { NAICSProfile } from "@ios-plus/shared";
+import type { PipelineDependencies } from "./orchestrator/pipeline.js";
 
 const log = pino({ level: process.env["LOG_LEVEL"] ?? "info" });
+
+function requireEnv(key: string): string {
+  const v = process.env[key];
+  if (!v) throw new Error(`Missing required env var: ${key}`);
+  return v;
+}
 
 async function main() {
   log.info("IOS+ Middleware Engine starting");
   const port = parseInt(process.env["PORT"] ?? "3000");
-  // Dependencies injected via DI container in production
-  // See EB Doc 6 §3.2 for startup sequence
-  log.info({ port }, "REST transport listening");
+
+  // COS+ per-role connection pool registry
+  const cosRegistry = new CosConnectionRegistry({
+    host:     requireEnv("COS_HOST"),
+    port:     parseInt(process.env["COS_PORT"] ?? "5432"),
+    database: requireEnv("COS_DATABASE"),
+    ssl:      process.env["COS_SSL"] === "true",
+    passwords: {
+      ios_app:      requireEnv("COS_PASSWORD_IOS_APP"),
+      audit_writer: requireEnv("COS_PASSWORD_AUDIT_WRITER"),
+      audit_reader: requireEnv("COS_PASSWORD_AUDIT_READER"),
+      rag_reader:   requireEnv("COS_PASSWORD_RAG_READER"),
+      rag_writer:   requireEnv("COS_PASSWORD_RAG_WRITER"),
+      cos_admin:    requireEnv("COS_PASSWORD_COS_ADMIN"),
+    },
+  });
+
+  // UCO Resolver (L3 — Ontological Mapping)
+  const ucoResolver = new UCOResolver({
+    databaseUrl: requireEnv("COS_URL_RAG_READER"),
+  });
+
+  // Evidence Fabric (L4 — Evidence Anchoring)
+  const evidenceFabric = new EvidenceFabricService({
+    vault: {
+      vaultAddr: requireEnv("VAULT_ADDR"),
+      keyPath:   requireEnv("VAULT_TRANSIT_KEY_PATH"),
+      token:     requireEnv("VAULT_TOKEN"),
+    },
+    publicKeyFilesystemPath: process.env["SIGNING_KEY_PUBKEY_PATH"] ?? "/run/secrets/signing-pubkey.pem",
+    dnsTxtZone:  requireEnv("SIGNING_KEY_DNS_ZONE"),
+    activeKeyId: requireEnv("SIGNING_KEY_ACTIVE_ID"),
+  }, cosRegistry);
+
+  // Ed25519 signing key bytes — injected as base64 from Vault secret
+  const signingKeyBytes = Buffer.from(requireEnv("SIGNING_KEY_PRIVATE_BASE64"), "base64");
+
+  // RAG Vault (L6 — Retrieval Augmented Generation)
+  const ragVault = new RAGVaultService({
+    openaiApiKey:        requireEnv("OPENAI_API_KEY"),
+    embeddingModel:      process.env["RAG_EMBEDDING_MODEL"]       ?? "text-embedding-3-large",
+    embeddingDimensions: parseInt(process.env["RAG_EMBEDDING_DIM"]          ?? "3072"),
+    maxChunksPerQuery:   parseInt(process.env["RAG_MAX_CHUNKS"]              ?? "8"),
+    similarityThreshold: parseFloat(process.env["RAG_SIMILARITY_THRESHOLD"] ?? "0.75"),
+  }, cosRegistry);
+
+  // NAICS profile for this tenant deployment (drives UCO node selection at L3)
+  const naicsProfile: NAICSProfile = {
+    tenantId:      requireEnv("TENANT_ID"),
+    naicsCodes:    requireEnv("TENANT_NAICS_CODES").split(",").map(s => s.trim()),
+    effectiveDate: process.env["TENANT_NAICS_EFFECTIVE_DATE"] ?? new Date().toISOString().slice(0, 10),
+  };
+
+  const deps: PipelineDependencies = {
+    ucoResolver,
+    evidenceFabric,
+    ragVault,
+    signingKeyBytes,
+  };
+
+  const app = await createRestApp(deps, naicsProfile);
+
+  await new Promise<void>((resolve, reject) => {
+    const server = app.listen(port, "0.0.0.0", () => {
+      log.info({ port }, "REST transport listening");
+      resolve();
+    });
+    server.on("error", reject);
+
+    // Graceful shutdown
+    const shutdown = (sig: string) => {
+      log.info({ signal: sig }, "Shutdown signal received");
+      server.close(() => process.exit(0));
+    };
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT",  () => shutdown("SIGINT"));
+  });
 }
 
 main().catch(err => { console.error(err); process.exit(1); });

@@ -18,9 +18,7 @@ export function runL7(
   const output = blockedByGate
     ? "[BLOCKED] This request was intercepted by Gate 530 compliance enforcement. " +
       `${gateResult.quarantinedNodeIds.length} UCO node(s) triggered enforcement.`
-    : ragResult.chunks.map(c => c.chunkText).join("
-
-");
+    : ragResult.chunks.map((c: any) => c.chunkText).join('\n\n');
   return {
     requestId: ctx.requestId, tenantId: ctx.tenantId, sessionId: ctx.sessionId,
     output, policyAction: gateResult.aggregatePolicyAction as PolicyAction,

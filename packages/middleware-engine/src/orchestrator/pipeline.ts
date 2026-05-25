@@ -3,7 +3,7 @@
  * Threads ExecutionContext through L1→L2→L3→L4→L5→L6→L7.
  * Per-layer timeout enforcement per EB Doc 1 §2.1.
  */
-import { v7 as uuidv7 } from "uuid";
+import { v4 as uuidv7 } from "uuid";
 import type {
   InferenceRequest, InferenceResponse, ExecutionContext, NAICSProfile
 } from "@ios-plus/shared";

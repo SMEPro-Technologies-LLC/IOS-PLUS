@@ -1,10 +1,8 @@
-# ============================================================
+﻿# ============================================================
 # IOS+ Local Development Environment
 # docker compose up -d
 # SMEPro Technologies — EB Doc 6 §3.1
 # ============================================================
-
-version: "3.9"
 
 services:
   # COS+ Database — PostgreSQL 16 + pgvector + pgaudit
@@ -56,7 +54,7 @@ services:
     ports:
       - "8200:8200"
     healthcheck:
-      test: ["CMD", "vault", "status"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8200/v1/sys/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -65,7 +63,7 @@ services:
   flyway:
     image: flyway/flyway:10
     container_name: flyway
-    command: -url=jdbc:postgresql://cos-plus:5432/ios_plus -user=cos_admin -password=${COS_DB_PASSWORD_COS_ADMIN} migrate
+    command: -url=jdbc:postgresql://cos-plus:5432/ios_plus -user=cos_admin -password=${COS_DB_PASSWORD_COS_ADMIN} migrate -baselineOnMigrate=true -baselineVersion=4
     volumes:
       - ./db/migrations:/flyway/sql:ro
     depends_on:
@@ -94,18 +92,50 @@ services:
       dockerfile: docker/Dockerfile.middleware-engine
     container_name: middleware-engine
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       PORT: 3000
       LOG_LEVEL: debug
+      # COS+ connection registry (one pool per role)
+      COS_HOST: cos-plus
+      COS_PORT: 5432
+      COS_DATABASE: ios_plus
+      COS_SSL: "false"
+      COS_PASSWORD_IOS_APP: ${COS_DB_PASSWORD_IOS_APP}
+      COS_PASSWORD_AUDIT_WRITER: ${COS_DB_PASSWORD_AUDIT_WRITER}
+      COS_PASSWORD_AUDIT_READER: ${COS_DB_PASSWORD_AUDIT_READER}
+      COS_PASSWORD_RAG_READER: ${COS_DB_PASSWORD_RAG_READER}
+      COS_PASSWORD_RAG_WRITER: ${COS_DB_PASSWORD_RAG_WRITER}
+      COS_PASSWORD_COS_ADMIN: ${COS_DB_PASSWORD_COS_ADMIN}
+      # UCO Resolver — rag_reader role DSN
+      COS_URL_RAG_READER: postgresql://rag_reader:${COS_DB_PASSWORD_RAG_READER}@cos-plus:5432/ios_plus
+      # Redis
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      DATABASE_URL_IOS_APP: postgresql://ios_app:${COS_DB_PASSWORD_IOS_APP}@cos-plus:5432/ios_plus
+      # Vault — transit signing
       VAULT_ADDR: http://vault-dev:8200
       VAULT_TOKEN: ${VAULT_TOKEN}
+      VAULT_TRANSIT_KEY_PATH: ${VAULT_TRANSIT_KEY_PATH}
+      # Ed25519 signing key (base64-encoded private key bytes)
+      SIGNING_KEY_PRIVATE_BASE64: ${SIGNING_KEY_PRIVATE_BASE64}
+      SIGNING_KEY_PUBKEY_PATH: /run/secrets/signing-pubkey.pem
+      SIGNING_KEY_DNS_ZONE: ${SIGNING_KEY_DNS_ZONE}
+      SIGNING_KEY_ACTIVE_ID: ${SIGNING_KEY_ACTIVE_ID}
+      # OpenAI — RAG Vault embeddings
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      RAG_EMBEDDING_MODEL: text-embedding-3-large
+      RAG_EMBEDDING_DIM: 3072
+      RAG_MAX_CHUNKS: 8
+      RAG_SIMILARITY_THRESHOLD: "0.75"
+      # Tenant NAICS profile (L3 UCO resolution)
+      TENANT_ID: ${TENANT_ID}
+      TENANT_NAICS_CODES: ${TENANT_NAICS_CODES}
+      TENANT_NAICS_EFFECTIVE_DATE: ${TENANT_NAICS_EFFECTIVE_DATE:-2026-01-01}
     depends_on:
       cos-plus:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      vault-dev:
         condition: service_healthy
       gate-530:
         condition: service_started

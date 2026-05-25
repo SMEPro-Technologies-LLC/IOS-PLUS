@@ -5,7 +5,7 @@
  * GET  /ready         — readiness probe
  */
 import express from "express";
-import { v7 as uuidv7 } from "uuid";
+import { v4 as uuidv7 } from "uuid";
 import type { InferenceRequest, NAICSProfile } from "@ios-plus/shared";
 import type { PipelineDependencies } from "../orchestrator/pipeline.js";
 import { executePipeline } from "../orchestrator/pipeline.js";
@@ -31,6 +31,16 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
       const response = await executePipeline(request, naicsProfile, deps);
       res.status(response.policyAction === "BLOCK" ? 403 : 200).json(response);
     } catch (err) {
+      // Structured error log — surfaces full context for debugging
+      // while the response stays a clean 500 with the requestId for client correlation.
+      console.error(JSON.stringify({
+        level: 50,
+        time: Date.now(),
+        msg: "PIPELINE_ERROR",
+        requestId,
+        error: String(err),
+        stack: (err as Error)?.stack,
+      }));
       res.status(500).json({ error: "Internal pipeline error", requestId });
     }
   });

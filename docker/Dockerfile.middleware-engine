@@ -1,35 +1,52 @@
-# ── Stage 1: Build ──────────────────────────────────────────
-FROM node:20.12.2-alpine AS builder
+﻿FROM docker.io/library/node:20.12.2-alpine AS builder
 WORKDIR /app
-
-# Install dependencies for all workspaces
 COPY package.json package-lock.json turbo.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/middleware-engine/package.json packages/middleware-engine/
-RUN npm ci --workspace=@ios-plus/shared --workspace=@ios-plus/middleware-engine
-
-# Copy source
+COPY packages/gate-530/package.json packages/gate-530/
+COPY packages/cos-plus/package.json packages/cos-plus/
+COPY packages/evidence-fabric/package.json packages/evidence-fabric/
+COPY packages/rag-vault/package.json packages/rag-vault/
+COPY packages/uco-resolver/package.json packages/uco-resolver/
+RUN npm install --no-audit
 COPY packages/shared/src packages/shared/src
-COPY packages/middleware-engine/src packages/middleware-engine/src
 COPY packages/shared/tsconfig.json packages/shared/
+COPY packages/uco-resolver/src packages/uco-resolver/src
+COPY packages/uco-resolver/tsconfig.json packages/uco-resolver/
+COPY packages/cos-plus/src packages/cos-plus/src
+COPY packages/cos-plus/tsconfig.json packages/cos-plus/
+COPY packages/evidence-fabric/src packages/evidence-fabric/src
+COPY packages/evidence-fabric/tsconfig.json packages/evidence-fabric/
+COPY packages/rag-vault/src packages/rag-vault/src
+COPY packages/rag-vault/tsconfig.json packages/rag-vault/
+COPY packages/gate-530/src packages/gate-530/src
+COPY packages/gate-530/tsconfig.json packages/gate-530/
+COPY packages/middleware-engine/src packages/middleware-engine/src
 COPY packages/middleware-engine/tsconfig.json packages/middleware-engine/
-
-# Build
 RUN npm run build --workspace=@ios-plus/shared
+RUN npm run build --workspace=@ios-plus/uco-resolver
+RUN npm run build --workspace=@ios-plus/cos-plus
+RUN npm run build --workspace=@ios-plus/evidence-fabric
+RUN npm run build --workspace=@ios-plus/rag-vault
+RUN npm run build --workspace=@ios-plus/gate-530
 RUN npm run build --workspace=@ios-plus/middleware-engine
 
-# ── Stage 2: Runtime ─────────────────────────────────────────
-FROM node:20.12.2-alpine AS runtime
+FROM docker.io/library/node:20.12.2-alpine AS runtime
 RUN addgroup -g 1001 -S iosplus && adduser -u 1001 -S iosplus -G iosplus
 WORKDIR /app
-
+COPY --from=builder --chown=iosplus:iosplus /app/node_modules ./node_modules
 COPY --from=builder --chown=iosplus:iosplus /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder --chown=iosplus:iosplus /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder --chown=iosplus:iosplus /app/packages/cos-plus/dist ./packages/cos-plus/dist
+COPY --from=builder --chown=iosplus:iosplus /app/packages/cos-plus/package.json ./packages/cos-plus/
+COPY --from=builder --chown=iosplus:iosplus /app/packages/uco-resolver/dist ./packages/uco-resolver/dist
+COPY --from=builder --chown=iosplus:iosplus /app/packages/uco-resolver/package.json ./packages/uco-resolver/
+COPY --from=builder --chown=iosplus:iosplus /app/packages/evidence-fabric/dist ./packages/evidence-fabric/dist
+COPY --from=builder --chown=iosplus:iosplus /app/packages/evidence-fabric/package.json ./packages/evidence-fabric/
+COPY --from=builder --chown=iosplus:iosplus /app/packages/rag-vault/dist ./packages/rag-vault/dist
+COPY --from=builder --chown=iosplus:iosplus /app/packages/rag-vault/package.json ./packages/rag-vault/
 COPY --from=builder --chown=iosplus:iosplus /app/packages/middleware-engine/dist ./packages/middleware-engine/dist
 COPY --from=builder --chown=iosplus:iosplus /app/packages/middleware-engine/package.json ./packages/middleware-engine/
-
+COPY --from=builder --chown=iosplus:iosplus /app/package.json ./
 USER iosplus
-ENV NODE_ENV=production
-
-EXPOSE 3000
 CMD ["node", "packages/middleware-engine/dist/index.js"]

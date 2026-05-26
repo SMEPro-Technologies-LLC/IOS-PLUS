@@ -66,8 +66,15 @@ export interface UCOContext {
 }
 
 export interface NAICSProfile {
-  tenantId: string; naicsCodes: string[];
-  additionalSicCodes?: string[]; jurisdictions?: JurisdictionLevel[]; effectiveDate: string;
+  tenantId: string;
+  naicsCodes: string[];
+  additionalSicCodes?: string[];
+  cipCodes?: string[];
+  socCodes?: string[];
+  isicCodes?: string[];
+  hsHtsCodes?: string[];
+  jurisdictions?: JurisdictionLevel[];
+  effectiveDate: string;
   riskTolerance?: number;
 }
 

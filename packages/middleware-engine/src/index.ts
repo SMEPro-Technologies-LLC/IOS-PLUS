@@ -113,9 +113,14 @@ async function main() {
 
   const naicsProfile: NAICSProfile = {
     tenantId,
-    naicsCodes:    requireEnv("TENANT_NAICS_CODES").split(",").map(s => s.trim()),
-    effectiveDate: process.env["TENANT_NAICS_EFFECTIVE_DATE"] ?? new Date().toISOString().slice(0, 10),
-    jurisdictions: jurisdictions as any,
+    naicsCodes:         process.env["TENANT_NAICS_CODES"] ? process.env["TENANT_NAICS_CODES"].split(",").map(s => s.trim()) : [],
+    additionalSicCodes: process.env["TENANT_SIC_CODES"]   ? process.env["TENANT_SIC_CODES"].split(",").map(s => s.trim())   : [],
+    cipCodes:           process.env["TENANT_CIP_CODES"]   ? process.env["TENANT_CIP_CODES"].split(",").map(s => s.trim())   : [],
+    socCodes:           process.env["TENANT_SOC_CODES"]   ? process.env["TENANT_SOC_CODES"].split(",").map(s => s.trim())   : [],
+    isicCodes:          process.env["TENANT_ISIC_CODES"]  ? process.env["TENANT_ISIC_CODES"].split(",").map(s => s.trim())  : [],
+    hsHtsCodes:         process.env["TENANT_HS_HTS_CODES"] ? process.env["TENANT_HS_HTS_CODES"].split(",").map(s => s.trim()) : [],
+    effectiveDate:      process.env["TENANT_NAICS_EFFECTIVE_DATE"] ?? new Date().toISOString().slice(0, 10),
+    jurisdictions:      jurisdictions as any,
     riskTolerance,
   };
 

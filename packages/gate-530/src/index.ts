@@ -31,6 +31,8 @@ export interface Gate530Config {
   timeoutMs: number;              // default: 50ms (P99 budget)
   redisUrl: string;               // Redis HA cluster URL
   sessionCacheTtlSeconds: number; // default: 900 (15-min RPO alignment)
+  escalationLadderLimit?: number;
+  escalationLadderWindowSeconds?: number;
 }
 
 export interface DimensionScore {
@@ -127,7 +129,11 @@ export class Gate530Engine {
   private config: Gate530Config;
 
   constructor(config: Gate530Config) {
-    this.config = config;
+    this.config = {
+      ...config,
+      escalationLadderLimit: config.escalationLadderLimit ?? parseInt(process.env['ESCALATION_LADDER_LIMIT'] ?? '5'),
+      escalationLadderWindowSeconds: config.escalationLadderWindowSeconds ?? parseInt(process.env['ESCALATION_LADDER_WINDOW_SECONDS'] ?? '600'),
+    };
     this.redis = new Redis(config.redisUrl);
   }
 
@@ -152,12 +158,37 @@ export class Gate530Engine {
       };
     });
 
+    let aggregatePolicyAction = aggregateActions(nodeResults);
+
+    if (aggregatePolicyAction === 'ESCALATE') {
+      const ladderKey = `gate530:escladder:${request.tenantId}:${request.sessionId}`;
+      try {
+        const count = await this.redis.incr(ladderKey);
+        if (count === 1) {
+          await this.redis.expire(ladderKey, this.config.escalationLadderWindowSeconds ?? 600);
+        }
+        const limit = this.config.escalationLadderLimit ?? 5;
+        if (count > limit) {
+          aggregatePolicyAction = 'BLOCK';
+          // Convert all escalated node results to BLOCK
+          nodeResults.forEach(r => {
+            if (r.policyAction === 'ESCALATE') {
+              r.policyAction = 'BLOCK';
+              r.rationale = `Escalation rate limit exceeded (${count}/${limit} in window). Converted ESCALATE to BLOCK.`;
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Escalation ladder check failed:', err);
+      }
+    }
+
     const result: Gate530EvaluationResult = {
       gateDecisionId: crypto.randomUUID(),
       sessionId: request.sessionId,
       tenantId: request.tenantId,
       nodeResults,
-      aggregatePolicyAction: aggregateActions(nodeResults),
+      aggregatePolicyAction,
       evaluationLatencyMs: Date.now() - startMs,
       cachedResult: false,
       quarantinedNodeIds: nodeResults.filter(r => r.policyAction === 'BLOCK' || r.policyAction === 'ESCALATE').map(r => r.node.ucoNodeId),

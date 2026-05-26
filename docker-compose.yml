@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 # IOS+ Local Development Environment
 # docker compose up -d
 # SMEPro Technologies — EB Doc 6 §3.1
@@ -79,6 +79,8 @@ services:
     environment:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       GATE530_IPC_SOCKET: /tmp/gate530.sock
+      ESCALATION_LADDER_LIMIT: 3
+      ESCALATION_LADDER_WINDOW_SECONDS: 60
     depends_on:
       redis:
         condition: service_healthy
@@ -129,6 +131,11 @@ services:
       # Tenant NAICS profile (L3 UCO resolution)
       TENANT_ID: ${TENANT_ID}
       TENANT_NAICS_CODES: ${TENANT_NAICS_CODES}
+      TENANT_SIC_CODES: ${TENANT_SIC_CODES}
+      TENANT_CIP_CODES: ${TENANT_CIP_CODES}
+      TENANT_SOC_CODES: ${TENANT_SOC_CODES}
+      TENANT_ISIC_CODES: ${TENANT_ISIC_CODES}
+      TENANT_HS_HTS_CODES: ${TENANT_HS_HTS_CODES}
       TENANT_NAICS_EFFECTIVE_DATE: ${TENANT_NAICS_EFFECTIVE_DATE:-2026-01-01}
     depends_on:
       cos-plus:

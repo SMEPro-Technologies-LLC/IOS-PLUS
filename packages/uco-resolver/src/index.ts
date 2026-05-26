@@ -58,14 +58,21 @@ export class UCOResolver {
     const cached = this.cache.get(profileId);
     if (cached && cached.expiresAt > Date.now()) return cached.ctx;
 
+    // Cross-walk any non-NAICS codes to NAICS codes
+    const crosswalkedNaics = await this.crosswalkCodesToNaics(profile);
+    const allNaicsCodes = Array.from(new Set([
+      ...profile.naicsCodes,
+      ...crosswalkedNaics
+    ]));
+
     const [sectorNodes, xscNodes] = await Promise.all([
-      this.querySectorNodes(profile.naicsCodes),
+      this.querySectorNodes(allNaicsCodes),
       this.queryXSCNodes(),
     ]);
 
     const ctx: UCOContext = {
       profileId,
-      naicsCodes: profile.naicsCodes,
+      naicsCodes: allNaicsCodes,
       resolvedNodeIds: sectorNodes.map(n => n.ucoNodeId),
       nodes: sectorNodes,
       crossCuttingNodes: xscNodes,
@@ -78,7 +85,42 @@ export class UCOResolver {
     return ctx;
   }
 
+  private async crosswalkCodesToNaics(profile: NAICSProfile): Promise<string[]> {
+    const naicsCodesSet = new Set<string>();
+    const queries: Promise<void>[] = [];
+
+    const addQuery = (codeSystem: string, codes: string[] | undefined) => {
+      if (codes && codes.length > 0) {
+        queries.push((async () => {
+          try {
+            const { rows } = await this.pool.query<{ target_code: string }>(
+              `SELECT DISTINCT target_code
+               FROM code_crosswalk
+               WHERE code_system = $1
+                 AND source_code = ANY($2::text[])
+                 AND target_system = 'NAICS'`,
+              [codeSystem, codes]
+            );
+            rows.forEach(r => naicsCodesSet.add(r.target_code));
+          } catch (err) {
+            console.warn(`Failed to query crosswalk for ${codeSystem}:`, err);
+          }
+        })());
+      }
+    };
+
+    addQuery('CIP', profile.cipCodes);
+    addQuery('SOC', profile.socCodes);
+    addQuery('SIC', profile.additionalSicCodes);
+    addQuery('ISIC', profile.isicCodes);
+    addQuery('HS/HTS', profile.hsHtsCodes);
+
+    await Promise.all(queries);
+    return Array.from(naicsCodesSet);
+  }
+
   private async querySectorNodes(naicsCodes: string[]): Promise<UCONodeSummary[]> {
+    if (naicsCodes.length === 0) return [];
     const { rows } = await this.pool.query<UCONodeRow>(
       `SELECT uco_node_id, regulation_name, governing_agency, policy_action,
               risk_weight, enforcement_type, ybr_gate, jurisdiction_level, naics, ontology_level
@@ -119,7 +161,13 @@ export class UCOResolver {
   }
 
   private buildProfileId(profile: NAICSProfile): string {
-    return `${profile.tenantId}::${profile.naicsCodes.sort().join(',')}::${profile.effectiveDate}`;
+    const naics = (profile.naicsCodes ?? []).sort().join(',');
+    const cip = (profile.cipCodes ?? []).sort().join(',');
+    const soc = (profile.socCodes ?? []).sort().join(',');
+    const sic = (profile.additionalSicCodes ?? []).sort().join(',');
+    const isic = (profile.isicCodes ?? []).sort().join(',');
+    const hsHts = (profile.hsHtsCodes ?? []).sort().join(',');
+    return `${profile.tenantId}::${naics}::${cip}::${soc}::${sic}::${isic}::${hsHts}::${profile.effectiveDate}`;
   }
 
   async close(): Promise<void> {

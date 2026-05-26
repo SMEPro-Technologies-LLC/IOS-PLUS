@@ -29,6 +29,7 @@ export interface ExecutionContext {
   ucoContext: UCOContext;   // resolved at L3, injected to all subsequent layers
   startedAt: string;        // ISO 8601
   timeouts: LayerTimeoutConfig;
+  request?: InferenceRequest; // Preserved raw request for L6 resumption
 }
 
 export interface InferenceRequest {

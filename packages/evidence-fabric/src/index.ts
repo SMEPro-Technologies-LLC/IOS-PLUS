@@ -142,6 +142,49 @@ export class EvidenceFabricService {
       [batchId, JSON.stringify(packageIds), merkleRoot, new Date().toISOString()]
     );
   }
+
+  async commitQuarantineRecord(record: {
+    quarantineId: string;
+    sessionId: string;
+    tenantId: string;
+    ucoNodeId: string;
+    reason: string;
+    policyAction: string;
+    evidenceId: string;
+  }): Promise<void> {
+    const pool = this.registry.pool('audit_writer');
+    await pool.query(
+      `INSERT INTO quarantine_records
+         (quarantine_id, session_id, tenant_id, uco_node_id, reason, policy_action, evidence_id, quarantined_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+      [
+        record.quarantineId,
+        record.sessionId,
+        record.tenantId,
+        record.ucoNodeId,
+        record.reason,
+        record.policyAction,
+        record.evidenceId
+      ]
+    );
+  }
+
+  async getQuarantineQueue(): Promise<any[]> {
+    const pool = this.registry.pool('audit_reader');
+    const { rows } = await pool.query(
+      `SELECT * FROM quarantine_records WHERE released_at IS NULL ORDER BY quarantined_at DESC`
+    );
+    return rows;
+  }
+
+  async getQuarantineRecord(quarantineId: string): Promise<any | null> {
+    const pool = this.registry.pool('audit_reader');
+    const { rows } = await pool.query(
+      `SELECT * FROM quarantine_records WHERE quarantine_id = $1`,
+      [quarantineId]
+    );
+    return rows[0] || null;
+  }
 }
 
 export { verifyEvidencePackage as verify };

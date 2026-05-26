@@ -26,6 +26,7 @@ export async function runL5(
         layer: 5, success: false, latencyMs: Date.now() - start,
         error: "Gate530 IPC timeout — BLOCK enforced",
         gateResult: {
+          gateDecisionId: "",
           sessionId: ctx.sessionId, tenantId: ctx.tenantId,
           nodeResults: [], aggregatePolicyAction: "BLOCK",
           evaluationLatencyMs: timeoutMs, cachedResult: false, quarantinedNodeIds: []
@@ -64,6 +65,7 @@ export async function runL5(
       resolve({
         layer: 5, success: false, latencyMs: Date.now() - start, error: String(err),
         gateResult: {
+          gateDecisionId: "",
           sessionId: ctx.sessionId, tenantId: ctx.tenantId,
           nodeResults: [], aggregatePolicyAction: "BLOCK",
           evaluationLatencyMs: Date.now() - start, cachedResult: false, quarantinedNodeIds: []

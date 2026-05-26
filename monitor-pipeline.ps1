@@ -1,5 +1,5 @@
 # =============================================================================
-# monitor-pipeline.ps1 — IOS+ Pipeline Health Monitor
+# monitor-pipeline.ps1 - IOS+ Pipeline Health Monitor
 # =============================================================================
 # Usage:
 #   .\monitor-pipeline.ps1                       # run once
@@ -29,7 +29,7 @@ if ($Register) {
     $trigger  = New-ScheduledTaskTrigger -Daily -At $At
     $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 10) -StartWhenAvailable
     Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Description "IOS+ Pipeline Health Monitor" -Force | Out-Null
-    Write-Host "Task '$TaskName' registered — runs daily at $At." -ForegroundColor Green
+    Write-Host "Task '$TaskName' registered - runs daily at $At." -ForegroundColor Green
     Write-Host "Log: $LogPath"
     exit 0
 }
@@ -46,7 +46,7 @@ function Add-Result {
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Cyan
-Write-Host " IOS+ Pipeline Health — $timestamp" -ForegroundColor Cyan
+Write-Host " IOS+ Pipeline Health - $timestamp" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 
 # 1. Health endpoint
@@ -78,7 +78,7 @@ try {
     Add-Result $line -Issue $true; Write-Host $line -ForegroundColor Yellow
 }
 
-# 3. evidence_packages — last 24 h
+# 3. evidence_packages - last 24 h
 try {
     $q    = "SELECT COUNT(*) FROM evidence_packages WHERE published_at > NOW() - INTERVAL '24 hours';"
     $cnt  = & docker exec cos-plus psql -U cos_admin ios_plus -t -c $q 2>&1
@@ -89,7 +89,7 @@ try {
     Add-Result $line -Issue $true; Write-Host $line -ForegroundColor Yellow
 }
 
-# 4. gate_decisions — last 24 h
+# 4. gate_decisions - last 24 h
 try {
     $q2  = "SELECT COUNT(*) FROM gate_decisions WHERE decided_at > NOW() - INTERVAL '24 hours';"
     $gc  = & docker exec cos-plus psql -U cos_admin ios_plus -t -c $q2 2>&1
@@ -113,9 +113,10 @@ foreach ($c in @("middleware-engine","cos-plus","gate-530","vault-dev","redis"))
 }
 
 $summary = if ($hasIssue) { "ISSUES FOUND" } else { "ALL OK" }
+$color   = if ($hasIssue) { "Red" } else { "Green" }
 $entry   = "[$timestamp] $summary`n" + ($results -join "`n") + "`n"
 Add-Content -Path $LogPath -Value $entry
 
 Write-Host ""
-Write-Host "Result: $summary" -ForegroundColor $(if ($hasIssue) { "Red" } else { "Green" })
+Write-Host "Result: $summary" -ForegroundColor $color
 Write-Host "Log appended to: $LogPath"

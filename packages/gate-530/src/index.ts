@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Gate 530 Logic Engine â€” IPC sidecar, dimension evaluation, session cache
  *
  * Runs as a sidecar process alongside the Middleware Engine.
@@ -20,6 +20,7 @@
 
 import net from 'node:net';
 import { Redis } from 'ioredis';
+import crypto from 'node:crypto';
 import type {
   UCONodeSummary, UCONodeResult, PolicyAction, RiskWeight
 } from '@ios-plus/shared';
@@ -54,6 +55,7 @@ export interface Gate530EvaluationRequest {
 }
 
 export interface Gate530EvaluationResult {
+  gateDecisionId: string;
   sessionId: string;
   tenantId: string;
   nodeResults: UCONodeResult[];
@@ -151,13 +153,14 @@ export class Gate530Engine {
     });
 
     const result: Gate530EvaluationResult = {
+      gateDecisionId: crypto.randomUUID(),
       sessionId: request.sessionId,
       tenantId: request.tenantId,
       nodeResults,
       aggregatePolicyAction: aggregateActions(nodeResults),
       evaluationLatencyMs: Date.now() - startMs,
       cachedResult: false,
-      quarantinedNodeIds: nodeResults.filter(r => r.policyAction === 'BLOCK').map(r => r.node.ucoNodeId),
+      quarantinedNodeIds: nodeResults.filter(r => r.policyAction === 'BLOCK' || r.policyAction === 'ESCALATE').map(r => r.node.ucoNodeId),
     };
 
     await this.redis.set(cacheKey, JSON.stringify(result), 'EX', this.config.sessionCacheTtlSeconds);

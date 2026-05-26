@@ -5,7 +5,7 @@
  */
 import { createRestApp } from "./transport/rest.js";
 import { pino } from "pino";
-import { CosConnectionRegistry } from "@ios-plus/cos-plus";
+import { CosConnectionRegistry, GateDecisionRepository } from "@ios-plus/cos-plus";
 import { UCOResolver } from "@ios-plus/uco-resolver";
 import { EvidenceFabricService } from "@ios-plus/evidence-fabric";
 import { RAGVaultService } from "@ios-plus/rag-vault";
@@ -118,11 +118,14 @@ async function main() {
     riskTolerance,
   };
 
+  const gateDecisionRepository = new GateDecisionRepository(cosRegistry);
+
   const deps: PipelineDependencies = {
     ucoResolver,
     evidenceFabric,
     ragVault,
     signingKeyBytes,
+    gateDecisionRepository,
   };
 
   const app = await createRestApp(deps, naicsProfile);

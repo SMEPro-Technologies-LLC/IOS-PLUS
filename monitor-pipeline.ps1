@@ -25,19 +25,10 @@ if ($Unregister) {
 }
 
 if ($Register) {
-    $action   = New-ScheduledTaskAction `
-        -Execute "powershell.exe" `
-        -Argument "-NonInteractive -WindowStyle Hidden -File `"$PSCommandPath`"" `
-        -WorkingDirectory $ComposeDir
+    $action   = New-ScheduledTaskAction -Execute "powershell.exe" -Argument ("-NonInteractive -WindowStyle Hidden -File `"" + $PSCommandPath + "`"") -WorkingDirectory $ComposeDir
     $trigger  = New-ScheduledTaskTrigger -Daily -At $At
-    $settings = New-ScheduledTaskSettingsSet `
-        -ExecutionTimeLimit (New-TimeSpan -Minutes 10) `
-        -StartWhenAvailable
-    Register-ScheduledTask `
-        -TaskName $TaskName `
-        -Action $action -Trigger $trigger -Settings $settings `
-        -Description "IOS+ Pipeline Health Monitor" `
-        -Force | Out-Null
+    $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 10) -StartWhenAvailable
+    Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Description "IOS+ Pipeline Health Monitor" -Force | Out-Null
     Write-Host "Task '$TaskName' registered — runs daily at $At." -ForegroundColor Green
     Write-Host "Log: $LogPath"
     exit 0
@@ -113,10 +104,10 @@ try {
 foreach ($c in @("middleware-engine","cos-plus","gate-530","vault-dev","redis")) {
     $state = & docker inspect --format "{{.State.Status}}" $c 2>&1
     if ($state -eq "running") {
-        $line = "[OK]   Container $c`: $state"
+        $line = "[OK]   Container $($c): $state"
         Add-Result $line; Write-Host $line -ForegroundColor Green
     } else {
-        $line = "[FAIL] Container $c`: $state"
+        $line = "[FAIL] Container $($c): $state"
         Add-Result $line -Issue $true; Write-Host $line -ForegroundColor Red
     }
 }

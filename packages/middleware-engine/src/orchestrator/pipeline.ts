@@ -60,7 +60,7 @@ export async function executePipeline(
   const l4 = await runL4(ctx, deps.evidenceFabric, deps.signingKeyBytes, requestHash);
   latencies["L4"] = l4.latencyMs;
 
-  const l5 = await runL5(ctx, l2.output.detectedActivity);
+  const l5 = await runL5(ctx, l2.output.detectedActivity, naicsProfile);
   latencies["L5"] = l5.latencyMs;
 
   if (l5.gateResult.aggregatePolicyAction === "BLOCK") {

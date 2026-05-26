@@ -5,12 +5,13 @@
  * failClosedOnTimeout=true → BLOCK on any timeout.
  */
 import net from "node:net";
-import type { LayerResult, ExecutionContext } from "@ios-plus/shared";
+import type { LayerResult, ExecutionContext, NAICSProfile } from "@ios-plus/shared";
 import type { Gate530EvaluationResult } from "@ios-plus/gate-530";
 
 export async function runL5(
   ctx: ExecutionContext,
   detectedActivity: string,
+  naicsProfile?: NAICSProfile,
   ipcSocketPath = "/tmp/gate530.sock",
   timeoutMs = 50
 ): Promise<LayerResult & { gateResult: Gate530EvaluationResult }> {
@@ -37,8 +38,8 @@ export async function runL5(
         sessionId: ctx.sessionId, tenantId: ctx.tenantId,
         requestContext: {
           detectedActivity,
-          jurisdictions: ["Federal"],
-          riskTolerance: 7,
+          jurisdictions: naicsProfile?.jurisdictions ?? ["Federal"],
+          riskTolerance: naicsProfile?.riskTolerance ?? 7,
           timestampIso: new Date().toISOString(),
         },
         nodes: [...ctx.ucoContext.nodes, ...ctx.ucoContext.crossCuttingNodes],

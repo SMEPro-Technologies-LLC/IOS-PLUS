@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Evidence Fabric â€” Cryptographic audit record generation
  *
  * Signing: Ed25519 over JCS canonical serialization (RFC 8785)
@@ -12,7 +12,7 @@
  */
 
 import * as ed from '@noble/ed25519';
-import canonicalize = require('json-canonicalize');
+import { canonicalize } from 'json-canonicalize';
 import { v4 as uuidv7 } from 'uuid';
 import type {
   EvidencePackage, EvidencePackagePayload, SigningKeyRecord

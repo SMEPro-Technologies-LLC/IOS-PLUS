@@ -1,4 +1,4 @@
-﻿/**
+/**
  * IOS+ Middleware Engine — entry point
  * YBR-L4 Tier 2: Orchestration layer
  * 3 replicas, 16Gi RAM per EB Doc 6 §2.1
@@ -70,10 +70,52 @@ async function main() {
   }, cosRegistry);
 
   // NAICS profile for this tenant deployment (drives UCO node selection at L3)
+  const tenantId = requireEnv("TENANT_ID");
+  const iosAppPool = cosRegistry.pool('ios_app');
+
+  let riskTolerance = 7; // default fallback
+  try {
+    const tenantRes = await iosAppPool.query(
+      'SELECT risk_tolerance FROM tenant_registry WHERE tenant_id = $1',
+      [tenantId]
+    );
+    if (tenantRes.rows[0]) {
+      riskTolerance = tenantRes.rows[0].risk_tolerance;
+      log.info({ tenantId, riskTolerance }, "Resolved tenant risk tolerance from database");
+    }
+  } catch (err) {
+    log.error({ err }, "Failed to query tenant risk tolerance, using default");
+  }
+
+  let jurisdictions: string[] = ["Federal"];
+  try {
+    const profileRes = await iosAppPool.query(
+      'SELECT jurisdictions FROM regulatory_profiles WHERE tenant_id = $1 ORDER BY effective_date DESC LIMIT 1',
+      [tenantId]
+    );
+    if (profileRes.rows[0]?.jurisdictions) {
+      jurisdictions = profileRes.rows[0].jurisdictions;
+      log.info({ tenantId, jurisdictions }, "Resolved tenant jurisdictions from regulatory_profiles");
+    } else {
+      const tnpRes = await iosAppPool.query(
+        'SELECT jurisdictions FROM tenant_naics_profiles WHERE tenant_id = $1 ORDER BY effective_date DESC LIMIT 1',
+        [tenantId]
+      );
+      if (tnpRes.rows[0]?.jurisdictions) {
+        jurisdictions = tnpRes.rows[0].jurisdictions;
+        log.info({ tenantId, jurisdictions }, "Resolved tenant jurisdictions from tenant_naics_profiles");
+      }
+    }
+  } catch (err) {
+    log.error({ err }, "Failed to query tenant jurisdictions, using default");
+  }
+
   const naicsProfile: NAICSProfile = {
-    tenantId:      requireEnv("TENANT_ID"),
+    tenantId,
     naicsCodes:    requireEnv("TENANT_NAICS_CODES").split(",").map(s => s.trim()),
     effectiveDate: process.env["TENANT_NAICS_EFFECTIVE_DATE"] ?? new Date().toISOString().slice(0, 10),
+    jurisdictions: jurisdictions as any,
+    riskTolerance,
   };
 
   const deps: PipelineDependencies = {

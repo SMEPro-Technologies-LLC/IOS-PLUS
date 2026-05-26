@@ -19,10 +19,10 @@ import type { CosConnectionRegistry } from '@ios-plus/cos-plus';
 
 export interface RAGVaultConfig {
   openaiApiKey: string;
-  embeddingModel: string;
-  embeddingDimensions: number;
-  maxChunksPerQuery: number;
-  similarityThreshold: number;
+  embeddingModel: string;       // default: text-embedding-3-large
+  embeddingDimensions: number;  // default: 3072
+  maxChunksPerQuery: number;    // default: 12
+  similarityThreshold: number;  // default: 0.72
 }
 
 export interface RAGChunk {
@@ -50,10 +50,11 @@ export interface RAGRetrievalResult {
   efSearchUsed: number;
 }
 
+/** Hard ceiling on maxChunks regardless of caller input — defense against SQL injection
+ *  via the LIMIT clause, which PostgreSQL does not accept as a positional parameter. */
 const MAX_CHUNKS_CEILING = 100;
-const MAX_EF_SEARCH = 1000;
-const DEFAULT_EF_SEARCH = 40;
 
+/** Derive sector codes from UCO node IDs for partition routing */
 function extractSectorCodes(nodes: UCONodeSummary[]): SectorCode[] {
   const sectorMap: Record<string, SectorCode> = {
     'UCO-ENERGY': '01-ENERGY',
@@ -86,6 +87,7 @@ function extractSectorCodes(nodes: UCONodeSummary[]): SectorCode[] {
   return [...codes];
 }
 
+/** Determine ef_search from highest risk tier across relevant nodes */
 function deriveEfSearch(nodes: UCONodeSummary[]): number {
   const tierOrder: RiskTier[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
   for (const tier of tierOrder) {
@@ -94,6 +96,8 @@ function deriveEfSearch(nodes: UCONodeSummary[]): number {
   return HNSW_EF_SEARCH['MEDIUM'];
 }
 
+/** Clamp a caller-supplied chunk count to a safe integer in [1, MAX_CHUNKS_CEILING].
+ *  Handles strings, NaN, negative numbers, decimals, and undefined consistently. */
 function clampMaxChunks(raw: unknown, fallback: number): number {
   const coerced = Math.floor(Number(raw));
   if (!Number.isFinite(coerced) || coerced <= 0) {
@@ -102,14 +106,8 @@ function clampMaxChunks(raw: unknown, fallback: number): number {
   return Math.min(MAX_CHUNKS_CEILING, coerced);
 }
 
-function clampEfSearch(raw: unknown): number {
-  const coerced = Math.floor(Number(raw));
-  if (!Number.isFinite(coerced) || coerced <= 0) {
-    return DEFAULT_EF_SEARCH;
-  }
-  return Math.min(MAX_EF_SEARCH, coerced);
-}
-
+/** Classify whether a thrown error is a transient upstream issue eligible for
+ *  graceful degradation. Distinct from unexpected errors which must surface. */
 function isTransientUpstreamError(err: unknown): boolean {
   const e = err as { status?: number; code?: string } | null;
   if (!e) return false;
@@ -137,19 +135,22 @@ export class RAGVaultService {
 
   async retrieve(request: RAGRetrievalRequest): Promise<RAGRetrievalResult> {
     const startMs = Date.now();
+
     try {
       const allNodes = [...request.ucoContext.nodes, ...request.ucoContext.crossCuttingNodes];
       const sectorCodes = extractSectorCodes(allNodes);
-      const efSearch = clampEfSearch(deriveEfSearch(allNodes));
+      const efSearch = deriveEfSearch(allNodes);
       const ucoNodeIds = allNodes.map(n => n.ucoNodeId);
       const maxChunks = clampMaxChunks(request.maxChunks, this.config.maxChunksPerQuery);
 
+      // Embed query
       const embeddingResp = await this.openai.embeddings.create({
         model: this.config.embeddingModel,
         input: request.query,
         dimensions: this.config.embeddingDimensions,
       });
 
+      // Explicit null check — clearer error than dereferencing data[0]!
       if (!embeddingResp.data?.[0]?.embedding) {
         throw new Error('OpenAI returned no embedding data');
       }
@@ -157,9 +158,13 @@ export class RAGVaultService {
 
       const pool = this.registry.pool('rag_reader');
 
+      // Set ef_search for this session (HNSW tuning)
       await pool.query(`SET hnsw.ef_search = ${efSearch}`);
 
-      const sectorPlaceholders = sectorCodes.map((_, i) => `$${i + 3}`).join(',');
+      // UCO-partitioned cosine similarity search
+      // Note: We parameterize the LIMIT clause using $3, and shift the sector
+      // code placeholders to start at $4. This completely avoids SQL string interpolation.
+      const sectorPlaceholders = sectorCodes.map((_, i) => `$${i + 4}`).join(',');
       const { rows } = await pool.query<{
         chunk_id: string; source_id: string; sector_code: string;
         uco_node_id: string | null; chunk_text: string; metadata: unknown;
@@ -168,4 +173,62 @@ export class RAGVaultService {
         `SELECT chunk_id, source_id, sector_code, uco_node_id, chunk_text, metadata,
                 1 - (embedding <=> $1::vector) AS similarity
          FROM rag_chunks
-         WHERE sector_code IN (${
+         WHERE sector_code IN (${sectorPlaceholders})
+           AND 1 - (embedding <=> $1::vector) > $2
+         ORDER BY embedding <=> $1::vector
+         LIMIT $3`,
+        [`[${queryEmbedding.join(',')}]`, this.config.similarityThreshold, maxChunks, ...sectorCodes]
+      );
+
+      const chunks: RAGChunk[] = rows.map(r => ({
+        chunkId: r.chunk_id,
+        sourceId: r.source_id,
+        sectorCode: r.sector_code as SectorCode,
+        ucoNodeId: r.uco_node_id,
+        chunkText: r.chunk_text,
+        embedding: [], // not returned for bandwidth
+        similarity: r.similarity,
+        metadata: r.metadata as Record<string, unknown>,
+      }));
+
+      return {
+        chunks,
+        sectorPartitionsQueried: sectorCodes,
+        ucoNodeIdsFiltered: ucoNodeIds,
+        latencyMs: Date.now() - startMs,
+        efSearchUsed: efSearch,
+      };
+    } catch (err) {
+      if (isTransientUpstreamError(err)) {
+        // Graceful degradation — pipeline continues with no retrieved chunks
+        // Logged distinctly from unexpected failures for observability
+        console.warn(JSON.stringify({
+          level: 40,
+          time: Date.now(),
+          msg: 'rag_retrieve_upstream_degraded',
+          error: String(err),
+          status: (err as { status?: number })?.status,
+          code: (err as { code?: string })?.code,
+          latencyMs: Date.now() - startMs,
+        }));
+        return {
+          chunks: [],
+          sectorPartitionsQueried: [],
+          ucoNodeIdsFiltered: [],
+          latencyMs: Date.now() - startMs,
+          efSearchUsed: 0,
+        };
+      }
+      // Unexpected — log with full context and rethrow so the pipeline surfaces it
+      console.error(JSON.stringify({
+        level: 50,
+        time: Date.now(),
+        msg: 'rag_retrieve_unexpected_error',
+        error: String(err),
+        stack: (err as Error)?.stack,
+        latencyMs: Date.now() - startMs,
+      }));
+      throw err;
+    }
+  }
+}

@@ -68,6 +68,7 @@ export interface UCOContext {
 export interface NAICSProfile {
   tenantId: string; naicsCodes: string[];
   additionalSicCodes?: string[]; jurisdictions?: JurisdictionLevel[]; effectiveDate: string;
+  riskTolerance?: number;
 }
 
 export type SectorCode =

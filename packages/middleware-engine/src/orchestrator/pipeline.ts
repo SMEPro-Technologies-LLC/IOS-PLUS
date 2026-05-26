@@ -122,18 +122,50 @@ export async function resumePipeline(
   const latencies: Record<string, number> = {};
   const { ctx } = parked;
 
+  let response: InferenceResponse;
+  let finalAction: 'APPROVE' | 'BLOCK';
+
   if (action === 'BLOCK') {
     const gateResult = {
       ...parked.gateResult,
       aggregatePolicyAction: 'BLOCK' as const,
     };
-    return runL7(ctx, gateResult, { chunks: [], sectorPartitionsQueried: [], ucoNodeIdsFiltered: [], latencyMs: 0, efSearchUsed: 0 }, Date.now() - pipelineStart, latencies);
+    response = runL7(ctx, gateResult, { chunks: [], sectorPartitionsQueried: [], ucoNodeIdsFiltered: [], latencyMs: 0, efSearchUsed: 0 }, Date.now() - pipelineStart, latencies);
+    finalAction = 'BLOCK';
+  } else {
+    // CLEAR action: proceed to L6 and L7
+    const query = ctx.request?.rawInput ?? "";
+    const l6 = await runL6(ctx, query, deps.ragVault);
+    latencies["L6"] = l6.latencyMs;
+
+    const gateResult = {
+      ...parked.gateResult,
+      aggregatePolicyAction: 'APPROVE' as const,
+    };
+    response = runL7(ctx, gateResult, l6.ragResult, Date.now() - pipelineStart, latencies);
+    finalAction = 'APPROVE';
   }
 
-  // CLEAR action: proceed to L6 and L7
-  const query = ctx.request?.rawInput ?? "";
-  const l6 = await runL6(ctx, query, deps.ragVault);
-  latencies["L6"] = l6.latencyMs;
+  // Commit final response package to evidence_packages at Layer 7
+  const responseHash = crypto.createHash("sha256").update(response.output).digest("hex");
+  const l7Pkg = await deps.evidenceFabric.createAndCommit({
+    tenantId: ctx.tenantId,
+    sessionId: ctx.sessionId,
+    timestamp: new Date().toISOString(),
+    eventType: "WORM_COMMIT",
+    layerDepth: 7,
+    requestHash: parked.requestHash,
+    responseHash,
+    ucoNodeIds: ctx.ucoContext.resolvedNodeIds,
+    policyAction: finalAction,
+    classificationLevel: ctx.classificationLevel,
+    metadata: {
+      quarantineId: parked.gateResult.gateDecisionId,
+      originalPolicyAction: "ESCALATE",
+      resolution: action,
+    },
+  }, deps.signingKeyBytes);
 
-  return runL7(ctx, parked.gateResult, l6.ragResult, Date.now() - pipelineStart, latencies);
+  response.evidencePackages = [l7Pkg];
+  return response;
 }

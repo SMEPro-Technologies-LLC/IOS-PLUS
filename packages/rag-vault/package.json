@@ -10,7 +10,11 @@
   "dependencies": {
     "@ios-plus/shared": "*",
     "@ios-plus/cos-plus": "*",
-    "openai": "^4.28.0"
+    "openai": "^4.28.0",
+    "ioredis": "^5.3.0"
   },
-  "devDependencies": { "typescript": "^5.4.0" }
+  "devDependencies": {
+    "@types/ioredis": "^4.28.0",
+    "typescript": "^5.4.0"
+  }
 }

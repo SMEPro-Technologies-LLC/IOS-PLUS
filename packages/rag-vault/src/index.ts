@@ -16,6 +16,8 @@ import OpenAI from 'openai';
 import type { UCOContext, UCONodeSummary, RiskTier, SectorCode } from '@ios-plus/shared';
 import { HNSW_EF_SEARCH } from '@ios-plus/shared';
 import type { CosConnectionRegistry } from '@ios-plus/cos-plus';
+import { Redis } from 'ioredis';
+import crypto from 'node:crypto';
 
 export interface RAGVaultConfig {
   openaiApiKey: string;
@@ -23,6 +25,8 @@ export interface RAGVaultConfig {
   embeddingDimensions: number;  // default: 3072
   maxChunksPerQuery: number;    // default: 12
   similarityThreshold: number;  // default: 0.72
+  redisUrl?: string;
+  cacheTtlSeconds?: number;
 }
 
 export interface RAGChunk {
@@ -126,11 +130,35 @@ export class RAGVaultService {
   private openai: OpenAI;
   private config: RAGVaultConfig;
   private registry: CosConnectionRegistry;
+  private redis: Redis | null = null;
 
   constructor(config: RAGVaultConfig, registry: CosConnectionRegistry) {
     this.config = config;
     this.registry = registry;
     this.openai = new OpenAI({ apiKey: config.openaiApiKey });
+    if (config.redisUrl) {
+      try {
+        this.redis = new Redis(config.redisUrl, {
+          maxRetriesPerRequest: 1,
+          lazyConnect: true,
+        });
+        this.redis.connect().catch((err) => {
+          console.warn(JSON.stringify({
+            level: 40,
+            time: Date.now(),
+            msg: "rag_vault_redis_connect_failed",
+            error: String(err),
+          }));
+        });
+      } catch (err) {
+        console.warn(JSON.stringify({
+          level: 40,
+          time: Date.now(),
+          msg: "rag_vault_redis_init_failed",
+          error: String(err),
+        }));
+      }
+    }
   }
 
   async retrieve(request: RAGRetrievalRequest): Promise<RAGRetrievalResult> {
@@ -143,18 +171,53 @@ export class RAGVaultService {
       const ucoNodeIds = allNodes.map(n => n.ucoNodeId);
       const maxChunks = clampMaxChunks(request.maxChunks, this.config.maxChunksPerQuery);
 
-      // Embed query
-      const embeddingResp = await this.openai.embeddings.create({
-        model: this.config.embeddingModel,
-        input: request.query,
-        dimensions: this.config.embeddingDimensions,
-      });
-
-      // Explicit null check — clearer error than dereferencing data[0]!
-      if (!embeddingResp.data?.[0]?.embedding) {
-        throw new Error('OpenAI returned no embedding data');
+      let queryEmbedding: number[] | null = null;
+      let cacheKey = "";
+      if (this.redis) {
+        try {
+          const queryHash = crypto.createHash("sha256").update(request.query).digest("hex");
+          cacheKey = `rag:emb:${this.config.embeddingModel}:${queryHash}`;
+          const cached = await this.redis.get(cacheKey);
+          if (cached) {
+            queryEmbedding = JSON.parse(cached);
+          }
+        } catch (err) {
+          console.warn(JSON.stringify({
+            level: 40,
+            time: Date.now(),
+            msg: "rag_vault_redis_get_failed",
+            error: String(err),
+          }));
+        }
       }
-      const queryEmbedding = embeddingResp.data[0].embedding;
+
+      if (!queryEmbedding) {
+        // Embed query
+        const embeddingResp = await this.openai.embeddings.create({
+          model: this.config.embeddingModel,
+          input: request.query,
+          dimensions: this.config.embeddingDimensions,
+        });
+
+        // Explicit null check — clearer error than dereferencing data[0]!
+        if (!embeddingResp.data?.[0]?.embedding) {
+          throw new Error('OpenAI returned no embedding data');
+        }
+        queryEmbedding = embeddingResp.data[0].embedding;
+
+        // Save to cache asynchronously
+        if (this.redis && queryEmbedding && cacheKey) {
+          const ttl = this.config.cacheTtlSeconds ?? 86400;
+          this.redis.set(cacheKey, JSON.stringify(queryEmbedding), 'EX', ttl).catch((err) => {
+            console.warn(JSON.stringify({
+              level: 40,
+              time: Date.now(),
+              msg: "rag_vault_redis_set_failed",
+              error: String(err),
+            }));
+          });
+        }
+      }
 
       const pool = this.registry.pool('rag_reader');
 

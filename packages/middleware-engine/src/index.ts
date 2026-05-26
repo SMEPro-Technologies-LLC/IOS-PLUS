@@ -67,6 +67,7 @@ async function main() {
     embeddingDimensions: parseInt(process.env["RAG_EMBEDDING_DIM"]          ?? "3072"),
     maxChunksPerQuery:   parseInt(process.env["RAG_MAX_CHUNKS"]              ?? "8"),
     similarityThreshold: parseFloat(process.env["RAG_SIMILARITY_THRESHOLD"] ?? "0.75"),
+    redisUrl:            requireEnv("REDIS_URL"),
   }, cosRegistry);
 
   // NAICS profile for this tenant deployment (drives UCO node selection at L3)

@@ -18,6 +18,9 @@ import type {
   EvidencePackage, EvidencePackagePayload, SigningKeyRecord
 } from '@ios-plus/shared';
 import type { CosConnectionRegistry } from '@ios-plus/cos-plus';
+import { KeyProvider } from './keyProvider.js';
+
+export * from './keyProvider.js';
 
 export interface VaultTransitConfig {
   /** HashiCorp Vault address */
@@ -68,10 +71,16 @@ export async function verifyEvidencePackage(
 export class EvidenceFabricService {
   private config: EvidenceFabricConfig;
   private registry: CosConnectionRegistry;
+  private keyProvider: KeyProvider;
 
-  constructor(config: EvidenceFabricConfig, registry: CosConnectionRegistry) {
+  constructor(
+    config: EvidenceFabricConfig,
+    registry: CosConnectionRegistry,
+    keyProvider: KeyProvider
+  ) {
     this.config = config;
     this.registry = registry;
+    this.keyProvider = keyProvider;
   }
 
   /**
@@ -79,14 +88,14 @@ export class EvidenceFabricService {
    * Called at L4 (Evidence Anchoring) and L5 (Gate 530 gate decisions).
    */
   async createAndCommit(
-    payload: Omit<EvidencePackagePayload, 'eventId'>,
-    privateKeyBytes: Uint8Array
+    payload: Omit<EvidencePackagePayload, 'eventId'>
   ): Promise<EvidencePackage> {
     const fullPayload: EvidencePackagePayload = {
       ...payload,
       eventId: uuidv7(),
     };
 
+    const privateKeyBytes = await this.keyProvider.getSigningKey(fullPayload.tenantId);
     const signature = await signPayload(fullPayload, privateKeyBytes);
 
     const pkg: EvidencePackage = {

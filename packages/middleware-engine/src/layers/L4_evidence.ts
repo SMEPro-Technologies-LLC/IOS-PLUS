@@ -9,7 +9,6 @@ import type { EvidenceFabricService } from "@ios-plus/evidence-fabric";
 export async function runL4(
   ctx: ExecutionContext,
   fabric: EvidenceFabricService,
-  privateKeyBytes: Uint8Array,
   requestHash: string
 ): Promise<LayerResult & { evidencePackage: EvidencePackage }> {
   const start = Date.now();
@@ -18,6 +17,6 @@ export async function runL4(
     eventType: "INFERENCE_REQUEST", layerDepth: 4, requestHash, responseHash: "",
     ucoNodeIds: ctx.ucoContext.resolvedNodeIds, policyAction: "APPROVE",
     classificationLevel: ctx.classificationLevel, metadata: {},
-  }, privateKeyBytes);
+  });
   return { layer: 4, success: true, latencyMs: Date.now() - start, evidencePackage: pkg };
 }

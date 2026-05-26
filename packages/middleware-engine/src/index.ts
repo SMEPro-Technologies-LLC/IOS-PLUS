@@ -7,7 +7,7 @@ import { createRestApp } from "./transport/rest.js";
 import { pino } from "pino";
 import { CosConnectionRegistry, GateDecisionRepository } from "@ios-plus/cos-plus";
 import { UCOResolver } from "@ios-plus/uco-resolver";
-import { EvidenceFabricService } from "@ios-plus/evidence-fabric";
+import { EvidenceFabricService, LocalEnvKeyProvider, LocalFileKeyProvider } from "@ios-plus/evidence-fabric";
 import { RAGVaultService } from "@ios-plus/rag-vault";
 import type { NAICSProfile } from "@ios-plus/shared";
 import type { PipelineDependencies } from "./orchestrator/pipeline.js";
@@ -45,6 +45,16 @@ async function main() {
     databaseUrl: requireEnv("COS_URL_RAG_READER"),
   });
 
+  // Initialize Key Custody Provider
+  let keyProvider;
+  if (process.env["SIGNING_KEY_FILE_PATH"]) {
+    keyProvider = new LocalFileKeyProvider(process.env["SIGNING_KEY_FILE_PATH"]);
+    log.info({ path: process.env["SIGNING_KEY_FILE_PATH"] }, "Initialized LocalFileKeyProvider (On-Premises custody)");
+  } else {
+    keyProvider = new LocalEnvKeyProvider(requireEnv("SIGNING_KEY_PRIVATE_BASE64"));
+    log.info("Initialized LocalEnvKeyProvider (SaaS / Default custody)");
+  }
+
   // Evidence Fabric (L4 — Evidence Anchoring)
   const evidenceFabric = new EvidenceFabricService({
     vault: {
@@ -55,10 +65,7 @@ async function main() {
     publicKeyFilesystemPath: process.env["SIGNING_KEY_PUBKEY_PATH"] ?? "/run/secrets/signing-pubkey.pem",
     dnsTxtZone:  requireEnv("SIGNING_KEY_DNS_ZONE"),
     activeKeyId: requireEnv("SIGNING_KEY_ACTIVE_ID"),
-  }, cosRegistry);
-
-  // Ed25519 signing key bytes — injected as base64 from Vault secret
-  const signingKeyBytes = Buffer.from(requireEnv("SIGNING_KEY_PRIVATE_BASE64"), "base64");
+  }, cosRegistry, keyProvider);
 
   // RAG Vault (L6 — Retrieval Augmented Generation)
   const ragVault = new RAGVaultService({
@@ -130,7 +137,6 @@ async function main() {
     ucoResolver,
     evidenceFabric,
     ragVault,
-    signingKeyBytes,
     gateDecisionRepository,
   };
 

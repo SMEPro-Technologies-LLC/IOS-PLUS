@@ -26,7 +26,6 @@ export interface PipelineDependencies {
   ucoResolver: UCOResolver;
   evidenceFabric: EvidenceFabricService;
   ragVault: RAGVaultService;
-  signingKeyBytes: Uint8Array;
   gateDecisionRepository: GateDecisionRepository;
 }
 
@@ -61,7 +60,7 @@ export async function executePipeline(
   };
 
   const requestHash = crypto.createHash("sha256").update(l1.normalizedInput).digest("hex");
-  const l4 = await runL4(ctx, deps.evidenceFabric, deps.signingKeyBytes, requestHash);
+  const l4 = await runL4(ctx, deps.evidenceFabric, requestHash);
   latencies["L4"] = l4.latencyMs;
 
   const l5 = await runL5(ctx, l2.output.detectedActivity, naicsProfile);
@@ -164,7 +163,7 @@ export async function resumePipeline(
       originalPolicyAction: "ESCALATE",
       resolution: action,
     },
-  }, deps.signingKeyBytes);
+  });
 
   response.evidencePackages = [l7Pkg];
   return response;

@@ -1,13 +1,91 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createRestApp } from "./rest.js";
 import type { PipelineDependencies } from "../orchestrator/pipeline.js";
 import type { NAICSProfile } from "@ios-plus/shared";
 import type { Server } from "node:http";
+import fs from "node:fs";
+import { EventEmitter } from "node:events";
+
+// Mock ioredis to allow dynamic health check
+vi.mock("ioredis", () => {
+  return {
+    Redis: class {
+      constructor(public url: string) {}
+      async ping() {
+        if (process.env["TEST_REDIS_HEALTHY"] === "false") {
+          throw new Error("Redis connection refused");
+        }
+        return "PONG";
+      }
+      async quit() {}
+    }
+  };
+});
+
+// Mock node:net and node:http2 to allow dynamic health check
+vi.mock("node:net", () => {
+  return {
+    default: {
+      createConnection: (path: string) => {
+        const emitter = new EventEmitter();
+        setTimeout(() => {
+          if (process.env["TEST_GATE530_HEALTHY"] === "false") {
+            emitter.emit("error", new Error("IPC socket connection refused"));
+          } else {
+            emitter.emit("connect");
+          }
+        }, 10);
+        (emitter as any).destroy = () => {};
+        return emitter;
+      }
+    }
+  };
+});
+
+vi.mock("node:http2", () => {
+  return {
+    default: {
+      connect: (url: string) => {
+        const emitter = new EventEmitter();
+        setTimeout(() => {
+          if (process.env["TEST_GATE530_HEALTHY"] === "false") {
+            emitter.emit("error", new Error("HTTP/2 connection refused"));
+          } else {
+            emitter.emit("connect");
+          }
+        }, 10);
+        (emitter as any).destroy = () => {};
+        return emitter;
+      }
+    }
+  };
+});
+
+// Spy on fs to mock Vault secrets file presence
+const originalExistsSync = fs.existsSync;
+vi.spyOn(fs, "existsSync").mockImplementation((path: fs.PathLike): boolean => {
+  if (path === "/vault/secrets/ios-plus.env") {
+    return process.env["TEST_VAULT_SECRETS_EXISTS"] !== "false";
+  }
+  return originalExistsSync(path);
+});
+
+const originalStatSync = fs.statSync;
+vi.spyOn(fs, "statSync").mockImplementation((path: fs.PathLike, options?: any): any => {
+  if (path === "/vault/secrets/ios-plus.env") {
+    return { size: 100, mtimeMs: Date.now() };
+  }
+  return originalStatSync(path, options);
+});
 
 describe("REST App Transport Routes Unit Tests", () => {
   let app: any;
   let server: Server;
   let port: number;
+  let dbHealthy = true;
+  let vaultHealthy = true;
+  let openaiHealthy = true;
+  let originalFetch: any;
 
   const mockDeps: any = {
     ucoResolver: {},
@@ -24,6 +102,10 @@ describe("REST App Transport Routes Unit Tests", () => {
       pool: (role: string) => {
         return {
           query: async (queryText: string, params: any[]) => {
+            if (queryText === "SELECT 1") {
+              if (!dbHealthy) throw new Error("Database down");
+              return { rows: [{ 1: 1 }] };
+            }
             if (queryText.includes("SELECT * FROM uco_nodes")) {
               return {
                 rows: [
@@ -61,6 +143,47 @@ describe("REST App Transport Routes Unit Tests", () => {
   };
 
   beforeAll(async () => {
+    originalFetch = global.fetch;
+    global.fetch = (async (url: string, options?: any) => {
+      if (url.includes("/v1/sys/health")) {
+        if (!vaultHealthy) {
+          return {
+            status: 503,
+            json: async () => ({ initialized: true, sealed: true }),
+          };
+        }
+        return {
+          status: 200,
+          json: async () => ({ initialized: true, sealed: false }),
+        };
+      }
+      if (url.includes("api.openai.com/v1/models")) {
+        if (!openaiHealthy) {
+          return {
+            status: 401,
+            json: async () => ({ error: "invalid_key" }),
+          };
+        }
+        return {
+          status: 200,
+          json: async () => ({ data: [] }),
+        };
+      }
+      return originalFetch(url, options);
+    }) as any;
+
+    // Reset default healthy states
+    dbHealthy = true;
+    vaultHealthy = true;
+    openaiHealthy = true;
+    process.env["TEST_REDIS_HEALTHY"] = "true";
+    process.env["TEST_GATE530_HEALTHY"] = "true";
+    process.env["TEST_VAULT_SECRETS_EXISTS"] = "true";
+    process.env["VAULT_ADDR"] = "http://localhost:8200";
+    process.env["OPENAI_API_KEY"] = "sk-test-key";
+    process.env["COS_ADMIN_API_KEY"] = "iosplus_dev_admin_key";
+    process.env["NODE_ENV"] = "production";
+
     app = createRestApp(mockDeps, mockProfile);
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => {
@@ -72,6 +195,8 @@ describe("REST App Transport Routes Unit Tests", () => {
   });
 
   afterAll(async () => {
+    global.fetch = originalFetch;
+    process.env["NODE_ENV"] = "test";
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
@@ -82,14 +207,116 @@ describe("REST App Transport Routes Unit Tests", () => {
     expect(body.status).toBe("ok");
   });
 
-  it("GET /ready returns health status check metrics", async () => {
+  it("GET /ready returns health 200 status when all dependencies are healthy", async () => {
+    dbHealthy = true;
+    vaultHealthy = true;
+    openaiHealthy = true;
+    process.env["TEST_REDIS_HEALTHY"] = "true";
+    process.env["TEST_GATE530_HEALTHY"] = "true";
+    process.env["TEST_VAULT_SECRETS_EXISTS"] = "true";
+
+    const res = await fetch(`http://localhost:${port}/ready`);
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.status).toBe("ready");
+    expect(body.checks.database).toBe("healthy");
+    expect(body.checks.redis).toBe("healthy");
+    expect(body.checks.gate530).toBe("healthy");
+    expect(body.checks.vault).toBe("healthy");
+    expect(body.checks.vaultSecrets).toContain("healthy");
+    expect(body.checks.openai).toBe("healthy");
+  });
+
+  it("GET /ready returns 503 degraded when Database is down", async () => {
+    dbHealthy = false;
+    vaultHealthy = true;
+    openaiHealthy = true;
+    process.env["TEST_REDIS_HEALTHY"] = "true";
+    process.env["TEST_GATE530_HEALTHY"] = "true";
+    process.env["TEST_VAULT_SECRETS_EXISTS"] = "true";
+
     const res = await fetch(`http://localhost:${port}/ready`);
     expect(res.status).toBe(503);
     const body = await res.json() as any;
     expect(body.status).toBe("degraded");
-    expect(body.checks.database).toBe("healthy");
+    expect(body.checks.database).toContain("unhealthy");
+    expect(body.checks.redis).toBe("healthy");
+  });
+
+  it("GET /ready returns 503 degraded when Redis is down", async () => {
+    dbHealthy = true;
+    vaultHealthy = true;
+    openaiHealthy = true;
+    process.env["TEST_REDIS_HEALTHY"] = "false";
+    process.env["TEST_GATE530_HEALTHY"] = "true";
+    process.env["TEST_VAULT_SECRETS_EXISTS"] = "true";
+
+    const res = await fetch(`http://localhost:${port}/ready`);
+    expect(res.status).toBe(503);
+    const body = await res.json() as any;
+    expect(body.status).toBe("degraded");
     expect(body.checks.redis).toContain("unhealthy");
+    expect(body.checks.database).toBe("healthy");
+  });
+
+  it("GET /ready returns 503 degraded when Gate 530 is down", async () => {
+    dbHealthy = true;
+    vaultHealthy = true;
+    openaiHealthy = true;
+    process.env["TEST_REDIS_HEALTHY"] = "true";
+    process.env["TEST_GATE530_HEALTHY"] = "false";
+    process.env["TEST_VAULT_SECRETS_EXISTS"] = "true";
+
+    const res = await fetch(`http://localhost:${port}/ready`);
+    expect(res.status).toBe(503);
+    const body = await res.json() as any;
+    expect(body.status).toBe("degraded");
     expect(body.checks.gate530).toContain("unhealthy");
+  });
+
+  it("GET /ready returns 503 degraded when Vault is sealed/unhealthy", async () => {
+    dbHealthy = true;
+    vaultHealthy = false;
+    openaiHealthy = true;
+    process.env["TEST_REDIS_HEALTHY"] = "true";
+    process.env["TEST_GATE530_HEALTHY"] = "true";
+    process.env["TEST_VAULT_SECRETS_EXISTS"] = "true";
+
+    const res = await fetch(`http://localhost:${port}/ready`);
+    expect(res.status).toBe(503);
+    const body = await res.json() as any;
+    expect(body.status).toBe("degraded");
+    expect(body.checks.vault).toContain("unhealthy");
+  });
+
+  it("GET /ready returns 503 degraded when Vault secrets config file is missing in production", async () => {
+    dbHealthy = true;
+    vaultHealthy = true;
+    openaiHealthy = true;
+    process.env["TEST_REDIS_HEALTHY"] = "true";
+    process.env["TEST_GATE530_HEALTHY"] = "true";
+    process.env["TEST_VAULT_SECRETS_EXISTS"] = "false";
+
+    const res = await fetch(`http://localhost:${port}/ready`);
+    expect(res.status).toBe(503);
+    const body = await res.json() as any;
+    expect(body.status).toBe("degraded");
+    expect(body.checks.vaultSecrets).toContain("unhealthy");
+  });
+
+  it("GET /ready returns 503 degraded when OpenAI returns invalid credentials", async () => {
+    dbHealthy = true;
+    vaultHealthy = true;
+    openaiHealthy = false;
+    process.env["TEST_REDIS_HEALTHY"] = "true";
+    process.env["TEST_GATE530_HEALTHY"] = "true";
+    process.env["TEST_VAULT_SECRETS_EXISTS"] = "true";
+
+    const res = await fetch(`http://localhost:${port}/ready`);
+    expect(res.status).toBe(503);
+    const body = await res.json() as any;
+    expect(body.status).toBe("degraded");
+    expect(body.checks.openai).toBe("invalid_credentials");
   });
 
   it("GET /v1/compliance/queue returns quarantined records list", async () => {

@@ -371,7 +371,13 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
   // --- UCO Compliance Rule Management Routes ---
 
   // API Key Authentication Middleware for admin control plane
-  const adminApiKey = process.env["COS_ADMIN_API_KEY"] ?? "iosplus_dev_admin_key";
+  let adminApiKey = process.env["COS_ADMIN_API_KEY"];
+  if (!adminApiKey) {
+    if (process.env["NODE_ENV"] === "production") {
+      throw new Error("CRITICAL SECURITY ERROR: COS_ADMIN_API_KEY environment variable is not configured in production mode.");
+    }
+    adminApiKey = "iosplus_dev_admin_key";
+  }
   
   const requireAdminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const authHeader = req.headers["authorization"] || req.headers["x-admin-api-key"];

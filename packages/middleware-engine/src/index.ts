@@ -53,6 +53,7 @@ function validateSecrets() {
     "VAULT_ADDR",
     "VAULT_TRANSIT_KEY_PATH",
     "OPENAI_API_KEY",
+    "COS_ADMIN_API_KEY",
   ];
   
   const missing: string[] = [];

@@ -95,7 +95,128 @@ def compute_merkle_root(leaves: list[str]) -> str:
         layer = [sha256(layer[i] + layer[i+1]) for i in range(0, len(layer), 2)]
     return layer[0]
 
-def publish_dns_txt_record(txt_zone, merkle_root):
+def get_gcp_access_token():
+    import urllib.request
+    import json
+    req = urllib.request.Request(
+        "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+        headers={"Metadata-Flavor": "Google"}
+    )
+    with urllib.request.urlopen(req, timeout=5) as response:
+        data = json.loads(response.read().decode('utf-8'))
+        return data["access_token"]
+
+def get_gcp_project_id():
+    import urllib.request
+    req = urllib.request.Request(
+        "http://metadata.google.internal/computeMetadata/v1/project/project-id",
+        headers={"Metadata-Flavor": "Google"}
+    )
+    with urllib.request.urlopen(req, timeout=5) as response:
+        return response.read().decode('utf-8').strip()
+
+def resolve_gcp_dns_zone_name(token, project, fqdn):
+    import urllib.request
+    import json
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    url = f"https://dns.googleapis.com/dns/v1/projects/{project}/managedZones"
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req, timeout=10) as response:
+        res_data = json.loads(response.read().decode('utf-8'))
+        zones = res_data.get("managedZones", [])
+        zones.sort(key=lambda z: len(z.get("dnsName", "")), reverse=True)
+        for zone in zones:
+            dns_name = zone.get("dnsName", "")
+            if dns_name and fqdn.endswith(dns_name):
+                return zone.get("name")
+    return None
+
+def publish_gcp_dns_txt_record(txt_zone, merkle_root):
+    import urllib.request
+    import urllib.error
+    import json
+    import os
+    
+    formatted_value = f'"{merkle_root}"'
+    print(f"Attempting to publish DNS TXT record for {txt_zone} to GCP Cloud DNS...")
+    
+    fqdn = txt_zone
+    if not fqdn.endswith('.'):
+        fqdn += '.'
+        
+    try:
+        token = get_gcp_access_token()
+        project = os.environ.get("GCP_PROJECT") or get_gcp_project_id()
+        zone_name = os.environ.get("GCP_DNS_ZONE_NAME")
+        
+        if not zone_name:
+            zone_name = resolve_gcp_dns_zone_name(token, project, fqdn)
+            
+        if not zone_name:
+            print("ERROR: GCP_DNS_ZONE_NAME is not set and could not resolve zone dynamically. Skipping GCP Cloud DNS publication.")
+            return False
+            
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        
+        list_url = f"https://dns.googleapis.com/dns/v1/projects/{project}/managedZones/{zone_name}/rrsets?name={fqdn}&type=TXT"
+        req = urllib.request.Request(list_url, headers=headers)
+        
+        deletions = []
+        try:
+            with urllib.request.urlopen(req, timeout=10) as response:
+                res_data = json.loads(response.read().decode('utf-8'))
+                rrsets = res_data.get("rrsets", [])
+                if rrsets:
+                    deletions = rrsets
+        except Exception as e:
+            print(f"WARNING: Failed to read existing DNS records (assuming none exist): {e}")
+            
+        additions = [{
+            "name": fqdn,
+            "type": "TXT",
+            "ttl": 300,
+            "rrdatas": [formatted_value]
+        }]
+        
+        change_body = {
+            "additions": additions
+        }
+        if deletions:
+            change_body["deletions"] = [{
+                "name": d.get("name"),
+                "type": d.get("type"),
+                "ttl": d.get("ttl"),
+                "rrdatas": d.get("rrdatas")
+            } for d in deletions]
+            
+        change_url = f"https://dns.googleapis.com/dns/v1/projects/{project}/managedZones/{zone_name}/changes"
+        req = urllib.request.Request(
+            change_url,
+            data=json.dumps(change_body).encode('utf-8'),
+            headers=headers,
+            method='POST'
+        )
+        
+        with urllib.request.urlopen(req, timeout=10) as response:
+            res_data = json.loads(response.read().decode('utf-8'))
+            print(f"GCP Cloud DNS change submitted. Change ID: {res_data.get('id')}")
+            print("Successfully published Merkle root to GCP Cloud DNS TXT record.")
+            return True
+            
+    except urllib.error.URLError as e:
+        print(f"ERROR: GCP Cloud DNS API request failed: {e}")
+        return False
+    except Exception as e:
+        print(f"ERROR: Failed to publish to GCP Cloud DNS: {e}")
+        return False
+
+def publish_aws_dns_txt_record(txt_zone, merkle_root):
     try:
         import boto3
         import time
@@ -218,6 +339,34 @@ def publish_dns_txt_record(txt_zone, merkle_root):
     except Exception as e:
         print(f"WARNING: Route53 TXT update failed or skipped: {e}")
         return False
+
+def publish_dns_txt_record(txt_zone, merkle_root):
+    import urllib.request
+    dns_provider = os.environ.get("DNS_PROVIDER", "").lower()
+    
+    if dns_provider in ["gcp", "google"]:
+        return publish_gcp_dns_txt_record(txt_zone, merkle_root)
+    elif dns_provider in ["aws", "route53"]:
+        return publish_aws_dns_txt_record(txt_zone, merkle_root)
+        
+    # Auto-detection
+    if os.environ.get("ROUTE53_ZONE_ID") or os.environ.get("AWS_ROLE_ARN") or os.environ.get("AWS_ACCESS_KEY_ID"):
+        return publish_aws_dns_txt_record(txt_zone, merkle_root)
+        
+    # Detect if we are on GCP via metadata server check
+    is_gcp = False
+    try:
+        req = urllib.request.Request("http://metadata.google.internal", method="GET", headers={"Metadata-Flavor": "Google"})
+        with urllib.request.urlopen(req, timeout=1.0) as response:
+            is_gcp = True
+    except Exception:
+        pass
+        
+    if is_gcp or os.environ.get("GCP_PROJECT") or os.environ.get("GCP_DNS_ZONE_NAME"):
+        return publish_gcp_dns_txt_record(txt_zone, merkle_root)
+        
+    print("No DNS provider configured or auto-detected (set DNS_PROVIDER=aws or gcp). Skipping DNS publication.")
+    return False
 
 def main():
     print(f"[{datetime.now(timezone.utc).isoformat()}] Starting Merkle Root Integrity Publisher")

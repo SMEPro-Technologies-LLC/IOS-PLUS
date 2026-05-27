@@ -319,13 +319,33 @@ function loadVaultSecrets() {
   }
 }
 
+function validateSecrets() {
+  const required = ['REDIS_URL'];
+  const missing: string[] = [];
+  for (const key of required) {
+    if (!process.env[key] || process.env[key]?.trim() === '') {
+      missing.push(key);
+    }
+  }
+  if (missing.length > 0) {
+    if (process.env['NODE_ENV'] === 'production') {
+      process.stderr.write(JSON.stringify({ level: 50, time: Date.now(), msg: 'CRITICAL STARTUP ERROR: Missing required secrets. Terminating.', missing }) + '\n');
+      process.exit(1);
+    } else {
+      process.stdout.write(JSON.stringify({ level: 40, time: Date.now(), msg: 'WARNING: Missing required secrets in development mode.', missing }) + '\n');
+    }
+  }
+}
+
 async function main(): Promise<void> {
   loadVaultSecrets();
+  validateSecrets();
 
   // Apply loaded environment variables to configuration
   if (process.env['REDIS_URL']) {
     DEFAULT_GATE530_CONFIG.redisUrl = process.env['REDIS_URL'];
   }
+
   if (process.env['GATE530_TRANSPORT']) {
     DEFAULT_GATE530_CONFIG.transport = process.env['GATE530_TRANSPORT'] as 'ipc' | 'http2';
   }

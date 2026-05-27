@@ -39,6 +39,41 @@ function loadVaultSecrets() {
   }
 }
 
+function validateSecrets() {
+  const requiredSecrets = [
+    "COS_HOST",
+    "COS_DATABASE",
+    "COS_PASSWORD_IOS_APP",
+    "COS_PASSWORD_RAG_READER",
+    "COS_PASSWORD_AUDIT_WRITER",
+    "COS_PASSWORD_AUDIT_READER",
+    "COS_PASSWORD_RAG_WRITER",
+    "COS_PASSWORD_COS_ADMIN",
+    "REDIS_URL",
+    "VAULT_ADDR",
+    "VAULT_TRANSIT_KEY_PATH",
+    "OPENAI_API_KEY",
+  ];
+  
+  const missing: string[] = [];
+  for (const key of requiredSecrets) {
+    if (!process.env[key] || process.env[key]?.trim() === "") {
+      missing.push(key);
+    }
+  }
+
+  if (missing.length > 0) {
+    if (process.env["NODE_ENV"] === "production") {
+      log.fatal({ missing }, "CRITICAL STARTUP ERROR: Missing required secrets. Terminating.");
+      process.exit(1);
+    } else {
+      log.warn({ missing }, "WARNING: Missing required secrets in development mode.");
+    }
+  } else {
+    log.info("Secrets validation passed successfully.");
+  }
+}
+
 function requireEnv(key: string): string {
   const v = process.env[key];
   if (!v) throw new Error(`Missing required env var: ${key}`);
@@ -47,6 +82,7 @@ function requireEnv(key: string): string {
 
 async function main() {
   loadVaultSecrets();
+  validateSecrets();
   log.info("IOS+ Middleware Engine starting");
   const port = parseInt(process.env["PORT"] ?? "3000");
 
@@ -56,6 +92,7 @@ async function main() {
     port:     parseInt(process.env["COS_PORT"] ?? "5432"),
     database: requireEnv("COS_DATABASE"),
     ssl:      process.env["COS_SSL"] === "true",
+    poolSize: parseInt(process.env["COS_POOL_SIZE"] ?? "15"),
     passwords: {
       ios_app:      requireEnv("COS_PASSWORD_IOS_APP"),
       audit_writer: requireEnv("COS_PASSWORD_AUDIT_WRITER"),
@@ -65,6 +102,7 @@ async function main() {
       cos_admin:    requireEnv("COS_PASSWORD_COS_ADMIN"),
     },
   });
+
 
   // UCO Resolver (L3 — Ontological Mapping)
   const ucoResolver = new UCOResolver({

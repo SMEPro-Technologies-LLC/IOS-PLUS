@@ -652,18 +652,49 @@ spec:
               if [ -f /vault/secrets/ios-plus.env ]; then
                 . /vault/secrets/ios-plus.env
               fi
+
               # Check database host is populated
               if [ -z "$COS_HOST" ]; then
                 echo "ERROR: Database host (COS_HOST) is not set." >&2
                 exit 1
               fi
-              # Execute flyway migration
-              echo "Starting migrations against ${COS_HOST}..."
-              flyway -url="jdbc:postgresql://${COS_HOST}:${COS_PORT:-5432}/${COS_DATABASE:-ios_plus}" \
+
+              # Preflight check: Wait for database network reachability
+              echo "Waiting for database connection at ${COS_HOST}:${COS_PORT:-5432}..."
+              for i in $(seq 1 30); do
+                # Use standard dev/tcp bash connection check
+                if (echo > /dev/tcp/${COS_HOST}/${COS_PORT:-5432}) >/dev/null 2>&1; then
+                  echo "Database port is reachable."
+                  break
+                fi
+                echo "Database not reachable yet. Retrying in 2s..."
+                sleep 2
+              done
+
+              # Execute Flyway Migration dynamically
+              echo "Attempting direct migrations against ${COS_HOST}..."
+              if flyway -url="jdbc:postgresql://${COS_HOST}:${COS_PORT:-5432}/${COS_DATABASE:-ios_plus}" \
                      -user=cos_admin \
                      -password="${COS_PASSWORD_COS_ADMIN}" \
                      -connectRetries=10 \
-                     migrate -baselineOnMigrate=true -baselineVersion=4
+                     migrate; then
+                echo "Direct migration completed successfully."
+              else
+                echo "Direct migration failed (pre-existing schema detected). Baselining at version 4..."
+                flyway -url="jdbc:postgresql://${COS_HOST}:${COS_PORT:-5432}/${COS_DATABASE:-ios_plus}" \
+                       -user=cos_admin \
+                       -password="${COS_PASSWORD_COS_ADMIN}" \
+                       -connectRetries=10 \
+                       baseline -baselineVersion=4
+                
+                echo "Retrying migration after baselining..."
+                flyway -url="jdbc:postgresql://${COS_HOST}:${COS_PORT:-5432}/${COS_DATABASE:-ios_plus}" \
+                       -user=cos_admin \
+                       -password="${COS_PASSWORD_COS_ADMIN}" \
+                       -connectRetries=10 \
+                       migrate
+              fi
+
           volumeMounts:
             - name: migrations-vol
               mountPath: /flyway/sql

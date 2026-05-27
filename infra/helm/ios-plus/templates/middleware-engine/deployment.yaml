@@ -45,6 +45,10 @@ spec:
                 secretKeyRef:
                   name: ios-plus-db-secrets
                   key: ios-app-url
+            - name: GATE530_TRANSPORT
+              value: {{ .Values.gate530.config.transport | quote }}
+            - name: GATE530_PORT
+              value: {{ .Values.gate530.config.port | quote }}
           resources:
             requests:
               cpu: {{ .Values.middlewareEngine.resources.requests.cpu | quote }}
@@ -78,6 +82,10 @@ spec:
                 secretKeyRef:
                   name: ios-plus-secrets
                   key: redis-url
+            - name: GATE530_TRANSPORT
+              value: {{ .Values.gate530.config.transport | quote }}
+            - name: GATE530_PORT
+              value: {{ .Values.gate530.config.port | quote }}
           resources:
             requests:
               cpu: {{ .Values.gate530.resources.requests.cpu | quote }}

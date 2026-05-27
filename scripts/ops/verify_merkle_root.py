@@ -80,51 +80,123 @@ def compute_merkle_root(leaves: list[str]) -> str:
 def publish_dns_txt_record(txt_zone, merkle_root):
     try:
         import boto3
+        import time
+        from botocore.exceptions import ClientError
+        
         formatted_value = f'"{merkle_root}"'
         print(f"Attempting to publish DNS TXT record for {txt_zone} to Route53...")
         
-        client = boto3.client('route53')
+        # Log environment diagnostic info
+        print(f"Environment Info: HOSTNAME={os.environ.get('HOSTNAME', 'unknown')}, "
+              f"AWS_REGION={os.environ.get('AWS_REGION', 'not-set')}, "
+              f"AWS_ROLE_ARN={os.environ.get('AWS_ROLE_ARN', 'not-set')}")
+              
+        max_attempts = 5
+        base_backoff_seconds = 2.0
+        
+        client = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                client = boto3.client('route53')
+                # Try a simple API call to verify connection
+                client.list_hosted_zones(MaxItems='1')
+                print(f"Route53 client successfully initialized on attempt {attempt}.")
+                break
+            except Exception as e:
+                print(f"WARNING: Route53 client initialization/validation attempt {attempt} failed: {e}")
+                if attempt == max_attempts:
+                    print("ERROR: Maximum client initialization attempts reached. Skipping Route53 publication.")
+                    return False
+                sleep_time = base_backoff_seconds ** attempt
+                print(f"Backing off for {sleep_time:.2f}s...")
+                time.sleep(sleep_time)
+
+        # Log caller identity if possible
+        try:
+            sts = boto3.client('sts')
+            caller = sts.get_caller_identity()
+            print(f"Assumed IAM Identity: Account={caller.get('Account')}, Arn={caller.get('Arn')}, UserId={caller.get('UserId')}")
+        except Exception as e:
+            print(f"NOTICE: Could not retrieve STS caller identity (might be local or IAM Role not assumed): {e}")
+
         zone_id = os.environ.get("ROUTE53_ZONE_ID")
         
         if not zone_id:
-            domain_name = txt_zone.lstrip('_').split('.', 1)[-1]
-            if not domain_name.endswith('.'):
-                domain_name += '.'
-                
-            paginator = client.get_paginator('list_hosted_zones')
-            for page in paginator.paginate():
-                for hz in page['HostedZones']:
-                    hz_name = hz['Name']
-                    if domain_name == hz_name or hz_name.endswith(domain_name):
-                        zone_id = hz['Id']
-                        print(f"Resolved hosted zone ID {zone_id} for domain {domain_name}")
+            # Dynamic hosted zone discovery with retries
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    domain_name = txt_zone.lstrip('_').split('.', 1)[-1]
+                    if not domain_name.endswith('.'):
+                        domain_name += '.'
+                        
+                    print(f"Attempting dynamic zone resolution for '{domain_name}' (attempt {attempt})...")
+                    paginator = client.get_paginator('list_hosted_zones')
+                    for page in paginator.paginate():
+                        for hz in page['HostedZones']:
+                            hz_name = hz['Name']
+                            if domain_name == hz_name or hz_name.endswith(domain_name):
+                                zone_id = hz['Id']
+                                print(f"Resolved hosted zone ID {zone_id} for domain {domain_name}")
+                                break
+                        if zone_id:
+                            break
+                    if zone_id:
                         break
-                if zone_id:
-                    break
+                    else:
+                        raise ValueError(f"No matching hosted zone found for domain: {domain_name}")
+                except Exception as e:
+                    print(f"WARNING: Zone resolution attempt {attempt} failed: {e}")
+                    if attempt == max_attempts:
+                        print("ERROR: Maximum zone resolution attempts reached. Skipping Route53 publication.")
+                        return False
+                    sleep_time = base_backoff_seconds ** attempt
+                    time.sleep(sleep_time)
                     
         if not zone_id:
             print("WARNING: Could not resolve Route53 Hosted Zone ID. Skipping Route53 TXT record publication.")
             return False
             
-        client.change_resource_record_sets(
-            HostedZoneId=zone_id,
-            ChangeBatch={
-                'Comment': 'IOS+ Merkle Root auto-publication',
-                'Changes': [
-                    {
-                        'Action': 'UPSERT',
-                        'ResourceRecordSet': {
-                            'Name': txt_zone,
-                            'Type': 'TXT',
-                            'TTL': 300,
-                            'ResourceRecords': [{'Value': formatted_value}]
-                        }
+        # Apply Route53 update with retries
+        for attempt in range(1, max_attempts + 1):
+            try:
+                print(f"Submitting DNS record update to Route53 (attempt {attempt})...")
+                response = client.change_resource_record_sets(
+                    HostedZoneId=zone_id,
+                    ChangeBatch={
+                        'Comment': 'IOS+ Merkle Root auto-publication',
+                        'Changes': [
+                            {
+                                'Action': 'UPSERT',
+                                'ResourceRecordSet': {
+                                    'Name': txt_zone,
+                                    'Type': 'TXT',
+                                    'TTL': 300,
+                                    'ResourceRecords': [{'Value': formatted_value}]
+                                }
+                            }
+                        ]
                     }
-                ]
-            }
-        )
-        print("Successfully published Merkle root to Route53 TXT record.")
-        return True
+                )
+                print(f"Route53 change request submitted. ChangeInfo: {response.get('ChangeInfo', {})}")
+                print("Successfully published Merkle root to Route53 TXT record.")
+                return True
+            except ClientError as e:
+                # Catch specific throttles / retriable errors
+                error_code = e.response['Error']['Code']
+                is_retriable = error_code in ['PriorRequestNotComplete', 'Throttling', 'ThrottlingException', 'RequestLimitExceeded']
+                print(f"WARNING: Route53 client error: {e} (code: {error_code}, retriable: {is_retriable})")
+                if attempt == max_attempts or not is_retriable:
+                    print("ERROR: Failed to update Route53 TXT record due to non-retriable error or max attempts reached.")
+                    return False
+                sleep_time = base_backoff_seconds ** attempt
+                time.sleep(sleep_time)
+            except Exception as e:
+                print(f"WARNING: Route53 update attempt {attempt} failed with unexpected error: {e}")
+                if attempt == max_attempts:
+                    return False
+                sleep_time = base_backoff_seconds ** attempt
+                time.sleep(sleep_time)
+                
     except Exception as e:
         print(f"WARNING: Route53 TXT update failed or skipped: {e}")
         return False

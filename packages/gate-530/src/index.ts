@@ -21,6 +21,7 @@
 import net from 'node:net';
 import { Redis } from 'ioredis';
 import crypto from 'node:crypto';
+import http2 from 'node:http2';
 import type {
   UCONodeSummary, UCONodeResult, PolicyAction, RiskWeight
 } from '@ios-plus/shared';
@@ -33,6 +34,8 @@ export interface Gate530Config {
   sessionCacheTtlSeconds: number; // default: 900 (15-min RPO alignment)
   escalationLadderLimit?: number;
   escalationLadderWindowSeconds?: number;
+  transport?: 'ipc' | 'http2';    // default: ipc
+  port?: number;                  // default: 3002
 }
 
 export interface DimensionScore {
@@ -227,6 +230,56 @@ export class Gate530Engine {
     server.listen(this.config.ipcSocketPath);
     return server;
   }
+
+  /** HTTP/2 server — listens on TCP port for distributed requests */
+  startHTTP2Server(port: number): http2.Http2Server {
+    const server = http2.createServer();
+    server.on('stream', (stream: http2.ServerHttp2Stream) => {
+      let body = '';
+      stream.on('data', (chunk) => {
+        body += chunk;
+      });
+      stream.on('end', async () => {
+        try {
+          const request = JSON.parse(body) as Gate530EvaluationRequest;
+          const result = await Promise.race([
+            this.evaluate(request),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Gate530 timeout')), this.config.timeoutMs)
+            ),
+          ]);
+          stream.respond({
+            'content-type': 'application/json',
+            ':status': 200,
+          });
+          stream.end(JSON.stringify({ ok: true, result }));
+        } catch (err) {
+          const errorMsg = String(err);
+          const isTimeout = errorMsg.includes('Gate530 timeout');
+          
+          if (isTimeout && this.config.failClosedOnTimeout) {
+            stream.respond({
+              'content-type': 'application/json',
+              ':status': 200,
+            });
+            stream.end(JSON.stringify({
+              ok: false,
+              error: 'TIMEOUT_BLOCK',
+              result: { aggregatePolicyAction: 'BLOCK' }
+            }));
+          } else {
+            stream.respond({
+              'content-type': 'application/json',
+              ':status': 500,
+            });
+            stream.end(JSON.stringify({ ok: false, error: errorMsg }));
+          }
+        }
+      });
+    });
+    server.listen(port);
+    return server;
+  }
 }
 
 export const DEFAULT_GATE530_CONFIG: Gate530Config = {
@@ -235,6 +288,8 @@ export const DEFAULT_GATE530_CONFIG: Gate530Config = {
   timeoutMs: 50,
   redisUrl: process.env['REDIS_URL'] ?? 'redis://redis:6379',
   sessionCacheTtlSeconds: 900,
+  transport: (process.env['GATE530_TRANSPORT'] as 'ipc' | 'http2') ?? 'ipc',
+  port: parseInt(process.env['GATE530_PORT'] ?? '3002'),
 };
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
@@ -245,8 +300,11 @@ async function main(): Promise<void> {
   const log = (level: number, msg: string, extra: Record<string, unknown> = {}) =>
     process.stdout.write(JSON.stringify({ level, time: Date.now(), pid: process.pid, msg, ...extra }) + '\n');
 
+  const transport = DEFAULT_GATE530_CONFIG.transport ?? 'ipc';
   log(30, 'Gate 530 Engine starting', {
+    transport,
     socketPath: DEFAULT_GATE530_CONFIG.ipcSocketPath,
+    port: DEFAULT_GATE530_CONFIG.port,
     timeoutMs:  DEFAULT_GATE530_CONFIG.timeoutMs,
   });
 
@@ -255,11 +313,17 @@ async function main(): Promise<void> {
   try { await engine['redis'].ping(); log(30, 'Redis verified'); }
   catch (err) { log(50, 'Redis ping failed', { error: String(err) }); process.exit(1); }
 
-  try { fs.unlinkSync(DEFAULT_GATE530_CONFIG.ipcSocketPath); } catch { /* ok */ }
-
-  const server = engine.startIPCServer();
-  server.on('listening', () => log(30, 'IPC server listening', { socket: DEFAULT_GATE530_CONFIG.ipcSocketPath }));
-  server.on('error', (err) => { log(50, 'IPC error', { error: String(err) }); process.exit(1); });
+  let server: any;
+  if (transport === 'http2') {
+    const port = DEFAULT_GATE530_CONFIG.port ?? 3002;
+    server = engine.startHTTP2Server(port);
+    server.on('listening', () => log(30, 'HTTP/2 server listening', { port }));
+  } else {
+    try { fs.unlinkSync(DEFAULT_GATE530_CONFIG.ipcSocketPath); } catch { /* ok */ }
+    server = engine.startIPCServer();
+    server.on('listening', () => log(30, 'IPC server listening', { socket: DEFAULT_GATE530_CONFIG.ipcSocketPath }));
+  }
+  server.on('error', (err: any) => { log(50, 'Server error', { error: String(err) }); process.exit(1); });
 
   const shutdown = (sig: string) => {
     log(30, 'Shutdown', { signal: sig });

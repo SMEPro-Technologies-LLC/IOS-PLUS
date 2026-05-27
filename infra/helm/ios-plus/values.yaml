@@ -49,6 +49,8 @@ gate530:
     failClosedOnTimeout: true
     timeoutMs: 50
     sessionCacheTtlSeconds: 900
+    transport: "ipc"
+    port: 3002
   resources:
     requests:
       cpu: "500m"

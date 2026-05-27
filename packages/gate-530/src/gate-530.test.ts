@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { Gate530Engine } from "./index.js";
 import type { UCONodeSummary } from "@ios-plus/shared";
+import http2 from "node:http2";
 
 vi.mock("ioredis", () => {
   return {
@@ -110,5 +111,113 @@ describe("Gate 530 Logic Engine Unit Tests", () => {
     expect(res.aggregatePolicyAction).toBe("BLOCK");
     expect(res.nodeResults[0]?.policyAction).toBe("BLOCK");
     expect(res.nodeResults[0]?.rationale).toContain("Escalation rate limit exceeded");
+  });
+
+  it("HTTP/2 server handles evaluations correctly", async () => {
+    const server = engine.startHTTP2Server(3099);
+    await new Promise<void>((resolve) => {
+      server.on("listening", () => resolve());
+    });
+
+    const client = http2.connect("http://localhost:3099");
+    const req = client.request({
+      ":method": "POST",
+      ":path": "/",
+      "content-type": "application/json",
+    });
+
+    const payload = JSON.stringify({
+      sessionId: "session-http2",
+      tenantId: "tenant-1",
+      requestContext: {
+        detectedActivity: "Trading",
+        jurisdictions: ["Federal"],
+        riskTolerance: 6,
+        timestampIso: new Date().toISOString()
+      },
+      nodes: [mockNodeApprove]
+    });
+
+    req.write(payload);
+    req.end();
+
+    let responseData = "";
+    let statusCode = 0;
+    req.on("response", (headers) => {
+      statusCode = headers[":status"] as number;
+    });
+    req.on("data", (chunk) => {
+      responseData += chunk;
+    });
+
+    await new Promise<void>((resolve) => {
+      req.on("end", () => {
+        client.close();
+        server.close(() => resolve());
+      });
+    });
+
+    expect(statusCode).toBe(200);
+    const resp = JSON.parse(responseData);
+    expect(resp.ok).toBe(true);
+    expect(resp.result.aggregatePolicyAction).toBe("APPROVE");
+  });
+
+  it("HTTP/2 server fails closed on timeout", async () => {
+    const server = engine.startHTTP2Server(3100);
+    await new Promise<void>((resolve) => {
+      server.on("listening", () => resolve());
+    });
+
+    const spy = vi.spyOn(engine, "evaluate").mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return {} as any;
+    });
+
+    const client = http2.connect("http://localhost:3100");
+    const req = client.request({
+      ":method": "POST",
+      ":path": "/",
+      "content-type": "application/json",
+    });
+
+    const payload = JSON.stringify({
+      sessionId: "session-timeout",
+      tenantId: "tenant-1",
+      requestContext: {
+        detectedActivity: "Trading",
+        jurisdictions: ["Federal"],
+        riskTolerance: 6,
+        timestampIso: new Date().toISOString()
+      },
+      nodes: [mockNodeApprove]
+    });
+
+    req.write(payload);
+    req.end();
+
+    let responseData = "";
+    let statusCode = 0;
+    req.on("response", (headers) => {
+      statusCode = headers[":status"] as number;
+    });
+    req.on("data", (chunk) => {
+      responseData += chunk;
+    });
+
+    await new Promise<void>((resolve) => {
+      req.on("end", () => {
+        client.close();
+        server.close(() => resolve());
+      });
+    });
+
+    spy.mockRestore();
+
+    expect(statusCode).toBe(200);
+    const resp = JSON.parse(responseData);
+    expect(resp.ok).toBe(false);
+    expect(resp.error).toBe("TIMEOUT_BLOCK");
+    expect(resp.result.aggregatePolicyAction).toBe("BLOCK");
   });
 });

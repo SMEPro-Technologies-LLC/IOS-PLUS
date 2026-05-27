@@ -1,0 +1,673 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-migrations-config
+  namespace: ios-plus
+data:
+  V1__core_operational.sql: |
+    -- ============================================================
+    -- IOS+ COS+ Database — V1 Core Operational Tables
+    -- Flyway migration: V1__core_operational.sql
+    -- PostgreSQL 16 | pgcrypto extension required
+    -- SMEPro Technologies — Confidential
+    -- EB Doc 3 §2.1
+    -- ============================================================
+
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+    -- ── objects ──────────────────────────────────────────────────
+    CREATE TABLE objects (
+      object_id       UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id       UUID        NOT NULL,
+      object_type     TEXT        NOT NULL,
+      classification  TEXT        NOT NULL DEFAULT 'CONFIDENTIAL'
+                                  CHECK (classification IN ('PUBLIC','INTERNAL','CONFIDENTIAL','RESTRICTED')),
+      content_hash    TEXT        NOT NULL,      -- SHA-256 of canonical content
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX idx_objects_tenant ON objects (tenant_id);
+    CREATE INDEX idx_objects_type   ON objects (object_type);
+
+    -- ── tenant_registry ──────────────────────────────────────────
+    CREATE TABLE tenant_registry (
+      tenant_id       UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_name     TEXT        NOT NULL UNIQUE,
+      status          TEXT        NOT NULL DEFAULT 'active'
+                                  CHECK (status IN ('active','suspended','terminated')),
+      risk_tolerance  SMALLINT    NOT NULL DEFAULT 7 CHECK (risk_tolerance BETWEEN 1 AND 10),
+      onboarded_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+      metadata        JSONB       NOT NULL DEFAULT '{}'::jsonb
+    );
+    CREATE INDEX idx_tenant_status ON tenant_registry (status);
+
+    -- ── regulatory_profiles ──────────────────────────────────────
+    CREATE TABLE regulatory_profiles (
+      profile_id      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id       UUID        NOT NULL REFERENCES tenant_registry(tenant_id) ON DELETE CASCADE,
+      naics_codes     TEXT[]      NOT NULL,    -- primary NAICS classification codes
+      sic_codes       TEXT[]      NOT NULL DEFAULT '{}',
+      jurisdictions   TEXT[]      NOT NULL DEFAULT ARRAY['Federal'],
+      effective_date  DATE        NOT NULL DEFAULT CURRENT_DATE,
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX idx_reg_profiles_tenant ON regulatory_profiles (tenant_id);
+    CREATE INDEX idx_reg_profiles_naics  ON regulatory_profiles USING GIN (naics_codes);
+
+    -- ── ios_signing_keys ─────────────────────────────────────────
+    CREATE TABLE ios_signing_keys (
+      key_id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      public_key_ed25519   TEXT        NOT NULL UNIQUE,  -- base64url DER
+      dns_txt_record       TEXT        NOT NULL,          -- e.g. "_ios-key.smeprotech.com"
+      filesystem_path      TEXT        NOT NULL,          -- e.g. /etc/ios-plus/keys/current.pub
+      activated_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+      expires_at           TIMESTAMPTZ NOT NULL,          -- 90-day rotation cycle
+      rotated_at           TIMESTAMPTZ,
+      revoked_at           TIMESTAMPTZ,
+      is_active            BOOLEAN     NOT NULL DEFAULT true
+    );
+    CREATE INDEX idx_keys_active ON ios_signing_keys (is_active) WHERE is_active = true;
+
+    COMMENT ON TABLE ios_signing_keys IS
+      'Ed25519 verification keys published in three independent locations '
+      '(database, DNS TXT, filesystem) for tamper-resistant audit verification. '
+      '90-day rotation cycle enforced. See EB Doc 2 §4.1.';
+
+  V2__audit_worm.sql: |
+    -- ============================================================
+    -- IOS+ COS+ Database — V2 Audit Tables + WORM Enforcement
+    -- Flyway migration: V2__audit_worm.sql
+    -- Append-only enforced via: audit_writer RBAC + row-level trigger
+    -- SMEPro Technologies — Confidential
+    -- EB Doc 3 §3 / EB Doc 2 §5
+    -- ============================================================
+
+    -- ── evidence_packages ────────────────────────────────────────
+    CREATE TABLE evidence_packages (
+      package_id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id                    UUID        NOT NULL,
+      session_id                   UUID        NOT NULL,
+      event_type                   TEXT        NOT NULL
+                                    CHECK (event_type IN (
+                                      'INFERENCE_REQUEST','GATE_DECISION','RAG_RETRIEVAL',
+                                      'UCO_EVALUATION','WORM_COMMIT','KEY_ROTATION','QUARANTINE'
+                                    )),
+      layer_depth                  SMALLINT    NOT NULL CHECK (layer_depth BETWEEN 1 AND 7),
+      canonical_payload            JSONB       NOT NULL,   -- JCS-canonical (RFC 8785)
+      signature                    TEXT        NOT NULL,   -- Ed25519, base64url
+      verification_key_id          UUID        NOT NULL REFERENCES ios_signing_keys(key_id),
+      signing_algorithm            TEXT        NOT NULL DEFAULT 'Ed25519',
+      canonicalization_algorithm   TEXT        NOT NULL DEFAULT 'JCS/RFC8785',
+      classification_level         TEXT        NOT NULL DEFAULT 'CONFIDENTIAL',
+      published_at                 TIMESTAMPTZ NOT NULL DEFAULT now(),
+      merkle_root_id               UUID
+    );
+    CREATE INDEX idx_ep_tenant     ON evidence_packages (tenant_id);
+    CREATE INDEX idx_ep_session    ON evidence_packages (session_id);
+    CREATE INDEX idx_ep_published  ON evidence_packages (published_at);
+    CREATE INDEX idx_ep_event_type ON evidence_packages (event_type);
+
+    -- ── gate_decisions ───────────────────────────────────────────
+    CREATE TABLE gate_decisions (
+      decision_id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      session_id               UUID        NOT NULL,
+      tenant_id                UUID        NOT NULL,
+      decided_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+      uco_node_id              TEXT        NOT NULL,
+      policy_action            TEXT        NOT NULL CHECK (policy_action IN ('BLOCK','APPROVE','ESCALATE')),
+      risk_weight              SMALLINT    NOT NULL CHECK (risk_weight BETWEEN 5 AND 10),
+      rationale                TEXT        NOT NULL,
+      override_applied         BOOLEAN     NOT NULL DEFAULT false,
+      override_authorized_by   TEXT,
+      evidence_package_id      UUID        REFERENCES evidence_packages(package_id),
+      latency_ms               INTEGER     NOT NULL
+    );
+    CREATE INDEX idx_gd_session    ON gate_decisions (session_id);
+    CREATE INDEX idx_gd_tenant     ON gate_decisions (tenant_id);
+    CREATE INDEX idx_gd_uco_node   ON gate_decisions (uco_node_id);
+    CREATE INDEX idx_gd_action     ON gate_decisions (policy_action);
+
+    -- ── evidence_source_manifest ─────────────────────────────────
+    CREATE TABLE evidence_source_manifest (
+      manifest_id    UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      package_id     UUID        NOT NULL REFERENCES evidence_packages(package_id),
+      source_type    TEXT        NOT NULL,
+      source_uri     TEXT        NOT NULL,
+      content_hash   TEXT        NOT NULL,
+      recorded_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    -- ── quarantine_records ───────────────────────────────────────
+    CREATE TABLE quarantine_records (
+      quarantine_id    UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      session_id       UUID        NOT NULL,
+      tenant_id        UUID        NOT NULL,
+      uco_node_id      TEXT        NOT NULL,
+      reason           TEXT        NOT NULL,
+      policy_action    TEXT        NOT NULL DEFAULT 'BLOCK',
+      evidence_id      UUID        REFERENCES evidence_packages(package_id),
+      quarantined_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+      released_at      TIMESTAMPTZ,
+      released_by      TEXT
+    );
+    CREATE INDEX idx_qr_tenant   ON quarantine_records (tenant_id);
+    CREATE INDEX idx_qr_node     ON quarantine_records (uco_node_id);
+
+    -- ── merkle_roots ─────────────────────────────────────────────
+    CREATE TABLE merkle_roots (
+      merkle_root_id       UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      batch_package_ids    JSONB       NOT NULL,
+      merkle_root          TEXT        NOT NULL,
+      batch_size           INTEGER     NOT NULL,
+      computed_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+      dns_published_at     TIMESTAMPTZ
+    );
+
+    -- WORM TRIGGER FUNCTIONS
+    CREATE OR REPLACE FUNCTION worm_block_update_delete()
+    RETURNS TRIGGER LANGUAGE plpgsql AS $$
+    BEGIN
+      RAISE EXCEPTION
+        'WORM VIOLATION: UPDATE/DELETE blocked on table [%]. '
+        'Audit records are immutable. Evidence package_id: % Session: %',
+        TG_TABLE_NAME, OLD.package_id, OLD.session_id;
+    END;
+    $$;
+
+    CREATE OR REPLACE FUNCTION worm_block_update_delete_generic()
+    RETURNS TRIGGER LANGUAGE plpgsql AS $$
+    BEGIN
+      RAISE EXCEPTION
+        'WORM VIOLATION: UPDATE/DELETE blocked on immutable audit table [%].',
+        TG_TABLE_NAME;
+    END;
+    $$;
+
+    CREATE TRIGGER worm_evidence_packages
+      BEFORE UPDATE OR DELETE ON evidence_packages
+      FOR EACH ROW EXECUTE FUNCTION worm_block_update_delete();
+
+    CREATE TRIGGER worm_gate_decisions
+      BEFORE UPDATE OR DELETE ON gate_decisions
+      FOR EACH ROW EXECUTE FUNCTION worm_block_update_delete_generic();
+
+    CREATE TRIGGER worm_quarantine_records
+      BEFORE UPDATE OR DELETE ON quarantine_records
+      FOR EACH ROW EXECUTE FUNCTION worm_block_update_delete_generic();
+
+    CREATE TRIGGER worm_merkle_roots
+      BEFORE UPDATE OR DELETE ON merkle_roots
+      FOR EACH ROW EXECUTE FUNCTION worm_block_update_delete_generic();
+
+    COMMENT ON TABLE evidence_packages IS
+      'WORM-enforced audit table. Append-only via audit_writer role (INSERT-only RBAC) '
+      'and DB-layer trigger (worm_evidence_packages). Ed25519+JCS/RFC8785 signed. '
+      'See EB Doc 2 §5.1.';
+
+  V3__rag_vault.sql: |
+    -- ============================================================
+    -- IOS+ COS+ Database — V3 RAG Vault Tables
+    -- Flyway migration: V3__rag_vault.sql
+    -- Requires: pgvector extension
+    -- 20 sector partitions
+    -- ============================================================
+
+    CREATE EXTENSION IF NOT EXISTS vector;
+
+    -- ── rag_sources ──────────────────────────────────────────────
+    CREATE TABLE rag_sources (
+      source_id      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      sector_code    TEXT        NOT NULL,
+      uco_node_id    TEXT,
+      title          TEXT        NOT NULL,
+      source_type    TEXT        NOT NULL CHECK (source_type IN ('regulation','guidance','case_law','policy','internal')),
+      source_uri     TEXT,
+      content_hash   TEXT        NOT NULL,
+      embedding_model TEXT       NOT NULL DEFAULT 'text-embedding-3-large',
+      indexed_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+      metadata       JSONB       NOT NULL DEFAULT '{}'::jsonb
+    );
+    CREATE INDEX idx_rag_sources_sector  ON rag_sources (sector_code);
+    CREATE INDEX idx_rag_sources_uco     ON rag_sources (uco_node_id) WHERE uco_node_id IS NOT NULL;
+
+    -- ── rag_chunks (partitioned by sector_code) ──────────────────
+    CREATE TABLE rag_chunks (
+      chunk_id        UUID        NOT NULL DEFAULT gen_random_uuid(),
+      source_id       UUID        NOT NULL REFERENCES rag_sources(source_id),
+      sector_code     TEXT        NOT NULL,
+      uco_node_id     TEXT,
+      chunk_index     INTEGER     NOT NULL,
+      chunk_text      TEXT        NOT NULL,
+      embedding       halfvec(3072) NOT NULL,
+      token_count     INTEGER     NOT NULL,
+      metadata        JSONB       NOT NULL DEFAULT '{}'::jsonb,
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (chunk_id, sector_code)
+    ) PARTITION BY LIST (sector_code);
+
+    -- ── Sector partitions (20 total) ─────────────────────────────
+    CREATE TABLE rag_chunks_01_energy        PARTITION OF rag_chunks FOR VALUES IN ('01-ENERGY');
+    CREATE TABLE rag_chunks_02_healthcare    PARTITION OF rag_chunks FOR VALUES IN ('02-HEALTHCARE');
+    CREATE TABLE rag_chunks_03_finance       PARTITION OF rag_chunks FOR VALUES IN ('03-FINANCE');
+    CREATE TABLE rag_chunks_04_food_drug_ag  PARTITION OF rag_chunks FOR VALUES IN ('04-FOOD-DRUG-AG');
+    CREATE TABLE rag_chunks_05_mfg_transport PARTITION OF rag_chunks FOR VALUES IN ('05-MFG-TRANSPORT');
+    CREATE TABLE rag_chunks_06_telecom       PARTITION OF rag_chunks FOR VALUES IN ('06-TELECOM-ENV-DEFENSE');
+    CREATE TABLE rag_chunks_07_insurance     PARTITION OF rag_chunks FOR VALUES IN ('07-INSURANCE');
+    CREATE TABLE rag_chunks_08_real_estate   PARTITION OF rag_chunks FOR VALUES IN ('08-REAL-ESTATE');
+    CREATE TABLE rag_chunks_09_agriculture   PARTITION OF rag_chunks FOR VALUES IN ('09-AGRICULTURE');
+    CREATE TABLE rag_chunks_10_mining        PARTITION OF rag_chunks FOR VALUES IN ('10-MINING');
+    CREATE TABLE rag_chunks_11_retail        PARTITION OF rag_chunks FOR VALUES IN ('11-WHOLESALE-RETAIL');
+    CREATE TABLE rag_chunks_12_prof_svcs     PARTITION OF rag_chunks FOR VALUES IN ('12-PROFESSIONAL-SERVICES');
+    CREATE TABLE rag_chunks_13_education     PARTITION OF rag_chunks FOR VALUES IN ('13-EDUCATION');
+    CREATE TABLE rag_chunks_14_arts          PARTITION OF rag_chunks FOR VALUES IN ('14-ARTS-ENTERTAINMENT');
+    CREATE TABLE rag_chunks_15_accom_food    PARTITION OF rag_chunks FOR VALUES IN ('15-ACCOMMODATION-FOOD');
+    CREATE TABLE rag_chunks_16_admin_waste   PARTITION OF rag_chunks FOR VALUES IN ('16-ADMIN-WASTE');
+    CREATE TABLE rag_chunks_17_other_svcs    PARTITION OF rag_chunks FOR VALUES IN ('17-OTHER-SERVICES');
+    CREATE TABLE rag_chunks_18_pub_admin     PARTITION OF rag_chunks FOR VALUES IN ('18-PUBLIC-ADMIN');
+    CREATE TABLE rag_chunks_19_mgmt_cos      PARTITION OF rag_chunks FOR VALUES IN ('19-MGMT-COMPANIES');
+    CREATE TABLE rag_chunks_xsc              PARTITION OF rag_chunks FOR VALUES IN ('XSC-CROSS-CUTTING');
+
+    -- ── HNSW Indexes (per sector partition) ──────────────────────
+    CREATE INDEX idx_hnsw_01_energy   ON rag_chunks_01_energy        USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_02_health   ON rag_chunks_02_healthcare     USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_03_finance  ON rag_chunks_03_finance        USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_04_food     ON rag_chunks_04_food_drug_ag   USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_05_mfg      ON rag_chunks_05_mfg_transport  USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_06_telecom  ON rag_chunks_06_telecom        USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_07_ins      ON rag_chunks_07_insurance      USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_08_re       ON rag_chunks_08_real_estate    USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_09_ag       ON rag_chunks_09_agriculture    USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_10_mining   ON rag_chunks_10_mining         USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_11_retail   ON rag_chunks_11_retail         USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_12_prof     ON rag_chunks_12_prof_svcs      USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_13_edu      ON rag_chunks_13_education      USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_14_arts     ON rag_chunks_14_arts           USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_15_accom    ON rag_chunks_15_accom_food     USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_16_admin    ON rag_chunks_16_admin_waste    USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_17_other    ON rag_chunks_17_other_svcs     USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_18_pub      ON rag_chunks_18_pub_admin      USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_19_mgmt     ON rag_chunks_19_mgmt_cos       USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+    CREATE INDEX idx_hnsw_xsc         ON rag_chunks_xsc               USING hnsw (embedding halfvec_cosine_ops) WITH (m=16, ef_construction=200);
+
+  V4__uco_amendment.sql: |
+    -- ============================================================
+    -- IOS+ COS+ Database — V4 UCO Amendment v1.1
+    -- Flyway migration: V4__uco_amendment.sql
+    -- ============================================================
+
+    -- ── agency_registry ──────────────────────────────────────────
+    CREATE TABLE agency_registry (
+      agency_id         UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+      agency_code       TEXT    NOT NULL UNIQUE,
+      agency_name       TEXT    NOT NULL,
+      jurisdiction      TEXT    NOT NULL CHECK (jurisdiction IN ('Federal','State','Local','International')),
+      parent_agency     TEXT,
+      website           TEXT,
+      notes             TEXT
+    );
+    CREATE INDEX idx_agency_jurisdiction ON agency_registry (jurisdiction);
+    CREATE INDEX idx_agency_code         ON agency_registry (agency_code);
+
+    -- ── uco_nodes ────────────────────────────────────────────────
+    CREATE TABLE uco_nodes (
+      uco_node_id             TEXT        PRIMARY KEY,
+      broad_industry          TEXT        NOT NULL,
+      industry_subtype        TEXT        NOT NULL,
+      specific_activity       TEXT        NOT NULL,
+      jurisdiction_level      TEXT        NOT NULL CHECK (jurisdiction_level IN ('Federal','State','Local','International')),
+      governing_agency        TEXT        NOT NULL,
+      regulation_name         TEXT        NOT NULL,
+      cfr_usc_citation        TEXT,
+      report_form_name        TEXT,
+      form_code               TEXT,
+      filing_frequency        TEXT,
+      key_due_dates           TEXT,
+      business_segment        TEXT,
+      penalties_consequences  TEXT,
+      cip                     TEXT,
+      sic                     TEXT,
+      naics                   TEXT        NOT NULL,
+      soc                     TEXT,
+      isic                    TEXT,
+      hs_hts                  TEXT,
+      notes                   TEXT,
+      ontology_level          TEXT        NOT NULL CHECK (ontology_level IN ('sector','subsector','activity','cross-cutting')),
+      compliance_chain_ref    TEXT,
+      operating_segment       TEXT,
+      responsible_role        TEXT,
+      enforcement_type        TEXT        NOT NULL CHECK (enforcement_type IN (
+                                'Criminal','Civil Monetary Penalty','Administrative',
+                                'License/Certificate','Injunctive','Warning/Notice'
+                              )),
+      risk_weight             SMALLINT    NOT NULL CHECK (risk_weight BETWEEN 5 AND 10),
+      ybr_gate                TEXT        NOT NULL CHECK (ybr_gate IN ('L3','L4','L5','L7')),
+      policy_action           TEXT        NOT NULL CHECK (policy_action IN ('BLOCK','APPROVE','ESCALATE')),
+      last_updated            DATE        NOT NULL DEFAULT CURRENT_DATE
+    );
+    CREATE INDEX idx_uco_naics          ON uco_nodes (naics);
+    CREATE INDEX idx_uco_policy_action  ON uco_nodes (policy_action);
+    CREATE INDEX idx_uco_risk_weight    ON uco_nodes (risk_weight);
+    CREATE INDEX idx_uco_ontology       ON uco_nodes (ontology_level);
+    CREATE INDEX idx_uco_agency         ON uco_nodes (governing_agency);
+
+    -- ── naics_decoder ────────────────────────────────────────────
+    CREATE TABLE naics_decoder (
+      naics_code    TEXT    PRIMARY KEY,
+      description   TEXT    NOT NULL,
+      sector_code   TEXT    NOT NULL,
+      sector_name   TEXT    NOT NULL,
+      subsector     TEXT,
+      industry_grp  TEXT,
+      naics_year    INTEGER NOT NULL DEFAULT 2022
+    );
+    CREATE INDEX idx_naics_sector ON naics_decoder (sector_code);
+
+    -- ── code_crosswalk ───────────────────────────────────────────
+    CREATE TABLE code_crosswalk (
+      crosswalk_id  UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+      code_system   TEXT    NOT NULL CHECK (code_system IN ('CIP','SIC','NAICS','SOC','ISIC','HS/HTS')),
+      source_code   TEXT    NOT NULL,
+      target_system TEXT    NOT NULL CHECK (target_system IN ('CIP','SIC','NAICS','SOC','ISIC','HS/HTS')),
+      target_code   TEXT    NOT NULL,
+      confidence    NUMERIC(4,3) NOT NULL DEFAULT 1.000 CHECK (confidence BETWEEN 0 AND 1),
+      notes         TEXT
+    );
+    CREATE INDEX idx_crosswalk_source ON code_crosswalk (code_system, source_code);
+    CREATE INDEX idx_crosswalk_target ON code_crosswalk (target_system, target_code);
+
+    -- ── compliance_chains ────────────────────────────────────────
+    CREATE TABLE compliance_chains (
+      chain_id        TEXT    PRIMARY KEY,
+      chain_name      TEXT    NOT NULL,
+      sector_code     TEXT    NOT NULL,
+      uco_node_ids    TEXT[]  NOT NULL,
+      description     TEXT,
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    -- ── tenant_naics_profiles ────────────────────────────────────
+    CREATE TABLE tenant_naics_profiles (
+      profile_id      UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+      tenant_id       UUID    NOT NULL REFERENCES tenant_registry(tenant_id) ON DELETE CASCADE,
+      naics_codes     TEXT[]  NOT NULL,
+      sic_codes       TEXT[]  NOT NULL DEFAULT '{}',
+      jurisdictions   TEXT[]  NOT NULL DEFAULT ARRAY['Federal'],
+      effective_date  DATE    NOT NULL DEFAULT CURRENT_DATE,
+      resolved_at     TIMESTAMPTZ,
+      resolved_node_count INTEGER,
+      UNIQUE (tenant_id, effective_date)
+    );
+    CREATE INDEX idx_tnp_tenant ON tenant_naics_profiles (tenant_id);
+
+    -- ── uco_evaluation_results ───────────────────────────────────
+    CREATE TABLE uco_evaluation_results (
+      eval_id           UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+      session_id        UUID    NOT NULL,
+      tenant_id         UUID    NOT NULL,
+      uco_node_id       TEXT    NOT NULL REFERENCES uco_nodes(uco_node_id),
+      policy_action     TEXT    NOT NULL CHECK (policy_action IN ('BLOCK','APPROVE','ESCALATE')),
+      dimension_scores  JSONB   NOT NULL,
+      composite_score   NUMERIC(5,4),
+      evaluation_ms     INTEGER NOT NULL,
+      evaluated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+      evidence_pkg_id   UUID    REFERENCES evidence_packages(package_id)
+    );
+    CREATE INDEX idx_uer_session    ON uco_evaluation_results (session_id);
+    CREATE INDEX idx_uer_uco_node   ON uco_evaluation_results (uco_node_id);
+    CREATE INDEX idx_uer_action     ON uco_evaluation_results (policy_action);
+
+    -- ── filing_calendar ──────────────────────────────────────────
+    CREATE TABLE filing_calendar (
+      calendar_id     UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+      uco_node_id     TEXT    NOT NULL REFERENCES uco_nodes(uco_node_id),
+      tenant_id       UUID    REFERENCES tenant_registry(tenant_id),
+      due_date        DATE    NOT NULL,
+      filing_period   TEXT    NOT NULL,
+      form_code       TEXT,
+      status          TEXT    NOT NULL DEFAULT 'pending'
+                      CHECK (status IN ('pending','filed','overdue','waived')),
+      reminder_sent   BOOLEAN NOT NULL DEFAULT false
+    );
+    CREATE INDEX idx_filing_uco      ON filing_calendar (uco_node_id);
+    CREATE INDEX idx_filing_due      ON filing_calendar (due_date);
+    CREATE INDEX idx_filing_tenant   ON filing_calendar (tenant_id) WHERE tenant_id IS NOT NULL;
+
+    -- ── rag_vault_sector_partitions ──────────────────────────────
+    CREATE TABLE rag_vault_sector_partitions (
+      partition_name    TEXT    PRIMARY KEY,
+      sector_code       TEXT    NOT NULL UNIQUE,
+      uco_node_count    INTEGER NOT NULL,
+      risk_tier         TEXT    NOT NULL CHECK (risk_tier IN ('CRITICAL','HIGH','MEDIUM','LOW')),
+      hnsw_ef_search    INTEGER NOT NULL,
+      chunk_count       INTEGER NOT NULL DEFAULT 0,
+      last_ingested_at  TIMESTAMPTZ,
+      status            TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active','rebuilding','error'))
+    );
+
+    -- Seed partition registry from UCO matrix sector distribution
+    INSERT INTO rag_vault_sector_partitions (partition_name, sector_code, uco_node_count, risk_tier, hnsw_ef_search) VALUES
+      ('rag_chunks_01_energy',     '01-ENERGY',                54, 'CRITICAL', 128),
+      ('rag_chunks_02_healthcare', '02-HEALTHCARE',            36, 'CRITICAL', 128),
+      ('rag_chunks_03_finance',    '03-FINANCE',               30, 'CRITICAL', 128),
+      ('rag_chunks_04_food',       '04-FOOD-DRUG-AG',          16, 'HIGH',      64),
+      ('rag_chunks_05_mfg',        '05-MFG-TRANSPORT',         27, 'HIGH',      64),
+      ('rag_chunks_06_telecom',    '06-TELECOM-ENV-DEFENSE',   20, 'HIGH',      64),
+      ('rag_chunks_07_insurance',  '07-INSURANCE',             35, 'CRITICAL', 128),
+      ('rag_chunks_08_re',         '08-REAL-ESTATE',           10, 'HIGH',      64),
+      ('rag_chunks_09_ag',         '09-AGRICULTURE',            8, 'MEDIUM',    40),
+      ('rag_chunks_10_mining',     '10-MINING',                 5, 'HIGH',      64),
+      ('rag_chunks_11_retail',     '11-WHOLESALE-RETAIL',      15, 'HIGH',      64),
+      ('rag_chunks_12_prof',       '12-PROFESSIONAL-SERVICES', 13, 'HIGH',      64),
+      ('rag_chunks_13_edu',        '13-EDUCATION',             10, 'CRITICAL', 128),
+      ('rag_chunks_14_arts',       '14-ARTS-ENTERTAINMENT',     9, 'HIGH',      64),
+      ('rag_chunks_15_accom',      '15-ACCOMMODATION-FOOD',    10, 'MEDIUM',    40),
+      ('rag_chunks_16_admin',      '16-ADMIN-WASTE',            9, 'HIGH',      64),
+      ('rag_chunks_17_other',      '17-OTHER-SERVICES',         9, 'HIGH',      64),
+      ('rag_chunks_18_pub',        '18-PUBLIC-ADMIN',           9, 'CRITICAL', 128),
+      ('rag_chunks_19_mgmt',       '19-MGMT-COMPANIES',         6, 'HIGH',      64),
+      ('rag_chunks_xsc',           'XSC-CROSS-CUTTING',        19, 'CRITICAL', 128);
+
+    COMMENT ON TABLE uco_nodes IS
+      '350-node Universal Compliance Decoding Matrix. '
+      '331 sector-specific + 19 UCO-XSC-5xxx cross-cutting. '
+      'BLOCK=192 (54.9%), APPROVE=108 (30.9%), ESCALATE=50 (14.3%). '
+      'Risk weight floor: 5. See EB Doc 4 §2.';
+
+  V5__rbac_app_roles.sql: |
+    -- =============================================================
+    -- V5__rbac_app_roles.sql
+    -- IOS+ COS+ Role-Based Access Control
+    -- SMEPro Technologies — EB Doc 6 §4.2 Least-Privilege RBAC
+    -- =============================================================
+
+    BEGIN;
+
+    -- 1. CREATE ROLES
+    DO $$ BEGIN
+      CREATE ROLE ios_app WITH LOGIN PASSWORD 'iosplus_dev_app';
+    EXCEPTION WHEN duplicate_object THEN
+      ALTER ROLE ios_app WITH LOGIN PASSWORD 'iosplus_dev_app';
+    END $$;
+
+    DO $$ BEGIN
+      CREATE ROLE audit_writer WITH LOGIN PASSWORD 'iosplus_dev_audit_writer';
+    EXCEPTION WHEN duplicate_object THEN
+      ALTER ROLE audit_writer WITH LOGIN PASSWORD 'iosplus_dev_audit_writer';
+    END $$;
+
+    DO $$ BEGIN
+      CREATE ROLE audit_reader WITH LOGIN PASSWORD 'iosplus_dev_audit_reader';
+    EXCEPTION WHEN duplicate_object THEN
+      ALTER ROLE audit_reader WITH LOGIN PASSWORD 'iosplus_dev_audit_reader';
+    END $$;
+
+    DO $$ BEGIN
+      CREATE ROLE rag_reader WITH LOGIN PASSWORD 'iosplus_dev_rag_reader';
+    EXCEPTION WHEN duplicate_object THEN
+      ALTER ROLE rag_reader WITH LOGIN PASSWORD 'iosplus_dev_rag_reader';
+    END $$;
+
+    DO $$ BEGIN
+      CREATE ROLE rag_writer WITH LOGIN PASSWORD 'iosplus_dev_rag_writer';
+    EXCEPTION WHEN duplicate_object THEN
+      ALTER ROLE rag_writer WITH LOGIN PASSWORD 'iosplus_dev_rag_writer';
+    END $$;
+
+    -- 2. DATABASE + SCHEMA ACCESS
+    GRANT CONNECT ON DATABASE ios_plus TO
+      ios_app, audit_writer, audit_reader, rag_reader, rag_writer;
+    GRANT USAGE ON SCHEMA public TO
+      ios_app, audit_writer, audit_reader, rag_reader, rag_writer;
+
+    -- 3. ios_app
+    GRANT SELECT, INSERT, UPDATE ON
+      tenant_registry, tenant_naics_profiles, objects, quarantine_records,
+      compliance_chains, filing_calendar, regulatory_profiles,
+      agency_registry, naics_decoder, code_crosswalk
+    TO ios_app;
+
+    GRANT SELECT, INSERT ON
+      evidence_packages, gate_decisions, merkle_roots,
+      ios_signing_keys, evidence_source_manifest
+    TO ios_app;
+
+    GRANT SELECT ON
+      rag_sources, rag_vault_sector_partitions,
+      rag_chunks,
+      rag_chunks_01_energy, rag_chunks_02_healthcare, rag_chunks_03_finance,
+      rag_chunks_04_food_drug_ag, rag_chunks_05_mfg_transport, rag_chunks_06_telecom,
+      rag_chunks_07_insurance, rag_chunks_08_real_estate, rag_chunks_09_agriculture,
+      rag_chunks_10_mining, rag_chunks_11_retail, rag_chunks_12_prof_svcs,
+      rag_chunks_13_education, rag_chunks_14_arts, rag_chunks_15_accom_food,
+      rag_chunks_16_admin_waste, rag_chunks_17_other_svcs, rag_chunks_18_pub_admin,
+      rag_chunks_19_mgmt_cos, rag_chunks_xsc
+    TO ios_app;
+
+    GRANT SELECT ON uco_nodes, uco_evaluation_results TO ios_app;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ios_app;
+
+    -- 4. audit_writer
+    GRANT SELECT, INSERT ON
+      evidence_packages, gate_decisions, merkle_roots,
+      ios_signing_keys, evidence_source_manifest, quarantine_records
+    TO audit_writer;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO audit_writer;
+
+    -- 5. audit_reader
+    GRANT SELECT ON
+      evidence_packages, gate_decisions, merkle_roots,
+      ios_signing_keys, evidence_source_manifest, compliance_chains,
+      quarantine_records, tenant_registry, tenant_naics_profiles,
+      filing_calendar, regulatory_profiles, agency_registry,
+      naics_decoder, code_crosswalk
+    TO audit_reader;
+
+    -- 6. rag_reader
+    GRANT SELECT ON
+      rag_sources, rag_vault_sector_partitions,
+      rag_chunks,
+      rag_chunks_01_energy, rag_chunks_02_healthcare, rag_chunks_03_finance,
+      rag_chunks_04_food_drug_ag, rag_chunks_05_mfg_transport, rag_chunks_06_telecom,
+      rag_chunks_07_insurance, rag_chunks_08_real_estate, rag_chunks_09_agriculture,
+      rag_chunks_10_mining, rag_chunks_11_retail, rag_chunks_12_prof_svcs,
+      rag_chunks_13_education, rag_chunks_14_arts, rag_chunks_15_accom_food,
+      rag_chunks_16_admin_waste, rag_chunks_17_other_svcs, rag_chunks_18_pub_admin,
+      rag_chunks_19_mgmt_cos, rag_chunks_xsc,
+      uco_nodes, uco_evaluation_results,
+      naics_decoder, code_crosswalk, regulatory_profiles,
+      agency_registry, tenant_naics_profiles
+    TO rag_reader;
+
+    -- 7. rag_writer
+    GRANT SELECT, INSERT, UPDATE ON
+      rag_sources, rag_vault_sector_partitions,
+      rag_chunks,
+      rag_chunks_01_energy, rag_chunks_02_healthcare, rag_chunks_03_finance,
+      rag_chunks_04_food_drug_ag, rag_chunks_05_mfg_transport, rag_chunks_06_telecom,
+      rag_chunks_07_insurance, rag_chunks_08_real_estate, rag_chunks_09_agriculture,
+      rag_chunks_10_mining, rag_chunks_11_retail, rag_chunks_12_prof_svcs,
+      rag_chunks_13_education, rag_chunks_14_arts, rag_chunks_15_accom_food,
+      rag_chunks_16_admin_waste, rag_chunks_17_other_svcs, rag_chunks_18_pub_admin,
+      rag_chunks_19_mgmt_cos, rag_chunks_xsc
+    TO rag_writer;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO rag_writer;
+
+    -- 8. DEFAULT PRIVILEGES
+    ALTER DEFAULT PRIVILEGES FOR ROLE cos_admin IN SCHEMA public
+      GRANT SELECT ON TABLES TO audit_reader, rag_reader;
+    ALTER DEFAULT PRIVILEGES FOR ROLE cos_admin IN SCHEMA public
+      GRANT SELECT, INSERT, UPDATE ON TABLES TO ios_app;
+    ALTER DEFAULT PRIVILEGES FOR ROLE cos_admin IN SCHEMA public
+      GRANT SELECT, INSERT, UPDATE ON TABLES TO rag_writer;
+    ALTER DEFAULT PRIVILEGES FOR ROLE cos_admin IN SCHEMA public
+      GRANT USAGE, SELECT ON SEQUENCES TO ios_app, audit_writer, rag_writer;
+
+    COMMIT;
+
+  V6__seed_crosswalk.sql: |
+    -- ============================================================
+    -- IOS+ COS+ Database — V6 Seed Crosswalk
+    -- Flyway migration: V6__seed_crosswalk.sql
+    -- Populates code_crosswalk mappings for local testing
+    -- ============================================================
+
+    INSERT INTO code_crosswalk (code_system, source_code, target_system, target_code, confidence, notes) VALUES
+      ('CIP', '11.0101', 'NAICS', '5415', 1.000, 'Computer and Information Sciences to IT Systems Design'),
+      ('SOC', '15-1211', 'NAICS', '5415', 1.000, 'Computer Systems Analysts to IT Systems Design'),
+      ('SIC', '7373', 'NAICS', '5415', 1.000, 'Computer Integrated Systems Design to IT Systems Design');
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+  namespace: ios-plus
+spec:
+  activeDeadlineSeconds: 600
+  backoffLimit: 2
+  template:
+    metadata:
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "ios-plus"
+        vault.hashicorp.com/agent-inject-secret-ios-plus.env: "secret/data/ios-plus/config"
+        vault.hashicorp.com/agent-inject-template-ios-plus.env: |
+          {{- with secret "secret/data/ios-plus/config" -}}
+          {{- range $k, $v := .Data.data }}
+          {{ $k }}={{ $v | quote }}
+          {{- end }}
+          {{- end }}
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: ios-plus-sa
+      containers:
+        - name: flyway
+          image: flyway/flyway:10
+          command:
+            - sh
+            - -c
+            - |
+              # Source Vault dynamic secrets
+              if [ -f /vault/secrets/ios-plus.env ]; then
+                . /vault/secrets/ios-plus.env
+              fi
+              # Check database host is populated
+              if [ -z "$COS_HOST" ]; then
+                echo "ERROR: Database host (COS_HOST) is not set." >&2
+                exit 1
+              fi
+              # Execute flyway migration
+              echo "Starting migrations against ${COS_HOST}..."
+              flyway -url="jdbc:postgresql://${COS_HOST}:${COS_PORT:-5432}/${COS_DATABASE:-ios_plus}" \
+                     -user=cos_admin \
+                     -password="${COS_PASSWORD_COS_ADMIN}" \
+                     -connectRetries=10 \
+                     migrate -baselineOnMigrate=true -baselineVersion=4
+          volumeMounts:
+            - name: migrations-vol
+              mountPath: /flyway/sql
+      volumes:
+        - name: migrations-vol
+          configMap:
+            name: db-migrations-config

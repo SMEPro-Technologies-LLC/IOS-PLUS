@@ -49,6 +49,16 @@ else
     echo "Transit secrets engine is already enabled."
 fi
 
+# Enable KV Secrets Engine (kv-v2) at secret/ path if not already mounted
+echo "Checking KV secrets engine at secret/..."
+if ! vault secrets list 2>/dev/null | grep -q "^secret/"; then
+    echo "Enabling KV secrets engine (v2) at secret/..."
+    vault secrets enable -path=secret kv-v2 || vault secrets enable -path=secret kv
+else
+    echo "KV secrets engine is already enabled at secret/."
+fi
+
+
 # 4. Create the Transit Signing Key (Ed25519 type)
 echo "Configuring transit key '${KEY_NAME}'..."
 # Check if key exists

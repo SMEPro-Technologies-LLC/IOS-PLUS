@@ -21,7 +21,40 @@ import hashlib
 from datetime import datetime, timezone
 import psycopg2
 
-DB_URL      = os.environ["DATABASE_URL_AUDIT_READER"]
+# Load environment from Vault projected secrets first
+def load_vault_secrets():
+    path = "/vault/secrets/ios-plus.env"
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    k, v = line.split('=', 1)
+                    v = v.strip().strip("'").strip('"')
+                    os.environ[k] = v
+
+load_vault_secrets()
+
+def get_db_url():
+    if "DATABASE_URL_AUDIT_READER" in os.environ:
+        return os.environ["DATABASE_URL_AUDIT_READER"]
+        
+    host = os.environ.get("COS_HOST", "localhost")
+    port = os.environ.get("COS_PORT", "5432")
+    db_name = os.environ.get("COS_DATABASE", "ios_plus")
+    password = os.environ.get("COS_PASSWORD_AUDIT_READER")
+    
+    if password:
+        return f"postgresql://audit_reader:{password}@{host}:{port}/{db_name}"
+        
+    # In production, do not allow dev default fallback passwords
+    if os.environ.get("NODE_ENV") == "production":
+        raise ValueError("CRITICAL SECURITY ERROR: Database password for AUDIT_READER (COS_PASSWORD_AUDIT_READER) is not configured in production mode.")
+        
+    # Local default
+    return "postgresql://audit_reader:iosplus_dev_audit_reader@localhost:5432/ios_plus"
+
+DB_URL      = get_db_url()
 DNS_ZONE    = os.environ.get("DNS_TXT_ZONE", "_ios-signing-key.smeprotech.com")
 FS_KEY_PATH = os.environ.get("KEY_FILESYSTEM_PATH", "/etc/ios-plus/keys/current.pub")
 

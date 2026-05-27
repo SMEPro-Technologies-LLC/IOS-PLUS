@@ -29,12 +29,14 @@ export async function runL7(
   }
 
   const apiKey = process.env["OPENAI_API_KEY"];
-  if (!apiKey || ragResult.chunks.length === 0) {
-    // Fallback if API key is missing or no context chunks retrieved
-    const output = ragResult.chunks.map((c: any) => c.chunkText).join('\n\n');
+  if (!apiKey) {
+    throw new Error("OpenAI API Key is missing. Cannot perform response synthesis.");
+  }
+
+  if (ragResult.chunks.length === 0) {
     return {
       requestId: ctx.requestId, tenantId: ctx.tenantId, sessionId: ctx.sessionId,
-      output, policyAction: "APPROVE",
+      output: "", policyAction: "APPROVE",
       classificationLevel: ctx.classificationLevel,
       ucoNodesEvaluated: gateResult.nodeResults.length,
       ucoNodeResults: gateResult.nodeResults,
@@ -75,19 +77,7 @@ export async function runL7(
       layerLatencies,
     };
   } catch (err) {
-    // Fallback to joining text chunks on exception
-    const output = ragResult.chunks.map((c: any) => c.chunkText).join('\n\n');
-    return {
-      requestId: ctx.requestId, tenantId: ctx.tenantId, sessionId: ctx.sessionId,
-      output, policyAction: "APPROVE",
-      classificationLevel: ctx.classificationLevel,
-      ucoNodesEvaluated: gateResult.nodeResults.length,
-      ucoNodeResults: gateResult.nodeResults,
-      gateDecisions: [],
-      evidencePackages: [],
-      totalLatencyMs,
-      layerLatencies,
-    };
+    throw new Error(`Layer 7 Synthesis failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 

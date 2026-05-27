@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>EU AI Act Compliance Matrix — AI-AS-ACTION</title>
 <meta name="description" content="Article-by-article architectural alignment with the EU AI Act. How the IOS+ platform addresses Articles 9 through 17 of Regulation (EU) 2024/1689." />
-<meta name="theme-color" content="#0078D4" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cascadia+Code:wght@400;500;600&display=swap" rel="stylesheet">
@@ -889,6 +888,19 @@ footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid
   .article-status { font-size: 10px; padding: 4px 8px; }
   .body-block { padding: 18px 20px; }
 }
+.article-tags-wrap {
+  padding: 0 36px 28px;
+}
+.brand-text span {
+  font-size: 0.6em;
+  vertical-align: super;
+}
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
 </style>
 </head>
 <body>
@@ -974,7 +986,7 @@ footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid
         </g>
       </svg>
       <div>
-        <div class="brand-text">AI-AS-ACTION<span style="font-size:0.6em;vertical-align:super;">™</span></div>
+        <div class="brand-text">AI-AS-ACTION<span>™</span></div>
         <div class="brand-text-sub">Governed Intelligence</div>
       </div>
     </a>
@@ -1061,7 +1073,7 @@ footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid
 <!-- ============================================================ -->
 <div class="filter-bar">
   <div class="filter-inner">
-    <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+    <div class="filter-controls">
       <div class="filter-label">Filter by Subsystem</div>
       <div class="filter-pills">
         <button class="filter-pill active" data-filter="all">All Articles</button>
@@ -1114,7 +1126,7 @@ footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid
             </ul>
           </div>
         </div>
-        <div style="padding: 0 36px 28px;">
+        <div class="article-tags-wrap">
           <div class="subsystem-tags">
             <span class="subsystem-tag">IOS+</span>
             <span class="subsystem-tag">Gate 530</span>
@@ -1155,7 +1167,7 @@ footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid
             </ul>
           </div>
         </div>
-        <div style="padding: 0 36px 28px;">
+        <div class="article-tags-wrap">
           <div class="subsystem-tags">
             <span class="subsystem-tag">UDM</span>
             <span class="subsystem-tag">L3 Resolver</span>
@@ -1196,7 +1208,7 @@ footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid
             </ul>
           </div>
         </div>
-        <div style="padding: 0 36px 28px;">
+        <div class="article-tags-wrap">
           <div class="subsystem-tags">
             <span class="subsystem-tag">Engineering Body</span>
             <span class="subsystem-tag">Versioned Spec</span>
@@ -1237,7 +1249,7 @@ footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid
             </ul>
           </div>
         </div>
-        <div style="padding: 0 36px 28px;">
+        <div class="article-tags-wrap">
           <div class="subsystem-tags">
             <span class="subsystem-tag">Ed25519</span>
             <span class="subsystem-tag">JCS / RFC 8785</span>
@@ -1278,7 +1290,7 @@ footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid
             </ul>
           </div>
         </div>
-        <div style="padding: 0 36px 28px;">
+        <div class="article-tags-wrap">
           <div class="subsystem-tags">
             <span class="subsystem-tag">Gate 530 Rationale</span>
             <span class="subsystem-tag">API Transparency</span>
@@ -1319,7 +1331,7 @@ footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid
             </ul>
           </div>
         </div>
-        <div style="padding: 0 36px 28px;">
+        <div class="article-tags-wrap">
           <div class="subsystem-tags">
             <span class="subsystem-tag">ESCALATE Action</span>
             <span class="subsystem-tag">Quarantine Queue</span>
@@ -1361,7 +1373,7 @@ footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid
             </ul>
           </div>
         </div>
-        <div style="padding: 0 36px 28px;">
+        <div class="article-tags-wrap">
           <div class="subsystem-tags">
             <span class="subsystem-tag">Deterministic Gate</span>
             <span class="subsystem-tag">Sidecar Isolation</span>
@@ -1402,7 +1414,7 @@ footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid
             </ul>
           </div>
         </div>
-        <div style="padding: 0 36px 28px;">
+        <div class="article-tags-wrap">
           <div class="subsystem-tags">
             <span class="subsystem-tag">Trust Center</span>
             <span class="subsystem-tag">Provider ID</span>
@@ -1443,7 +1455,7 @@ footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid
             </ul>
           </div>
         </div>
-        <div style="padding: 0 36px 28px;">
+        <div class="article-tags-wrap">
           <div class="subsystem-tags">
             <span class="subsystem-tag">Engineering Body</span>
             <span class="subsystem-tag">CI/CD</span>
@@ -1550,7 +1562,7 @@ footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid
             </g>
           </svg>
           <div>
-            <div class="brand-text">AI-AS-ACTION<span style="font-size:0.6em;vertical-align:super;">™</span></div>
+            <div class="brand-text">AI-AS-ACTION<span>™</span></div>
             <div class="brand-text-sub">Governed Intelligence</div>
           </div>
         </a>

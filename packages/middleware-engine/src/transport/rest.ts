@@ -172,7 +172,27 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
 
   // --- UCO Compliance Rule Management Routes ---
 
-  app.get("/v1/compliance/rules", async (req, res) => {
+  // API Key Authentication Middleware for admin control plane
+  const adminApiKey = process.env["COS_ADMIN_API_KEY"] ?? "iosplus_dev_admin_key";
+  
+  const requireAdminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const authHeader = req.headers["authorization"] || req.headers["x-admin-api-key"];
+    let token = "";
+    if (authHeader && typeof authHeader === "string") {
+      if (authHeader.startsWith("Bearer ")) {
+        token = authHeader.substring(7);
+      } else {
+        token = authHeader;
+      }
+    }
+    
+    if (!token || token !== adminApiKey) {
+      return res.status(401).json({ error: "Unauthorized: Missing or invalid administrative API key" });
+    }
+    next();
+  };
+
+  app.get("/v1/compliance/rules", requireAdminAuth, async (req, res) => {
     try {
       const pool = deps.cosRegistry.pool("cos_admin");
       const { naics, policy_action, governing_agency } = req.query;
@@ -201,7 +221,7 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     }
   });
 
-  app.post("/v1/compliance/rules", async (req, res) => {
+  app.post("/v1/compliance/rules", requireAdminAuth, async (req, res) => {
     try {
       const pool = deps.cosRegistry.pool("cos_admin");
       const b = req.body;

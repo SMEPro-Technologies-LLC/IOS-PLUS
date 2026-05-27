@@ -24,40 +24,40 @@ vi.mock("ioredis", () => {
 
 // Mock node:net and node:http2 to allow dynamic health check
 vi.mock("node:net", () => {
-  return {
-    default: {
-      createConnection: (path: string) => {
-        const emitter = new EventEmitter();
-        setTimeout(() => {
-          if (process.env["TEST_GATE530_HEALTHY"] === "false") {
-            emitter.emit("error", new Error("IPC socket connection refused"));
-          } else {
-            emitter.emit("connect");
-          }
-        }, 10);
-        (emitter as any).destroy = () => {};
-        return emitter;
+  const createConnection = (path: string) => {
+    const emitter = new EventEmitter();
+    setTimeout(() => {
+      if (process.env["TEST_GATE530_HEALTHY"] === "false") {
+        emitter.emit("error", new Error("IPC socket connection refused"));
+      } else {
+        emitter.emit("connect");
       }
-    }
+    }, 10);
+    (emitter as any).destroy = () => {};
+    return emitter;
+  };
+  return {
+    default: { createConnection },
+    createConnection
   };
 });
 
 vi.mock("node:http2", () => {
-  return {
-    default: {
-      connect: (url: string) => {
-        const emitter = new EventEmitter();
-        setTimeout(() => {
-          if (process.env["TEST_GATE530_HEALTHY"] === "false") {
-            emitter.emit("error", new Error("HTTP/2 connection refused"));
-          } else {
-            emitter.emit("connect");
-          }
-        }, 10);
-        (emitter as any).destroy = () => {};
-        return emitter;
+  const connect = (url: string) => {
+    const emitter = new EventEmitter();
+    setTimeout(() => {
+      if (process.env["TEST_GATE530_HEALTHY"] === "false") {
+        emitter.emit("error", new Error("HTTP/2 connection refused"));
+      } else {
+        emitter.emit("connect");
       }
-    }
+    }, 10);
+    (emitter as any).destroy = () => {};
+    return emitter;
+  };
+  return {
+    default: { connect },
+    connect
   };
 });
 

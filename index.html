@@ -2062,6 +2062,68 @@ footer { background: var(--smepro-gray-10); padding: 56px 0 40px; border-top: 1p
     color: var(--smepro-success) !important;
   }
 
+  .queue-card {
+    background: var(--smepro-gray-10);
+    border: 1px solid var(--smepro-gray-30);
+    border-radius: 6px;
+    padding: 18px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    transition: box-shadow 0.2s;
+  }
+  .queue-card:hover {
+    box-shadow: var(--shadow-md);
+  }
+  .queue-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .queue-details strong {
+    font-size: 14.5px;
+    color: var(--smepro-navy-dark);
+  }
+  .queue-details span {
+    font-size: 12.5px;
+    color: var(--smepro-gray-90);
+  }
+  .queue-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .queue-btn-clear {
+    background: var(--smepro-success);
+    color: var(--smepro-white);
+    border: none;
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .queue-btn-clear:hover {
+    background: #0B5A0B;
+  }
+  .queue-btn-block {
+    background: var(--smepro-error);
+    color: var(--smepro-white);
+    border: none;
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .queue-btn-block:hover {
+    background: #801B20;
+  }
+
   /* Responsive styling */
   @media (max-width: 860px) {
     .portal-container { flex-direction: column; height: 92vh; width: 96vw; }
@@ -2102,6 +2164,11 @@ footer { background: var(--smepro-gray-10); padding: 56px 0 40px; border-top: 1p
         <button class="portal-nav-item" data-tab="reporter">Reporter</button>
         <button class="portal-nav-item" data-tab="reporter-plus">Reporter IOS+</button>
         <button class="portal-nav-item" data-tab="edu-reporter">EDU Reporter</button>
+      </div>
+
+      <div class="portal-nav-group">
+        <div class="portal-nav-title">Compliance Console</div>
+        <button class="portal-nav-item" data-tab="quarantine-queue">Quarantine Queue</button>
       </div>
 
       <div class="portal-nav-group">
@@ -2194,6 +2261,19 @@ footer { background: var(--smepro-gray-10); padding: 56px 0 40px; border-top: 1p
         <div class="portal-callout">
           <strong>FERPA §99.31 Compliance Enforcement</strong>
           <p>Evaluates search prompts and AI training pipelines to block the processing of PII (Student transcripts, Social Security numbers, disciplinary logs, and medical records). Pre-execution checks guarantee compliance is enforced before models receive context.</p>
+        </div>
+      </div>
+
+      <!-- COMPLIANCE: QUARANTINE QUEUE -->
+      <div class="portal-pane" id="pane-quarantine-queue">
+        <h2>Compliance Quarantine Queue</h2>
+        <div class="portal-subtitle">Human-in-the-Loop Governance Review Console</div>
+        <p>Review inferences that triggered compliance warnings (status: <code>ESCALATE</code>). Clear them to resume pipeline synthesis, or block them to abort execution.</p>
+        
+        <button class="btn-primary" onclick="refreshQuarantineQueue()" style="padding: 10px 20px; font-size: 13.5px; border-radius: 4px; margin-bottom: 20px;">Refresh Queue</button>
+        
+        <div id="queue-container">
+          <p>Loading quarantine queue...</p>
         </div>
       </div>
 
@@ -2595,6 +2675,10 @@ footer { background: var(--smepro-gray-10); padding: 56px 0 40px; border-top: 1p
         calculatePricing();
       }
       
+      if (tabId === 'quarantine-queue') {
+        refreshQuarantineQueue();
+      }
+      
       // Select appropriate topic in contact form
       if (tabId === 'contact') {
         resetContactForm();
@@ -2746,8 +2830,8 @@ footer { background: var(--smepro-gray-10); padding: 56px 0 40px; border-top: 1p
     });
   }
 
-  // Pre-Execution Gate Simulator Logic
-  function runGateSimulator() {
+  // Live Pre-Execution Gate Logic
+  async function runGateSimulator() {
     const input = document.getElementById('gate-input-field').value.trim();
     const resultBox = document.getElementById('gate-result-box');
     
@@ -2755,29 +2839,119 @@ footer { background: var(--smepro-gray-10); padding: 56px 0 40px; border-top: 1p
     
     resultBox.style.display = 'block';
     resultBox.className = 'gate-result';
-    resultBox.innerHTML = 'Scanning prompt content...';
+    resultBox.style.borderLeft = '4px solid var(--smepro-navy)';
+    resultBox.innerHTML = 'Executing live 7-layer pipeline over REST transport...';
 
-    setTimeout(() => {
-      const lowerInput = input.toLowerCase();
+    try {
+      const resp = await fetch('/v1/inference', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': '0be7a2cd-43c7-42c4-a439-8307577255ac',
+          'x-session-id': '0be7a2cd-43c7-42c4-a439-8307577255ad'
+        },
+        body: JSON.stringify({ input })
+      });
       
-      if (lowerInput.includes('student') || lowerInput.includes('ferpa') || lowerInput.includes('grade') || lowerInput.includes('pii') || lowerInput.includes('ssn') || lowerInput.includes('medical record') || lowerInput.includes('ssn')) {
-        resultBox.classList.add('block');
+      const status = resp.status;
+      const data = await resp.json();
+      
+      if (status === 202) {
+        resultBox.className = 'gate-result block';
+        resultBox.style.borderLeft = '4px solid var(--smepro-warning)';
         resultBox.innerHTML = `
-          <strong>[GATE 530] BLOCKED</strong><br>
-          <strong>Violation:</strong> Unauthorized extraction of student database attributes (triggers UCO FERPA §99.31).<br>
-          <strong>Action:</strong> Gateway blocked transfer to OpenAI pool. Evidence signature generated.<br>
-          <strong>Hash:</strong> e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+          <strong>[GATE 530] ESCALATED FOR HUMAN REVIEW (202 Accepted)</strong><br>
+          <strong>Reason:</strong> Violation detected on NAICS profile matching.<br>
+          <strong>Quarantine ID:</strong> <code>${data.quarantine_id}</code><br>
+          <strong>Action Required:</strong> Review and resolve this query in the <strong>Quarantine Queue</strong> tab.<br>
+          <strong>Pipeline Latency:</strong> ${data.totalLatencyMs}ms
+        `;
+      } else if (status === 403) {
+        resultBox.className = 'gate-result block';
+        resultBox.style.borderLeft = '4px solid var(--smepro-error)';
+        resultBox.innerHTML = `
+          <strong>[GATE 530] BLOCKED (403 Forbidden)</strong><br>
+          <strong>Outcome:</strong> ${data.output}<br>
+          <strong>Evaluated Nodes:</strong> ${data.ucoNodesEvaluated} active regulations<br>
+          <strong>Pipeline Latency:</strong> ${data.totalLatencyMs}ms
+        `;
+      } else if (resp.ok) {
+        resultBox.className = 'gate-result pass';
+        resultBox.style.borderLeft = '4px solid var(--smepro-success)';
+        
+        let chunkText = "";
+        if (data.layerLatencies) {
+          chunkText = `<br><strong>Layer Latencies:</strong> L1:${data.layerLatencies.L1}ms, L2:${data.layerLatencies.L2}ms, L3:${data.layerLatencies.L3}ms, L4:${data.layerLatencies.L4}ms, L5:${data.layerLatencies.L5}ms, L6:${data.layerLatencies.L6}ms, L7:${data.layerLatencies.L7}ms`;
+        }
+        
+        resultBox.innerHTML = `
+          <strong>[GATE 530] PASSED & SYNTHESIZED (200 OK)</strong><br>
+          <strong>LLM Output:</strong> ${data.output}<br>
+          <strong>Policy Action:</strong> ${data.policyAction}<br>
+          <strong>Pipeline Latency:</strong> ${data.totalLatencyMs}ms${chunkText}
         `;
       } else {
-        resultBox.classList.add('pass');
-        resultBox.innerHTML = `
-          <strong>[GATE 530] PASSED</strong><br>
-          <strong>Profile:</strong> Standard General Inquiry (NAICS sector 54)<br>
-          <strong>Action:</strong> Cleared. Inference routed to Gemini 1.5 Flash pool.<br>
-          <strong>Signature:</strong> 8b7c62d5e3c8b7c4d5e6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4
-        `;
+        throw new Error(data.error || 'Unknown server error');
       }
-    }, 600);
+    } catch (err) {
+      resultBox.className = 'gate-result block';
+      resultBox.style.borderLeft = '4px solid var(--smepro-error)';
+      resultBox.innerHTML = `<strong>Error contacting Express middleware server:</strong> ${err.message}`;
+    }
+  }
+
+  // Live Quarantine Queue Controller
+  async function refreshQuarantineQueue() {
+    const container = document.getElementById('queue-container');
+    container.innerHTML = '<p>Querying audit records from COS+ database...</p>';
+    
+    try {
+      const resp = await fetch('/v1/compliance/queue');
+      if (!resp.ok) throw new Error('Failed to query compliance queue');
+      const data = await resp.json();
+      
+      if (data.length === 0) {
+        container.innerHTML = '<p style="color: var(--smepro-gray-90); font-style: italic;">No items currently quarantined.</p>';
+        return;
+      }
+      
+      let html = '';
+      data.forEach(item => {
+        html += `
+          <div class="queue-card" id="qcard-${item.quarantine_id}">
+            <div class="queue-details">
+              <strong>ID: <code>${item.quarantine_id}</code></strong>
+              <span><strong>UCO Node:</strong> ${item.uco_node_id}</span>
+              <span><strong>Reason:</strong> ${item.reason}</span>
+              <span><strong>Quarantined At:</strong> ${new Date(item.quarantined_at).toLocaleString()}</span>
+            </div>
+            <div class="queue-actions">
+              <button class="queue-btn-clear" onclick="resolveQuarantine('${item.quarantine_id}', 'CLEAR')">Clear & Approve</button>
+              <button class="queue-btn-block" onclick="resolveQuarantine('${item.quarantine_id}', 'BLOCK')">Block & Abort</button>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    } catch (err) {
+      container.innerHTML = `<p style="color: var(--smepro-error);"><strong>Failed to load queue:</strong> ${err.message}</p>`;
+    }
+  }
+
+  async function resolveQuarantine(id, action) {
+    const card = document.getElementById(`qcard-${id}`);
+    const btns = card.querySelectorAll('button');
+    btns.forEach(btn => btn.disabled = true);
+    
+    try {
+      const resp = await fetch(`/v1/compliance/queue/${id}/${action.toLowerCase()}`, { method: 'POST' });
+      if (!resp.ok) throw new Error(`Failed to resolve with action: ${action}`);
+      alert(`Record ${id} successfully resolved with status: ${action}`);
+      refreshQuarantineQueue();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+      btns.forEach(btn => btn.disabled = false);
+    }
   }
 
   // UCO Node mapping detail displays

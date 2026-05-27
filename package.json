@@ -21,10 +21,12 @@
     "db:migrate":      "flyway migrate",
     "db:verify-worm":  "psql $DATABASE_URL_AUDIT_READER -f scripts/db/verify_worm_triggers.sql",
     "ops:verify-keys": "python3 scripts/ops/verify_key_publication_consistency.py",
-    "dev":             "docker compose up -d"
+    "dev":             "docker compose up -d",
+    "test":            "vitest run"
   },
   "devDependencies": {
     "turbo":      "^1.13.0",
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest":     "^1.4.0"
   }
 }

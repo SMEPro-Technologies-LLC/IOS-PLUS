@@ -86,7 +86,7 @@ export async function executePipeline(
   }
 
   if (l5.gateResult.aggregatePolicyAction === "BLOCK") {
-    return runL7(ctx, l5.gateResult, { chunks: [], sectorPartitionsQueried: [], ucoNodeIdsFiltered: [], latencyMs: 0, efSearchUsed: 0 }, Date.now() - pipelineStart, latencies);
+    return await runL7(ctx, l5.gateResult, { chunks: [], sectorPartitionsQueried: [], ucoNodeIdsFiltered: [], latencyMs: 0, efSearchUsed: 0 }, Date.now() - pipelineStart, latencies);
   }
 
   if (l5.gateResult.aggregatePolicyAction === "ESCALATE") {
@@ -109,7 +109,7 @@ export async function executePipeline(
   const l6 = await runL6(ctx, l1.normalizedInput, deps.ragVault);
   latencies["L6"] = l6.latencyMs;
 
-  return runL7(ctx, l5.gateResult, l6.ragResult, Date.now() - pipelineStart, latencies);
+  return await runL7(ctx, l5.gateResult, l6.ragResult, Date.now() - pipelineStart, latencies);
 }
 
 export async function resumePipeline(
@@ -129,7 +129,7 @@ export async function resumePipeline(
       ...parked.gateResult,
       aggregatePolicyAction: 'BLOCK' as const,
     };
-    response = runL7(ctx, gateResult, { chunks: [], sectorPartitionsQueried: [], ucoNodeIdsFiltered: [], latencyMs: 0, efSearchUsed: 0 }, Date.now() - pipelineStart, latencies);
+    response = await runL7(ctx, gateResult, { chunks: [], sectorPartitionsQueried: [], ucoNodeIdsFiltered: [], latencyMs: 0, efSearchUsed: 0 }, Date.now() - pipelineStart, latencies);
     finalAction = 'BLOCK';
   } else {
     // CLEAR action: proceed to L6 and L7
@@ -141,7 +141,7 @@ export async function resumePipeline(
       ...parked.gateResult,
       aggregatePolicyAction: 'APPROVE' as const,
     };
-    response = runL7(ctx, gateResult, l6.ragResult, Date.now() - pipelineStart, latencies);
+    response = await runL7(ctx, gateResult, l6.ragResult, Date.now() - pipelineStart, latencies);
     finalAction = 'APPROVE';
   }
 

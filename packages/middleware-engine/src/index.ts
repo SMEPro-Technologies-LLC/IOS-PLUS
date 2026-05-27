@@ -11,8 +11,33 @@ import { EvidenceFabricService, LocalEnvKeyProvider, LocalFileKeyProvider } from
 import { RAGVaultService } from "@ios-plus/rag-vault";
 import type { NAICSProfile } from "@ios-plus/shared";
 import type { PipelineDependencies } from "./orchestrator/pipeline.js";
+import fs from "node:fs";
 
 const log = pino({ level: process.env["LOG_LEVEL"] ?? "info" });
+
+function loadVaultSecrets() {
+  const vaultSecretsPath = "/vault/secrets/ios-plus.env";
+  if (fs.existsSync(vaultSecretsPath)) {
+    try {
+      const content = fs.readFileSync(vaultSecretsPath, "utf8");
+      log.info({ path: vaultSecretsPath }, "Loading secrets from Vault Agent sidecar projection file");
+      for (const line of content.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith("#") && trimmed.includes("=")) {
+          const eqIndex = trimmed.indexOf("=");
+          const key = trimmed.slice(0, eqIndex).trim();
+          const val = trimmed.slice(eqIndex + 1).trim();
+          const cleanedVal = val.replace(/^['"]|['"]$/g, "");
+          if (key) {
+            process.env[key] = cleanedVal;
+          }
+        }
+      }
+    } catch (err) {
+      log.error({ err, path: vaultSecretsPath }, "Error loading secrets from Vault projection file");
+    }
+  }
+}
 
 function requireEnv(key: string): string {
   const v = process.env[key];
@@ -21,6 +46,7 @@ function requireEnv(key: string): string {
 }
 
 async function main() {
+  loadVaultSecrets();
   log.info("IOS+ Middleware Engine starting");
   const port = parseInt(process.env["PORT"] ?? "3000");
 

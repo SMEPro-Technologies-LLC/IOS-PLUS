@@ -18,7 +18,110 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
   app.use(express.static(process.cwd()));
 
   app.get("/health", (_req, res) => res.json({ status: "ok" }));
-  app.get("/ready", (_req, res) => res.json({ status: "ready" }));
+  app.get("/ready", async (_req, res) => {
+    const checks = {
+      database: "unknown",
+      redis: "unknown",
+      gate530: "unknown",
+      vault: "unknown",
+    };
+    
+    let isHealthy = true;
+
+    // 1. Test Database (ios_app pool)
+    try {
+      const pool = deps.cosRegistry.pool("ios_app");
+      await pool.query("SELECT 1");
+      checks.database = "healthy";
+    } catch (err) {
+      checks.database = `unhealthy: ${String(err)}`;
+      isHealthy = false;
+    }
+
+    // 2. Test Redis
+    try {
+      const redisUrl = process.env["REDIS_URL"] || "redis://redis:6379";
+      const { Redis } = await import("ioredis");
+      const tempRedis = new Redis(redisUrl, { maxRetriesPerRequest: 0, connectTimeout: 1000 });
+      const pong = await tempRedis.ping();
+      await tempRedis.quit();
+      if (pong === "PONG") {
+        checks.redis = "healthy";
+      } else {
+        checks.redis = `unhealthy: received ${pong}`;
+        isHealthy = false;
+      }
+    } catch (err) {
+      checks.redis = `unhealthy: ${String(err)}`;
+      isHealthy = false;
+    }
+
+    // 3. Test Gate 530 sidecar
+    try {
+      const transport = (process.env["GATE530_TRANSPORT"] as 'ipc' | 'http2') || 'ipc';
+      if (transport === 'http2') {
+        const port = process.env["GATE530_PORT"] || "3002";
+        const http2 = await import("node:http2");
+        const client = http2.connect(`http://localhost:${port}`);
+        await new Promise<void>((resolve, reject) => {
+          client.on("connect", () => {
+            client.destroy();
+            resolve();
+          });
+          client.on("error", (err) => {
+            reject(err);
+          });
+          setTimeout(() => reject(new Error("Timeout connecting to Gate 530 HTTP/2")), 1000);
+        });
+        checks.gate530 = "healthy";
+      } else {
+        const socketPath = process.env["GATE530_IPC_SOCKET"] || "/tmp/gate530.sock";
+        const net = await import("node:net");
+        const client = net.createConnection(socketPath);
+        await new Promise<void>((resolve, reject) => {
+          client.on("connect", () => {
+            client.destroy();
+            resolve();
+          });
+          client.on("error", (err) => {
+            reject(err);
+          });
+          setTimeout(() => reject(new Error("Timeout connecting to Gate 530 IPC socket")), 1000);
+        });
+        checks.gate530 = "healthy";
+      }
+    } catch (err) {
+      checks.gate530 = `unhealthy: ${String(err)}`;
+      isHealthy = false;
+    }
+
+    // 4. Test Vault
+    try {
+      const vaultAddr = process.env["VAULT_ADDR"];
+      if (vaultAddr) {
+        const response = await fetch(`${vaultAddr}/v1/sys/health`);
+        const data: any = await response.json();
+        if (data && data.initialized === true && data.sealed === false) {
+          checks.vault = "healthy";
+        } else {
+          checks.vault = `unhealthy: initialized=${data?.initialized}, sealed=${data?.sealed}`;
+          isHealthy = false;
+        }
+      } else {
+        checks.vault = "healthy (skipped: VAULT_ADDR not set)";
+      }
+    } catch (err) {
+      checks.vault = `unhealthy: ${String(err)}`;
+      isHealthy = false;
+    }
+
+    const statusCode = isHealthy ? 200 : 503;
+    res.status(statusCode).json({
+      status: isHealthy ? "ready" : "degraded",
+      checks,
+      timestamp: new Date().toISOString(),
+    });
+  });
 
   app.post("/v1/inference", async (req, res) => {
     const requestId = uuidv7();

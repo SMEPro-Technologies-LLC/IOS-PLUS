@@ -82,6 +82,16 @@ describe("REST App Transport Routes Unit Tests", () => {
     expect(body.status).toBe("ok");
   });
 
+  it("GET /ready returns health status check metrics", async () => {
+    const res = await fetch(`http://localhost:${port}/ready`);
+    expect(res.status).toBe(503);
+    const body = await res.json() as any;
+    expect(body.status).toBe("degraded");
+    expect(body.checks.database).toBe("healthy");
+    expect(body.checks.redis).toContain("unhealthy");
+    expect(body.checks.gate530).toContain("unhealthy");
+  });
+
   it("GET /v1/compliance/queue returns quarantined records list", async () => {
     const res = await fetch(`http://localhost:${port}/v1/compliance/queue`);
     expect(res.status).toBe(200);

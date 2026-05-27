@@ -8,13 +8,7 @@ export async function runL2(normalizedInput: string): Promise<LayerResult & { ou
   
   const apiKey = process.env["OPENAI_API_KEY"];
   if (!apiKey) {
-    // Fallback if API key is not configured
-    const output: L2Output = {
-      detectedActivity: normalizedInput.slice(0, 64),
-      entities: [],
-      intent: "query",
-    };
-    return { layer: 2, success: true, latencyMs: Date.now() - start, output };
+    throw new Error("OpenAI API Key is missing. Cannot perform semantic classification.");
   }
 
   try {
@@ -42,13 +36,7 @@ export async function runL2(normalizedInput: string): Promise<LayerResult & { ou
     };
     return { layer: 2, success: true, latencyMs: Date.now() - start, output };
   } catch (err) {
-    // Graceful fallback to slice on failure
-    const output: L2Output = {
-      detectedActivity: normalizedInput.slice(0, 64),
-      entities: [],
-      intent: "query",
-    };
-    return { layer: 2, success: true, latencyMs: Date.now() - start, output };
+    throw new Error(`Layer 2 Semantic Classification failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 

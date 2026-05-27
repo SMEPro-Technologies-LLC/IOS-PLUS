@@ -89,14 +89,23 @@ describe("REST App Transport Routes Unit Tests", () => {
     expect(body[0]?.quarantineId).toBe("q-123");
   });
 
-  it("GET /v1/compliance/rules retrieves active rules list", async () => {
-    const res = await fetch(`http://localhost:${port}/v1/compliance/rules?governing_agency=SEC`);
+  it("GET /v1/compliance/rules retrieves active rules list when authenticated", async () => {
+    const res = await fetch(`http://localhost:${port}/v1/compliance/rules?governing_agency=SEC`, {
+      headers: { "Authorization": "Bearer iosplus_dev_admin_key" }
+    });
     expect(res.status).toBe(200);
     const body = await res.json() as any[];
     expect(body[0]?.uco_node_id).toBe("UCO-TEST-001");
   });
 
-  it("POST /v1/compliance/rules creates a new rule", async () => {
+  it("GET /v1/compliance/rules returns 401 when unauthenticated", async () => {
+    const res = await fetch(`http://localhost:${port}/v1/compliance/rules?governing_agency=SEC`);
+    expect(res.status).toBe(401);
+    const body = await res.json() as any;
+    expect(body.error).toContain("Unauthorized");
+  });
+
+  it("POST /v1/compliance/rules creates a new rule when authenticated", async () => {
     const newRule = {
       uco_node_id: "UCO-TEST-002",
       broad_industry: "Finance",
@@ -115,7 +124,10 @@ describe("REST App Transport Routes Unit Tests", () => {
 
     const res = await fetch(`http://localhost:${port}/v1/compliance/rules`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer iosplus_dev_admin_key"
+      },
       body: JSON.stringify(newRule)
     });
     expect(res.status).toBe(201);
@@ -124,7 +136,16 @@ describe("REST App Transport Routes Unit Tests", () => {
     expect(body.uco_node_id).toBe("UCO-TEST-002");
   });
 
-  it("PUT /v1/compliance/rules/:id updates fields of a rule", async () => {
+  it("POST /v1/compliance/rules returns 401 when unauthenticated", async () => {
+    const res = await fetch(`http://localhost:${port}/v1/compliance/rules`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it("PUT /v1/compliance/rules/:id updates fields of a rule when authenticated", async () => {
     const updatePayload = {
       specific_activity: "Mortgage Lending",
       risk_weight: 9
@@ -132,7 +153,10 @@ describe("REST App Transport Routes Unit Tests", () => {
 
     const res = await fetch(`http://localhost:${port}/v1/compliance/rules/UCO-TEST-002`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer iosplus_dev_admin_key"
+      },
       body: JSON.stringify(updatePayload)
     });
     expect(res.status).toBe(200);
@@ -140,12 +164,29 @@ describe("REST App Transport Routes Unit Tests", () => {
     expect(body.status).toBe("updated");
   });
 
-  it("DELETE /v1/compliance/rules/:id deletes a rule", async () => {
+  it("PUT /v1/compliance/rules/:id returns 401 when unauthenticated", async () => {
     const res = await fetch(`http://localhost:${port}/v1/compliance/rules/UCO-TEST-002`, {
-      method: "DELETE"
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({})
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it("DELETE /v1/compliance/rules/:id deletes a rule when authenticated", async () => {
+    const res = await fetch(`http://localhost:${port}/v1/compliance/rules/UCO-TEST-002`, {
+      method: "DELETE",
+      headers: { "Authorization": "Bearer iosplus_dev_admin_key" }
     });
     expect(res.status).toBe(200);
     const body = await res.json() as any;
     expect(body.status).toBe("deleted");
+  });
+
+  it("DELETE /v1/compliance/rules/:id returns 401 when unauthenticated", async () => {
+    const res = await fetch(`http://localhost:${port}/v1/compliance/rules/UCO-TEST-002`, {
+      method: "DELETE"
+    });
+    expect(res.status).toBe(401);
   });
 });

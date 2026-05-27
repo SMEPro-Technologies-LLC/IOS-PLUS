@@ -194,7 +194,7 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
 
   app.get("/v1/compliance/rules", requireAdminAuth, async (req, res) => {
     try {
-      const pool = deps.cosRegistry.pool("cos_admin");
+      const pool = deps.cosRegistry.pool("ios_app");
       const { naics, policy_action, governing_agency } = req.query;
       let query = "SELECT * FROM uco_nodes WHERE 1=1";
       const params: any[] = [];

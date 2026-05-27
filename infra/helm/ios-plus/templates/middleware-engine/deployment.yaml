@@ -15,6 +15,10 @@ spec:
     metadata:
       labels:
         app: middleware-engine
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "ios-plus"
+        vault.hashicorp.com/agent-inject-status: "update"
     spec:
       serviceAccountName: ios-plus-sa
       containers:

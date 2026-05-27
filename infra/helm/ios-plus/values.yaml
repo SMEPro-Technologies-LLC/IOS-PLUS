@@ -250,3 +250,10 @@ ucoSeedValidation:
 
   # -- Tolerations (optional)
   tolerations: []
+
+# ── Service Account Configuration ──────────────────────────────
+serviceAccount:
+  create: true
+  name: "ios-plus-sa"
+  annotations: {}
+

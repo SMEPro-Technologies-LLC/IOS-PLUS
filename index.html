@@ -366,6 +366,13 @@ body {
 }
 .btn-primary:hover::after { transform: translateX(4px); }
 
+.btn-refresh-queue {
+  padding: 10px 20px;
+  font-size: 13.5px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
 .btn-secondary {
   background: transparent;
   color: var(--smepro-white);
@@ -2002,6 +2009,7 @@ footer { background: var(--smepro-gray-10); padding: 56px 0 40px; border-top: 1p
     font-weight: 600;
     color: var(--smepro-navy-dark);
     cursor: pointer;
+    -webkit-user-select: none;
     user-select: none;
   }
   #calc-result-tier {
@@ -2270,7 +2278,7 @@ footer { background: var(--smepro-gray-10); padding: 56px 0 40px; border-top: 1p
         <div class="portal-subtitle">Human-in-the-Loop Governance Review Console</div>
         <p>Review inferences that triggered compliance warnings (status: <code>ESCALATE</code>). Clear them to resume pipeline synthesis, or block them to abort execution.</p>
         
-        <button class="btn-primary" onclick="refreshQuarantineQueue()" style="padding: 10px 20px; font-size: 13.5px; border-radius: 4px; margin-bottom: 20px;">Refresh Queue</button>
+        <button class="btn-primary btn-refresh-queue" onclick="refreshQuarantineQueue()">Refresh Queue</button>
         
         <div id="queue-container">
           <p>Loading quarantine queue...</p>

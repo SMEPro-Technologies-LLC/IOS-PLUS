@@ -1,68 +1,156 @@
 # IOS+ Middleware Engine & COS+ Database
 
-> **Compliance-Native AI Infrastructure for the Agentic Enterprise**
-> SMEPro Technologies | Confidential | support@smeprotech.com
+**Compliance-native enforcement and evidence infrastructure for enterprise AI systems**
+
+IOS+ helps regulated organizations enforce compliance controls at runtime, generate signed audit evidence for AI actions, and persist traceable records in a compliance-first data layer.
+
+Built for enterprise AI workflows that require:
+- real-time policy enforcement,
+- immutable auditability,
+- sector-aware retrieval,
+- and deployment-ready operational controls.
 
 ---
 
-## Overview
+## Why IOS+
 
-IOS+ is a seven-layer compliance-aware middleware engine paired with COS+, a columnar object store whose primary index is compliance-first. Together they provide:
+Most AI platforms generate outputs.  
+Few can prove, in a durable and audit-ready way, **why a decision was allowed, what controls were applied, and what evidence was recorded**.
 
-- **Gate 530** — real-time compliance enforcement against 350 UCO nodes across 20 NAICS industry sectors
-- **Evidence Fabric** — Ed25519-signed, JCS-canonicalized (RFC 8785) audit trail for every inference event
-- **RAG Vault** — UCO-partitioned, sector-aware retrieval augmented generation knowledge layer
-- **COS+ Database** — WORM-enforced PostgreSQL with pgvector, append-only audit tables, and compliance-primary indexing
+IOS+ is designed to solve that gap.
+
+With IOS+, teams can:
+- evaluate AI requests against compliance rules before execution,
+- create signed evidence records for inference events,
+- store append-only audit data with compliance-first indexing,
+- and support regulated retrieval and operational review workflows.
+
+---
+
+## Core Components
+
+### Gate 530
+Runtime compliance evaluation for AI and agent workflows.
+
+- Evaluates requests against mapped compliance dimensions
+- Applies sector-aware decision logic
+- Produces structured allow/deny/escalate outcomes
+- Records policy evaluation metadata for downstream audit
+
+### Evidence Fabric
+Cryptographic audit evidence for AI activity.
+
+- Ed25519-signed evidence records
+- JCS-canonicalized payloads aligned with RFC 8785
+- Event-level traceability for policy and inference actions
+- Verification support for downstream audit and operations
+
+### RAG Vault
+Compliance-aware retrieval for regulated knowledge workflows.
+
+- UCO-partitioned retrieval boundaries
+- Sector-aware knowledge segmentation
+- Retrieval support for controlled enterprise AI use cases
+- Designed for evidence-linked retrieval workflows
+
+### COS+ Database
+Compliance-first persistence layer for evidence and audit records.
+
+- PostgreSQL-based storage with pgvector support
+- Append-only audit table design
+- WORM-enforced audit protections
+- Compliance-primary indexing for traceable review and retention workflows
+
+---
+
+## Typical Use Cases
+
+IOS+ is best suited for organizations that need provable control over AI-driven workflows, including:
+
+- AI-assisted document and records processing
+- Regulated enterprise RAG deployments
+- Compliance-sensitive agent workflows
+- Audit-ready inference logging and review
+- Sector-specific policy enforcement before model execution
+
+---
+
+## Who It Is For
+
+IOS+ is designed for:
+- enterprise platform engineering teams,
+- compliance and governance leaders,
+- regulated AI program owners,
+- security and audit stakeholders,
+- and solution teams deploying AI into high-control environments.
+
+---
+
+## Architecture Summary
+
+The platform is organized as a modular middleware and evidence stack:
+
+- shared types for decisioning and evidence payloads,
+- middleware orchestration across seven runtime layers,
+- compliance evaluation sidecar,
+- signing and evidence services,
+- retrieval services,
+- and database services for audit and persistence.
 
 ## Repository Structure
 
-```
+```text
 ios-plus/
 ├── packages/
-│   ├── shared/              # Shared TypeScript types (EvidencePackage, GateDecisionRecord, UCOTypes)
-│   ├── middleware-engine/   # Seven-layer YBR orchestrator (L1–L7)
-│   ├── gate-530/            # Compliance evaluation sidecar (IPC + UCO evaluation engine)
-│   ├── evidence-fabric/     # Ed25519 signing + WORM commitment service
-│   ├── rag-vault/           # UCO-partitioned vector retrieval service
-│   ├── cos-plus/            # COS+ PostgreSQL driver + connection pool manager
-│   └── uco-resolver/        # NAICS profile → UCO node resolution (L3 integration)
+│   ├── shared/
+│   ├── middleware-engine/
+│   ├── gate-530/
+│   ├── evidence-fabric/
+│   ├── rag-vault/
+│   ├── cos-plus/
+│   └── uco-resolver/
 ├── infra/
-│   ├── helm/ios-plus/       # Helm chart — full stack deployment
-│   ├── kubernetes/          # Base manifests, namespaces, RBAC
-│   └── terraform/           # Cloud infrastructure provisioning
+│   ├── helm/ios-plus/
+│   ├── kubernetes/
+│   └── terraform/
 ├── db/
-│   ├── migrations/          # Flyway V1–V4 SQL migrations
-│   ├── grants/              # Role GRANT/REVOKE scripts
-│   └── seeds/               # UCO seed data (distributed via internal artifact store)
+│   ├── migrations/
+│   ├── grants/
+│   └── seeds/
 ├── scripts/
-│   ├── db/                  # WORM verification, UCO seed verification
-│   └── ops/                 # Key publication consistency, evidence package verification
+│   ├── db/
+│   └── ops/
 └── .github/
-    ├── workflows/           # CI, CD-staging, CD-production, DB-migration, security scan
-    └── ISSUE_TEMPLATE/      # Bug report, compliance incident templates
+    ├── workflows/
+    └── ISSUE_TEMPLATE/
 ```
 
-## Quick Start (Local Development)
+---
+
+## Local Development
+
+### Prerequisites
+- Docker
+- Node.js 20+
+- PostgreSQL client tools
+
+### Quick Start
 
 ```bash
-# Prerequisites: Docker, Node.js 20+, psql client
-cp .env.example .env          # fill in local values
-docker-compose up -d          # starts postgres, redis, vault-dev
+cp .env.example .env
+docker-compose up -d
 npm install
 npm run build
-npm run db:migrate            # applies V1–V4 Flyway migrations
-npm run db:verify-worm        # confirms append-only triggers
-npm run dev                   # starts all services with hot reload
+npm run db:migrate
+npm run db:verify-worm
+npm run dev
 ```
+
+---
 
 ## Deployment
 
-See **EB Doc 6 — Deployment, Operations & Recovery Runbook** for full production deployment procedures including:
-- Ed25519 key generation ceremony
-- UCO seed data loading (350 nodes in dependency order)
-- Helm deployment to Kubernetes
-- WAL replication setup (15-minute RPO)
-- Post-deployment validation checklist (23 checks)
+The repository includes infrastructure assets for Kubernetes-based deployment.
 
 ```bash
 helm upgrade --install ios-plus infra/helm/ios-plus \
@@ -72,26 +160,31 @@ helm upgrade --install ios-plus infra/helm/ios-plus \
   --atomic --timeout 10m --wait
 ```
 
-## Engineering Body
+Deployment and operational procedures include:
+- key management workflows,
+- seed data loading,
+- Helm-based deployment,
+- replication setup,
+- and post-deployment validation.
 
-Full implementation specifications are in the NDA-classified Engineering Body series:
+---
 
-| Document | Scope |
-|---|---|
-| EB Doc 1 | Internal Architecture Specification |
-| EB Doc 2 | Cryptographic Audit & Evidence Fabric |
-| EB Doc 3 + Amendment v1.1 | COS+ Schema, Roles, UCO Extension |
-| EB Doc 4 | Gate 530 UCO Dimension Matrix |
-| EB Doc 5 | RAG Vault UCO-Partitioned Pipeline |
-| EB Doc 6 | Deployment, Operations & Recovery Runbook |
+## Security Notes
 
-Contact: **support@smeprotech.com**
+- Private keys are never committed to this repository
+- Keys are managed through HashiCorp Vault transit workflows
+- Seed CSVs are not stored in the repo
+- Audit tables are designed with append-only and WORM enforcement controls
 
-## Security
+---
 
-- Private keys: **never** committed to this repository. Managed exclusively via HashiCorp Vault transit engine.
-- Seed CSVs: **never** committed. Distributed via internal artifact store. See `db/seeds/README.md`.
-- All audit tables are WORM-enforced at both role and trigger layers. See EB Doc 3.
+## Documentation
+
+Internal implementation and operational specifications are maintained in the Engineering Body document set.
+
+For product, deployment, or partnership inquiries: **support@smeprotech.com**
+
+---
 
 ## License
 

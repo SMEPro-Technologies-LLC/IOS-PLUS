@@ -965,9 +965,9 @@ footer { background: var(--smepro-gray-10); padding: 56px 0 40px; border-top: 1p
 <section class="hero" id="middleware">
   <div class="hero-inner">
     <div class="hero-content">
-      <div class="hero-eyebrow">THE GOVERNANCE OS FOR AI</div>
-      <h1>Deterministic regulatory automation for organizations that <strong>cannot afford</strong> <span class="accent">uncertainty.</span></h1>
-      <p class="hero-sub">SMEPro is the cryptographically-governed Intelligence OS that evaluates every AI request against your regulatory obligations <strong>before</strong> the model touches your data. Reproducible decisions. Mathematically verifiable evidence. Audit-grade by construction.</p>
+      <div class="hero-eyebrow">COMPLIANCE-NATIVE INFRASTRUCTURE</div>
+      <h1>Runtime governance and signed evidence for <strong>regulated enterprise</strong> <span class="accent">AI workflows.</span></h1>
+      <p class="hero-sub">SMEPro is the compliance-native enforcement and evidence layer that controls AI actions at runtime, evaluates policy before inference execution, and produces signed, traceable records for audit and platform engineering teams.</p>
       <div class="hero-ctas">
         <a href="#portal?tab=contact" class="btn-primary">Request a Demo</a>
         <a href="#portal?tab=contact" class="btn-secondary">Talk to Sales</a>
@@ -2057,7 +2057,7 @@ footer { background: var(--smepro-gray-10); padding: 56px 0 40px; border-top: 1p
       <div class="portal-pane" id="pane-pricing">
         <h2>Pricing Calculator</h2>
         <div class="portal-subtitle">Tiered Infrastructure Calculations & Real-time Estimation</div>
-        <p>SMEPro utilizes a transparent deployment and usage model. Use the interactive calculator below to estimate credit consumption and monthly platform costs.</p>
+        <p>IOS+ pricing is anchored on deployment models, active workflows, environment footprints, and inference volume. Estimate your annual subscription costs below.</p>
         
         <div class="calc-grid">
           <div class="calc-controls">
@@ -2069,30 +2069,48 @@ footer { background: var(--smepro-gray-10); padding: 56px 0 40px; border-top: 1p
                 <option value="onprem">On-Premises (Self-Hosted / Air-Gapped)</option>
               </select>
             </div>
+
+            <div class="calc-control-group">
+              <label class="calc-label"><span>Active Workflows</span> <span class="calc-value" id="calc-val-workflows">2</span></label>
+              <input type="range" id="slider-workflows" class="calc-slider" min="1" max="20" step="1" value="2" oninput="calculatePricing()">
+            </div>
             
             <div class="calc-control-group">
-              <label class="calc-label"><span>Monthly Inferences</span> <span class="calc-value" id="calc-val-inferences">500,000</span></label>
-              <input type="range" id="slider-inferences" class="calc-slider" min="10000" max="5000000" step="10000" value="500000" oninput="calculatePricing()">
+              <label class="calc-label"><span>Active Environments</span></label>
+              <select id="pricing-env" class="calc-select" onchange="calculatePricing()">
+                <option value="nonprod">Non-Production Only (Dev/Staging)</option>
+                <option value="single" selected>Single Production Environment</option>
+                <option value="multiregion">Multi-Region / High Availability (HA)</option>
+              </select>
             </div>
 
             <div class="calc-control-group">
-              <label class="calc-label"><span>Avg. Context Size (Tokens)</span> <span class="calc-value" id="calc-val-context">8,000</span></label>
-              <input type="range" id="slider-context" class="calc-slider" min="1000" max="128000" step="1000" value="8000" oninput="calculatePricing()">
+              <label class="calc-label"><span>Monthly Inferences</span> <span class="calc-value" id="calc-val-inferences">500,000</span></label>
+              <input type="range" id="slider-inferences" class="calc-slider" min="100000" max="10000000" step="100000" value="500000" oninput="calculatePricing()">
+            </div>
+
+            <div class="calc-control-group" style="display: flex; align-items: center; gap: 10px; margin-bottom: 0;">
+              <input type="checkbox" id="pricing-onboarding" checked onchange="calculatePricing()" style="width: 18px; height: 18px; cursor: pointer;">
+              <label for="pricing-onboarding" style="font-size: 13.5px; font-weight: 600; color: var(--smepro-navy-dark); cursor: pointer; user-select: none;">Include Implementation Services</label>
             </div>
           </div>
 
           <div class="calc-results">
             <div class="calc-stat">
-              <div class="calc-stat-label">Estimated Monthly Cost</div>
-              <div class="calc-stat-val" id="calc-result-cost">$3,625.00</div>
+              <div class="calc-stat-label">Enterprise Pricing Tier</div>
+              <div class="calc-stat-val" id="calc-result-tier" style="font-size: 18px; color: var(--smepro-accent); text-transform: uppercase;">Growth Enterprise</div>
             </div>
             <div class="calc-stat">
-              <div class="calc-stat-label">Monthly Credits Consumed</div>
-              <div class="calc-stat-val" id="calc-result-credits">1,000,000</div>
+              <div class="calc-stat-label">Estimated Monthly Subscription</div>
+              <div class="calc-stat-val" id="calc-result-cost">$15,000.00</div>
+            </div>
+            <div class="calc-stat">
+              <div class="calc-stat-label">One-Time Onboarding & Setup</div>
+              <div class="calc-stat-val" id="calc-result-onboarding">$50,000.00</div>
             </div>
             <div class="calc-stat" style="margin-bottom: 0;">
-              <div class="calc-stat-label">Projected Compliance Savings</div>
-              <div class="calc-stat-val green" id="calc-result-savings">$15,000.00</div>
+              <div class="calc-stat-label">Estimated Annual Contract Value (ACV)</div>
+              <div class="calc-stat-val green" id="calc-result-acv">$230,000.00</div>
             </div>
           </div>
         </div>
@@ -2344,41 +2362,77 @@ footer { background: var(--smepro-gray-10); padding: 56px 0 40px; border-top: 1p
     }
   });
 
-  // Pricing Calculator Logic
+  // Pricing Calculator Logic (Enterprise GTM Alignment)
   function calculatePricing() {
     const tier = document.getElementById('pricing-tier').value;
+    const env = document.getElementById('pricing-env').value;
+    const workflows = parseInt(document.getElementById('slider-workflows').value);
     const inferences = parseInt(document.getElementById('slider-inferences').value);
-    const context = parseInt(document.getElementById('slider-context').value);
+    const includeOnboarding = document.getElementById('pricing-onboarding').checked;
 
-    // Format output labels
+    // Update labels
+    document.getElementById('calc-val-workflows').innerText = workflows;
     document.getElementById('calc-val-inferences').innerText = inferences.toLocaleString();
-    document.getElementById('calc-val-context').innerText = context.toLocaleString();
 
-    // Math: Credits = inferences * (1 + (context / 8000))
-    const credits = Math.round(inferences * (1 + (context / 8000)));
-    document.getElementById('calc-result-credits').innerText = credits.toLocaleString();
-
-    // Cost calculations
+    // 1. Base Subscription Price
     let basePrice = 0;
-    let ratePerCredit = 0;
-    
     if (tier === 'saas') {
-      basePrice = 1500;
-      ratePerCredit = 0.002;
+      basePrice = 6000; // $6,000/mo ($72k/yr)
     } else if (tier === 'hybrid') {
-      basePrice = 3500;
-      ratePerCredit = 0.001;
+      basePrice = 12000; // $12,000/mo ($144k/yr)
     } else if (tier === 'onprem') {
-      basePrice = 6000;
-      ratePerCredit = 0.0005;
+      basePrice = 20000; // $20,000/mo ($240k/yr)
     }
 
-    const cost = basePrice + (credits * ratePerCredit);
-    document.getElementById('calc-result-cost').innerText = '$' + cost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    // 2. Workflow Surcharge
+    // Add $1,500/mo per workflow beyond 2
+    let workflowPrice = 0;
+    if (workflows > 2) {
+      workflowPrice = (workflows - 2) * 1500;
+    }
 
-    // Savings: Credits * $0.015 (average compliance check saving vs legal remediation)
-    const savings = credits * 0.015;
-    document.getElementById('calc-result-savings').innerText = '$' + savings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    // 3. Environment Factor
+    let envFactor = 1.0;
+    if (env === 'nonprod') {
+      envFactor = 0.8; // discount for dev-only
+    } else if (env === 'single') {
+      envFactor = 1.0;
+    } else if (env === 'multiregion') {
+      envFactor = 1.4; // 40% premium for HA/multi-region deployment
+    }
+
+    // 4. Inference Volume Surcharge
+    // Baseline includes 500k inferences. Add $0.10 per 1k inferences above that.
+    let inferenceSurcharge = 0;
+    if (inferences > 500000) {
+      inferenceSurcharge = ((inferences - 500000) / 1000) * 0.10;
+    }
+
+    // Calculate total monthly price
+    const monthlyCost = (basePrice + workflowPrice + inferenceSurcharge) * envFactor;
+    document.getElementById('calc-result-cost').innerText = '$' + monthlyCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    // 5. One-time Onboarding & Implementation Services
+    let onboardingCost = 0;
+    if (includeOnboarding) {
+      if (tier === 'saas') onboardingCost = 40000;
+      else if (tier === 'hybrid') onboardingCost = 65000;
+      else if (tier === 'onprem') onboardingCost = 120000;
+    }
+    document.getElementById('calc-result-onboarding').innerText = '$' + onboardingCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    // 6. Annual Contract Value (ACV) = (Monthly Subscription * 12) + Onboarding
+    const acv = (monthlyCost * 12) + onboardingCost;
+    document.getElementById('calc-result-acv').innerText = '$' + acv.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+    // 7. Determine Tier Name
+    let tierName = "Starter Enterprise";
+    if (acv > 300000) {
+      tierName = "Strategic / Regulated";
+    } else if (acv > 150000) {
+      tierName = "Growth Enterprise";
+    }
+    document.getElementById('calc-result-tier').innerText = tierName;
   }
 
   // Compiler Simulator Logic

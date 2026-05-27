@@ -95,10 +95,10 @@ COPY --from=builder /install/packages /packages
 # default when running the image outside the cluster (local dev, docker-compose).
 COPY scripts/db/validate_uco_seed.py               /scripts/validate_uco_seed.py
 COPY scripts/db/load_uco_seeds.py                  /scripts/load_uco_seeds.py
-COPY scripts/db/verify_evidence_package.py         /scripts/verify_evidence_package.py
-COPY scripts/db/verify_merkle_root.py              /scripts/verify_merkle_root.py
-COPY scripts/db/verify_key_publication_consistency.py /scripts/verify_key_publication_consistency.py
-COPY scripts/db/weekly_worm_check.py               /scripts/weekly_worm_check.py
+COPY scripts/ops/verify_evidence_package.py         /scripts/verify_evidence_package.py
+COPY scripts/ops/verify_merkle_root.py              /scripts/verify_merkle_root.py
+COPY scripts/ops/verify_key_publication_consistency.py /scripts/verify_key_publication_consistency.py
+COPY scripts/ops/weekly_worm_check.py               /scripts/weekly_worm_check.py
 
 # Ownership + permissions
 RUN chown -R opsuser:opsuser /scripts \

@@ -5,7 +5,7 @@
 # ============================================================
 
 global:
-  imageRegistry: "registry.smeprotech.com"
+  imageRegistry: "ghcr.io/smepro-technologies-llc"
 
 middlewareEngine:
   replicaCount: 3

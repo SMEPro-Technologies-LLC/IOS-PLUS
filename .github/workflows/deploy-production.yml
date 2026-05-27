@@ -5,7 +5,13 @@ on:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
 
+permissions:
+  contents: read
+  deployments: write
+
 env:
+  REGISTRY: ghcr.io
+  OWNER: smepro-technologies-llc
   NAMESPACE: ios-plus
 
 jobs:
@@ -13,11 +19,12 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     environment:
-      name: ${{ 'production' }}
-    # Production deployments require two approvers (configured in GitHub environment)
+      name: production
+      url: https://iosplus.smeprotech.com
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Verify tag signature
         run: |
@@ -27,20 +34,23 @@ jobs:
         uses: azure/k8s-set-context@v3
         with:
           method: kubeconfig
-          kubeconfig: ${{ secrets['PRODUCTION_KUBECONFIG'] }}
+          kubeconfig: ${{ secrets.PRODUCTION_KUBECONFIG }}
 
       - name: Helm upgrade production
         run: |
           TAG=${{ github.ref_name }}
+          helm dependency build infra/helm/ios-plus/
           helm upgrade --install ios-plus infra/helm/ios-plus/ \
             --namespace ${{ env.NAMESPACE }} \
             --create-namespace \
             --values infra/helm/ios-plus/values.yaml \
             --values infra/helm/ios-plus/values.production.yaml \
+            --set global.imageRegistry=${{ env.REGISTRY }}/${{ env.OWNER }} \
             --set middlewareEngine.image.tag=$TAG \
             --set gate530.image.tag=$TAG \
             --set evidenceFabric.image.tag=$TAG \
             --set ragVault.image.tag=$TAG \
+            --set ops.image.tag=$TAG \
             --atomic \
             --timeout 15m \
             --wait

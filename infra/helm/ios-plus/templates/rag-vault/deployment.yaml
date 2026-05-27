@@ -18,7 +18,7 @@ spec:
       serviceAccountName: ios-plus-sa
       containers:
         - name: rag-vault
-          image: "{{ .Values.ragVault.image.repository }}:{{ .Values.ragVault.image.tag }}"
+          image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.ragVault.image.repository }}:{{ .Values.ragVault.image.tag }}"
           imagePullPolicy: {{ .Values.ragVault.image.pullPolicy }}
           ports:
             - containerPort: {{ .Values.ragVault.service.grpcPort }}

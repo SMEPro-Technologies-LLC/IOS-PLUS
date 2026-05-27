@@ -96,7 +96,7 @@ spec:
           initContainers:
             # Verify COS+ is reachable before starting validation
             - name: wait-for-cos-plus
-              image: {{ .Values.ops.image.repository }}:{{ .Values.ops.image.tag | default .Chart.AppVersion }}
+              image: {{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.ops.image.repository }}:{{ .Values.ops.image.tag | default .Chart.AppVersion }}
               imagePullPolicy: {{ .Values.ops.image.pullPolicy | default "IfNotPresent" }}
               command:
                 - /bin/sh
@@ -139,7 +139,7 @@ spec:
 
           containers:
             - name: uco-seed-validator
-              image: {{ .Values.ops.image.repository }}:{{ .Values.ops.image.tag | default .Chart.AppVersion }}
+              image: {{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.ops.image.repository }}:{{ .Values.ops.image.tag | default .Chart.AppVersion }}
               imagePullPolicy: {{ .Values.ops.image.pullPolicy | default "IfNotPresent" }}
               command:
                 - python3

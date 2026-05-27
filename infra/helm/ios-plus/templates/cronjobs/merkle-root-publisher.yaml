@@ -23,7 +23,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: merkle-publisher
-              image: "{{ .Values.cronJobs.merkleRootPublisher.image.repository }}:{{ .Values.cronJobs.merkleRootPublisher.image.tag }}"
+              image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.cronJobs.merkleRootPublisher.image.repository }}:{{ .Values.cronJobs.merkleRootPublisher.image.tag }}"
               command: ["python3", "scripts/ops/verify_merkle_root.py"]
               env:
                 - name: NODE_ENV

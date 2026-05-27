@@ -9,7 +9,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: uco-embedding
-          image: "{{ .Values.jobs.ucoEmbedding.image.repository }}:{{ .Values.jobs.ucoEmbedding.image.tag }}"
+          image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.jobs.ucoEmbedding.image.repository }}:{{ .Values.jobs.ucoEmbedding.image.tag }}"
           command: ["node", "dist/jobs/embed-uco-nodes.js"]
           envFrom:
             - configMapRef:

@@ -18,7 +18,7 @@ spec:
       serviceAccountName: ios-plus-sa
       containers:
         - name: evidence-fabric
-          image: "{{ .Values.evidenceFabric.image.repository }}:{{ .Values.evidenceFabric.image.tag }}"
+          image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.evidenceFabric.image.repository }}:{{ .Values.evidenceFabric.image.tag }}"
           imagePullPolicy: {{ .Values.evidenceFabric.image.pullPolicy }}
           ports:
             - containerPort: {{ .Values.evidenceFabric.service.grpcPort }}

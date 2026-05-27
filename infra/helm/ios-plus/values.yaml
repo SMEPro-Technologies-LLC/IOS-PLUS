@@ -5,7 +5,7 @@
 # ============================================================
 
 global:
-  imageRegistry: ""
+  imageRegistry: "ghcr.io/smepro-technologies-llc"
   imagePullSecrets: []
   namespace: ios-plus
 
@@ -14,7 +14,7 @@ middlewareEngine:
   enabled: true
   replicaCount: 3
   image:
-    repository: smepro/ios-plus-middleware-engine
+    repository: ios-plus-middleware-engine
     tag: "1.0.0"
     pullPolicy: IfNotPresent
   resources:
@@ -41,7 +41,7 @@ middlewareEngine:
 gate530:
   enabled: true
   image:
-    repository: smepro/ios-plus-gate-530
+    repository: ios-plus-gate-530
     tag: "1.0.0"
     pullPolicy: IfNotPresent
   config:
@@ -64,7 +64,7 @@ evidenceFabric:
   enabled: true
   replicaCount: 2
   image:
-    repository: smepro/ios-plus-evidence-fabric
+    repository: ios-plus-evidence-fabric
     tag: "1.0.0"
     pullPolicy: IfNotPresent
   resources:
@@ -87,7 +87,7 @@ ragVault:
   enabled: true
   replicaCount: 2
   image:
-    repository: smepro/ios-plus-rag-vault
+    repository: ios-plus-rag-vault
     tag: "1.0.0"
     pullPolicy: IfNotPresent
   resources:
@@ -161,12 +161,12 @@ jobs:
   ucoEmbedding:
     enabled: true
     image:
-      repository: smepro/ios-plus-rag-vault
+      repository: ios-plus-rag-vault
       tag: "1.0.0"
   ragIngestion:
     enabled: true
     image:
-      repository: smepro/ios-plus-rag-vault
+      repository: ios-plus-rag-vault
       tag: "1.0.0"
 
 # ── CronJobs ──────────────────────────────────────────────────
@@ -175,19 +175,19 @@ cronJobs:
     enabled: true
     schedule: "0 2 * * *"      # 02:00 UTC daily
     image:
-      repository: smepro/ios-plus-ops
+      repository: ios-plus-ops
       tag: "1.0.0"
   merkleRootPublisher:
     enabled: true
     schedule: "*/15 * * * *"   # every 15 min (RPO alignment)
     image:
-      repository: smepro/ios-plus-ops
+      repository: ios-plus-ops
       tag: "1.0.0"
   keyConsistencyCheck:
     enabled: true
     schedule: "0 * * * *"      # hourly
     image:
-      repository: smepro/ios-plus-ops
+      repository: ios-plus-ops
       tag: "1.0.0"
 
 # ── Secrets (populated from HashiCorp Vault / K8s secrets) ───
@@ -206,7 +206,7 @@ secrets:
 # ── Ops container image ───────────────────────────────────────
 ops:
   image:
-    repository: gcr.io/smepro-prod/ios-plus-ops
+    repository: ios-plus-ops
     tag: ""          # Defaults to .Chart.AppVersion
     pullPolicy: IfNotPresent
 

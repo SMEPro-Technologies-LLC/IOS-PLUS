@@ -12,7 +12,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: worm-check
-              image: "{{ .Values.cronJobs.wormIntegrityCheck.image.repository }}:{{ .Values.cronJobs.wormIntegrityCheck.image.tag }}"
+              image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.cronJobs.wormIntegrityCheck.image.repository }}:{{ .Values.cronJobs.wormIntegrityCheck.image.tag }}"
               command: ["python3", "scripts/ops/weekly_worm_check.py"]
               env:
                 - name: DATABASE_URL_AUDIT_READER

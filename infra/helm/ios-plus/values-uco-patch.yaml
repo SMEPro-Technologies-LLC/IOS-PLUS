@@ -16,7 +16,7 @@
 # ---------------------------------------------------------------------------
 ops:
   image:
-    repository: gcr.io/smepro-prod/ios-plus-ops
+    repository: ios-plus-ops
     tag: ""          # Defaults to .Chart.AppVersion
     pullPolicy: IfNotPresent
 

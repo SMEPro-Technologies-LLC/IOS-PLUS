@@ -1,0 +1,66 @@
+name: Release Orchestration
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: smepro-technologies-llc
+
+jobs:
+  build-and-publish:
+    name: Build & Publish Images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Packages
+        run: |
+          TAG=${{ github.ref_name }}
+          for pkg in middleware-engine gate-530 evidence-fabric rag-vault cos-plus uco-resolver ops; do
+            echo "=== Building and pushing package: $pkg ==="
+            docker build \
+              -f docker/Dockerfile.$pkg \
+              -t ${{ env.REGISTRY }}/${{ env.OWNER }}/ios-plus-$pkg:$TAG \
+              -t ${{ env.REGISTRY }}/${{ env.OWNER }}/ios-plus-$pkg:latest \
+              .
+            
+            docker push ${{ env.REGISTRY }}/${{ env.OWNER }}/ios-plus-$pkg:$TAG
+            docker push ${{ env.REGISTRY }}/${{ env.OWNER }}/ios-plus-$pkg:latest
+          done
+
+  create-release:
+    name: Draft GitHub Release
+    needs: build-and-publish
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Draft Release
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --draft \
+            --title "Release ${{ github.ref_name }}" \
+            --generate-notes

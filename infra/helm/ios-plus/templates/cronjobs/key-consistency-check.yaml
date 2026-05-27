@@ -23,7 +23,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: key-check
-              image: "{{ .Values.cronJobs.keyConsistencyCheck.image.repository }}:{{ .Values.cronJobs.keyConsistencyCheck.image.tag }}"
+              image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.cronJobs.keyConsistencyCheck.image.repository }}:{{ .Values.cronJobs.keyConsistencyCheck.image.tag }}"
               command: ["python3", "scripts/ops/verify_key_publication_consistency.py"]
               env:
                 - name: NODE_ENV

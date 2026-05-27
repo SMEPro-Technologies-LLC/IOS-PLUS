@@ -1,10 +1,11 @@
 # IOS+ Middleware Engine & COS+ Database
 
-**Compliance-native enforcement and evidence infrastructure for enterprise AI systems**
+### Compliance-native enforcement and evidence infrastructure for enterprise AI systems
 
 IOS+ helps regulated organizations enforce compliance controls at runtime, generate signed audit evidence for AI actions, and persist traceable records in a compliance-first data layer.
 
 Built for enterprise AI workflows that require:
+
 - real-time policy enforcement,
 - immutable auditability,
 - sector-aware retrieval,
@@ -20,6 +21,7 @@ Few can prove, in a durable and audit-ready way, **why a decision was allowed, w
 IOS+ is designed to solve that gap.
 
 With IOS+, teams can:
+
 - evaluate AI requests against compliance rules before execution,
 - create signed evidence records for inference events,
 - store append-only audit data with compliance-first indexing,
@@ -30,6 +32,7 @@ With IOS+, teams can:
 ## Core Components
 
 ### Gate 530
+
 Runtime compliance evaluation for AI and agent workflows.
 
 - Evaluates requests against mapped compliance dimensions
@@ -38,6 +41,7 @@ Runtime compliance evaluation for AI and agent workflows.
 - Records policy evaluation metadata for downstream audit
 
 ### Evidence Fabric
+
 Cryptographic audit evidence for AI activity.
 
 - Ed25519-signed evidence records
@@ -46,6 +50,7 @@ Cryptographic audit evidence for AI activity.
 - Verification support for downstream audit and operations
 
 ### RAG Vault
+
 Compliance-aware retrieval for regulated knowledge workflows.
 
 - UCO-partitioned retrieval boundaries
@@ -54,6 +59,7 @@ Compliance-aware retrieval for regulated knowledge workflows.
 - Designed for evidence-linked retrieval workflows
 
 ### COS+ Database
+
 Compliance-first persistence layer for evidence and audit records.
 
 - PostgreSQL-based storage with pgvector support
@@ -78,6 +84,7 @@ IOS+ is best suited for organizations that need provable control over AI-driven 
 ## Who It Is For
 
 IOS+ is designed for:
+
 - enterprise platform engineering teams,
 - compliance and governance leaders,
 - regulated AI program owners,
@@ -130,6 +137,7 @@ ios-plus/
 ## Local Development
 
 ### Prerequisites
+
 - Docker
 - Node.js 20+
 - PostgreSQL client tools
@@ -161,6 +169,7 @@ helm upgrade --install ios-plus infra/helm/ios-plus \
 ```
 
 Deployment and operational procedures include:
+
 - key management workflows,
 - seed data loading,
 - Helm-based deployment,
@@ -182,7 +191,7 @@ Deployment and operational procedures include:
 
 Internal implementation and operational specifications are maintained in the Engineering Body document set.
 
-For product, deployment, or partnership inquiries: **support@smeprotech.com**
+For product, deployment, or partnership inquiries, contact [support@smeprotech.com](mailto:support@smeprotech.com).
 
 ---
 

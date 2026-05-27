@@ -68,8 +68,10 @@ async function main() {
 
   // UCO Resolver (L3 — Ontological Mapping)
   const ucoResolver = new UCOResolver({
-    databaseUrl: requireEnv("COS_URL_RAG_READER"),
+    databaseUrl: process.env["COS_URL_RAG_READER"] ??
+      `postgresql://rag_reader:${requireEnv("COS_PASSWORD_RAG_READER")}@${requireEnv("COS_HOST")}:${process.env["COS_PORT"] ?? "5432"}/${requireEnv("COS_DATABASE")}`,
   });
+
 
   // Initialize Key Custody Provider
   let keyProvider;

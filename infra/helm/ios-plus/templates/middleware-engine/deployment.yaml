@@ -16,6 +16,9 @@ spec:
       labels:
         app: middleware-engine
       annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: {{ .Values.middlewareEngine.service.port | quote }}
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "ios-plus"
         vault.hashicorp.com/agent-inject-status: "update"

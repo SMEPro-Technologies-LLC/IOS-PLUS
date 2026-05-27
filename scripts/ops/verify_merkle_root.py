@@ -211,54 +211,69 @@ def main():
         print(f"ERROR: Failed to connect to Reader Database: {e}")
         return
 
-    # Fetch evidence packages not yet included in any Merkle roots batch.
-    # Checks containment in the JSONB batch_package_ids arrays of merkle_roots.
-    cur.execute("""
-        SELECT ep.package_id, ep.signature
-        FROM evidence_packages ep
-        WHERE NOT EXISTS (
-            SELECT 1
-            FROM merkle_roots mr
-            WHERE mr.batch_package_ids @> jsonb_build_array(ep.package_id::text)
-               OR mr.batch_package_ids @> jsonb_build_array(ep.package_id)
-        )
-        ORDER BY ep.published_at
-        LIMIT 1000
-    """)
-    rows = cur.fetchall()
-    conn_r.close()
-
-    if not rows:
-        print(f"[{datetime.now(timezone.utc).isoformat()}] No uncommitted packages. Skipping.")
-        return
-
-    package_ids = [str(r[0]) for r in rows]
-    leaves = [f"{r[0]}:{r[1]}" for r in rows]  # package_id:signature as leaf
-    merkle_root = compute_merkle_root(leaves)
-    batch_id = str(uuid4())
-
-    print(f"Batch size:   {len(package_ids)}")
-    print(f"Merkle root:  {merkle_root}")
-    print(f"Batch ID:     {batch_id}")
-    print(f"DNS zone:     {DNS_TXT_ZONE}")
-
-    # Trigger Route53 dynamic DNS TXT record update
-    dns_published = publish_dns_txt_record(DNS_TXT_ZONE, merkle_root)
-    dns_published_at = datetime.now(timezone.utc) if dns_published else None
-
-    # Write batch record to merkle_roots table via audit_writer
+    # Acquire session-level advisory lock
+    # 10520260527 is a unique 64-bit integer for this lock
     try:
-        conn_w = psycopg2.connect(DB_WRITER_URL)
-        cur_w = conn_w.cursor()
-        cur_w.execute("""
-            INSERT INTO merkle_roots (merkle_root_id, batch_package_ids, merkle_root, batch_size, computed_at, dns_published_at)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (batch_id, json.dumps(package_ids), merkle_root, len(package_ids), datetime.now(timezone.utc), dns_published_at))
-        conn_w.commit()
-        conn_w.close()
-        print("Successfully committed Merkle root record to database.")
+        cur.execute("SELECT pg_try_advisory_lock(10520260527);")
+        acquired = cur.fetchone()[0]
+        if not acquired:
+            print(f"[{datetime.now(timezone.utc).isoformat()}] Another Merkle Root publisher holds the lock (10520260527). Exiting to prevent concurrent execution.")
+            conn_r.close()
+            return
+        print("Successfully acquired distributed advisory lock.")
     except Exception as e:
-        print(f"ERROR: Failed to commit Merkle root to database: {e}")
+        print(f"WARNING: Failed to acquire postgres advisory lock: {e}. Proceeding without lock...")
+
+    try:
+        # Fetch evidence packages not yet included in any Merkle roots batch.
+        # Checks containment in the JSONB batch_package_ids arrays of merkle_roots.
+        cur.execute("""
+            SELECT ep.package_id, ep.signature
+            FROM evidence_packages ep
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM merkle_roots mr
+                WHERE mr.batch_package_ids @> jsonb_build_array(ep.package_id::text)
+                   OR mr.batch_package_ids @> jsonb_build_array(ep.package_id)
+            )
+            ORDER BY ep.published_at
+            LIMIT 1000
+        """)
+        rows = cur.fetchall()
+
+        if not rows:
+            print(f"[{datetime.now(timezone.utc).isoformat()}] No uncommitted packages. Skipping.")
+            return
+
+        package_ids = [str(r[0]) for r in rows]
+        leaves = [f"{r[0]}:{r[1]}" for r in rows]  # package_id:signature as leaf
+        merkle_root = compute_merkle_root(leaves)
+        batch_id = str(uuid4())
+
+        print(f"Batch size:   {len(package_ids)}")
+        print(f"Merkle root:  {merkle_root}")
+        print(f"Batch ID:     {batch_id}")
+        print(f"DNS zone:     {DNS_TXT_ZONE}")
+
+        # Trigger Route53 dynamic DNS TXT record update
+        dns_published = publish_dns_txt_record(DNS_TXT_ZONE, merkle_root)
+        dns_published_at = datetime.now(timezone.utc) if dns_published else None
+
+        # Write batch record to merkle_roots table via audit_writer
+        try:
+            conn_w = psycopg2.connect(DB_WRITER_URL)
+            cur_w = conn_w.cursor()
+            cur_w.execute("""
+                INSERT INTO merkle_roots (merkle_root_id, batch_package_ids, merkle_root, batch_size, computed_at, dns_published_at)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (batch_id, json.dumps(package_ids), merkle_root, len(package_ids), datetime.now(timezone.utc), dns_published_at))
+            conn_w.commit()
+            conn_w.close()
+            print("Successfully committed Merkle root record to database.")
+        except Exception as e:
+            print(f"ERROR: Failed to commit Merkle root to database: {e}")
+    finally:
+        conn_r.close()
 
 if __name__ == "__main__":
     main()

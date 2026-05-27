@@ -225,19 +225,20 @@ export class EvidenceFabricService {
     );
   }
 
-  async getQuarantineQueue(): Promise<any[]> {
+  async getQuarantineQueue(tenantId: string): Promise<any[]> {
     const pool = this.registry.pool('audit_reader');
     const { rows } = await pool.query(
-      `SELECT * FROM quarantine_records WHERE released_at IS NULL ORDER BY quarantined_at DESC`
+      `SELECT * FROM quarantine_records WHERE tenant_id = $1 AND released_at IS NULL ORDER BY quarantined_at DESC`,
+      [tenantId]
     );
     return rows;
   }
 
-  async getQuarantineRecord(quarantineId: string): Promise<any | null> {
+  async getQuarantineRecord(quarantineId: string, tenantId: string): Promise<any | null> {
     const pool = this.registry.pool('audit_reader');
     const { rows } = await pool.query(
-      `SELECT * FROM quarantine_records WHERE quarantine_id = $1`,
-      [quarantineId]
+      `SELECT * FROM quarantine_records WHERE quarantine_id = $1 AND tenant_id = $2`,
+      [quarantineId, tenantId]
     );
     return rows[0] || null;
   }

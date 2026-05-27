@@ -30,10 +30,18 @@ spec:
           {{ "{{" }}- end -{{ "}}" }}
           {{ "{{" }}- end -{{ "}}" }}
     spec:
-
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       serviceAccountName: ios-plus-sa
       containers:
         - name: middleware-engine
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           image: "{{ .Values.middlewareEngine.image.repository }}:{{ .Values.middlewareEngine.image.tag }}"
           imagePullPolicy: {{ .Values.middlewareEngine.image.pullPolicy }}
           ports:
@@ -73,6 +81,11 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
         - name: gate-530-sidecar
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           image: "{{ .Values.gate530.image.repository }}:{{ .Values.gate530.image.tag }}"
           imagePullPolicy: {{ .Values.gate530.image.pullPolicy }}
           env:

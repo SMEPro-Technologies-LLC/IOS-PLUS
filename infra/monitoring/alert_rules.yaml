@@ -1,0 +1,52 @@
+groups:
+  - name: ios-plus-alerts
+    rules:
+      # 1. Database Pool Saturation Alert
+      - alert: IOSDBPoolSaturationAlert
+        expr: ios_db_pool_saturation{pool="ios_app"} >= 13
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool near saturation"
+          description: "The ios_app database pool has {{ $value }} active connections out of max 15. Risk of pool exhaustion."
+
+      # 2. Redis Connection Failure Alert
+      - alert: IOSRedisConnectionFailureAlert
+        expr: rate(ios_redis_errors_total[2m]) > 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis cache unavailable or ping failing"
+          description: "Redis errors are being detected at a rate of {{ $value }}/s. Cache lookups and rate limits are degraded."
+
+      # 3. Vault Signing Failure Alert
+      - alert: IOSVaultSigningErrorAlert
+        expr: rate(ios_vault_signing_errors_total[2m]) > 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "HashiCorp Vault signing operations failing"
+          description: "Vault transit cryptographic signing operations are failing. Evidence Fabric cannot commit signatures."
+
+      # 4. Route53 Publication Failure Streak Alert
+      - alert: Route53PublicationFailureAlert
+        expr: kube_job_status_failed{job_name=~"merkle-root-publisher-.*"} >= 3
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Route53 Merkle root DNS publication failing"
+          description: "The merkle-root-publisher cronjob has failed {{ $value }} consecutive times. DNS integrity proofs are drifting."
+
+      # 5. Gate 530 Fail-Closed Block Storm Alert
+      - alert: Gate530FailClosedStormAlert
+        expr: rate(ios_gate530_errors_total[5m]) > 0.5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Gate 530 screening sidecar communication timeouts"
+          description: "High rate of Gate 530 sidecar connection failures or timeouts ({{ $value }}/s). System is failing-closed (blocking requests)."

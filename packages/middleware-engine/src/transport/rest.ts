@@ -317,9 +317,10 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     }
   });
 
-  app.get("/v1/compliance/queue", async (_req, res) => {
+  app.get("/v1/compliance/queue", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] as string ?? "unknown";
     try {
-      const queue = await deps.evidenceFabric.getQuarantineQueue();
+      const queue = await deps.evidenceFabric.getQuarantineQueue(tenantId);
       res.json(queue);
     } catch (err) {
       res.status(500).json({ error: String(err) });
@@ -327,10 +328,11 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
   });
 
   app.get("/v1/compliance/queue/:quarantineId", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] as string ?? "unknown";
     try {
-      const record = await deps.evidenceFabric.getQuarantineRecord(req.params.quarantineId);
+      const record = await deps.evidenceFabric.getQuarantineRecord(req.params.quarantineId, tenantId);
       if (!record) {
-        return res.status(404).json({ error: "Quarantine record not found in database" });
+        return res.status(404).json({ error: "Quarantine record not found or access denied" });
       }
       res.json(record);
     } catch (err) {
@@ -340,9 +342,10 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
 
   app.post("/v1/compliance/queue/:quarantineId/clear", async (req, res) => {
     const { quarantineId } = req.params;
+    const tenantId = req.headers["x-tenant-id"] as string ?? "unknown";
     const parked = quarantineStore.retrieve(quarantineId);
-    if (!parked) {
-      return res.status(404).json({ error: `Parked context not found for quarantine ID: ${quarantineId}` });
+    if (!parked || parked.ctx.tenantId !== tenantId) {
+      return res.status(404).json({ error: `Parked context not found or access denied for quarantine ID: ${quarantineId}` });
     }
     try {
       const response = await resumePipeline(parked, "CLEAR", deps);
@@ -355,9 +358,10 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
 
   app.post("/v1/compliance/queue/:quarantineId/block", async (req, res) => {
     const { quarantineId } = req.params;
+    const tenantId = req.headers["x-tenant-id"] as string ?? "unknown";
     const parked = quarantineStore.retrieve(quarantineId);
-    if (!parked) {
-      return res.status(404).json({ error: `Parked context not found for quarantine ID: ${quarantineId}` });
+    if (!parked || parked.ctx.tenantId !== tenantId) {
+      return res.status(404).json({ error: `Parked context not found or access denied for quarantine ID: ${quarantineId}` });
     }
     try {
       const response = await resumePipeline(parked, "BLOCK", deps);
@@ -464,6 +468,17 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
         ]
       );
       
+      console.log(JSON.stringify({
+        level: 30,
+        time: Date.now(),
+        msg: "ADMIN_RULE_MUTATION",
+        action: "CREATE",
+        ucoNodeId: b.uco_node_id,
+        actor: "admin_api_key",
+        clientIp: req.ip,
+        timestampIso: new Date().toISOString()
+      }));
+      
       res.status(201).json({ status: "created", uco_node_id: b.uco_node_id });
     } catch (err) {
       res.status(500).json({ error: String(err) });
@@ -512,6 +527,17 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
         params
       );
       
+      console.log(JSON.stringify({
+        level: 30,
+        time: Date.now(),
+        msg: "ADMIN_RULE_MUTATION",
+        action: "UPDATE",
+        ucoNodeId,
+        actor: "admin_api_key",
+        clientIp: req.ip,
+        timestampIso: new Date().toISOString()
+      }));
+      
       res.json({ status: "updated", uco_node_id: ucoNodeId });
     } catch (err) {
       res.status(500).json({ error: String(err) });
@@ -529,6 +555,18 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
       }
       
       await pool.query("DELETE FROM uco_nodes WHERE uco_node_id = $1", [ucoNodeId]);
+      
+      console.log(JSON.stringify({
+        level: 30,
+        time: Date.now(),
+        msg: "ADMIN_RULE_MUTATION",
+        action: "DELETE",
+        ucoNodeId,
+        actor: "admin_api_key",
+        clientIp: req.ip,
+        timestampIso: new Date().toISOString()
+      }));
+      
       res.json({ status: "deleted", uco_node_id: ucoNodeId });
     } catch (err) {
       res.status(500).json({ error: String(err) });

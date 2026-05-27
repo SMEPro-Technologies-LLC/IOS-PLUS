@@ -617,6 +617,83 @@ data:
       ('SOC', '15-1211', 'NAICS', '5415', 1.000, 'Computer Systems Analysts to IT Systems Design'),
       ('SIC', '7373', 'NAICS', '5415', 1.000, 'Computer Integrated Systems Design to IT Systems Design');
 
+  afterMigrate.sql: |
+    -- ============================================================
+    -- IOS+ Database Post-Migration Invariants Verification
+    -- Executed automatically by Flyway upon successful migration.
+    -- If any check fails, throws exception causing the job to exit non-zero.
+    -- ============================================================
+
+    -- 1. Check required tables exist
+    DO $$
+    DECLARE
+      table_names TEXT[] := ARRAY[
+        'objects', 'tenant_registry', 'regulatory_profiles', 'ios_signing_keys',
+        'evidence_packages', 'gate_decisions', 'evidence_source_manifest',
+        'quarantine_records', 'merkle_roots', 'rag_sources', 'rag_chunks',
+        'agency_registry', 'uco_nodes', 'naics_decoder', 'code_crosswalk',
+        'compliance_chains', 'tenant_naics_profiles', 'uco_evaluation_results',
+        'filing_calendar', 'rag_vault_sector_partitions'
+      ];
+      t TEXT;
+      exists_cnt INT;
+    BEGIN
+      FOREACH t IN ARRAY table_names LOOP
+        SELECT COUNT(*) INTO exists_cnt 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = t;
+        
+        IF exists_cnt = 0 THEN
+          RAISE EXCEPTION 'DATABASE INVARIANT VIOLATION: Required table % is missing.', t;
+        END IF;
+      END LOOP;
+    END $$;
+
+    -- 2. Check WORM triggers presence
+    DO $$
+    DECLARE
+      trigger_checks TEXT[][] := ARRAY[
+        ARRAY['worm_evidence_packages', 'evidence_packages'],
+        ARRAY['worm_gate_decisions', 'gate_decisions'],
+        ARRAY['worm_quarantine_records', 'quarantine_records'],
+        ARRAY['worm_merkle_roots', 'merkle_roots']
+      ];
+      tc TEXT[];
+      exists_cnt INT;
+    BEGIN
+      FOREACH tc SLICE 1 IN ARRAY trigger_checks LOOP
+        SELECT COUNT(*) INTO exists_cnt 
+        FROM information_schema.triggers 
+        WHERE trigger_schema = 'public' 
+          AND trigger_name = tc[1] 
+          AND event_object_table = tc[2];
+          
+        IF exists_cnt = 0 THEN
+          RAISE EXCEPTION 'DATABASE INVARIANT VIOLATION: WORM trigger % on table % is missing.', tc[1], tc[2];
+        END IF;
+      END LOOP;
+    END $$;
+
+    -- 3. Check roles exist
+    DO $$
+    DECLARE
+      role_names TEXT[] := ARRAY[
+        'ios_app', 'audit_writer', 'audit_reader', 'rag_reader', 'rag_writer'
+      ];
+      r TEXT;
+      exists_cnt INT;
+    BEGIN
+      FOREACH r IN ARRAY role_names LOOP
+        SELECT COUNT(*) INTO exists_cnt 
+        FROM pg_roles 
+        WHERE rolname = r;
+        
+        IF exists_cnt = 0 THEN
+          RAISE EXCEPTION 'DATABASE INVARIANT VIOLATION: Required role % is missing.', r;
+        END IF;
+      END LOOP;
+    END $$;
+
 ---
 apiVersion: batch/v1
 kind: Job

@@ -16,6 +16,20 @@ import psycopg2
 from datetime import datetime, timezone
 from uuid import uuid4
 
+# Load environment from Vault projected secrets first
+def load_vault_secrets():
+    path = "/vault/secrets/ios-plus.env"
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    k, v = line.split('=', 1)
+                    v = v.strip().strip("'").strip('"')
+                    os.environ[k] = v
+
+load_vault_secrets()
+
 # Load environment from .env file if running locally
 def load_dotenv():
     for path in ['.env', '../.env', '../../.env']:
@@ -51,6 +65,10 @@ def get_db_url(role_prefix):
     
     if password:
         return f"postgresql://{role_user}:{password}@{host}:{port}/{db_name}"
+    
+    # In production, do not allow dev default fallback passwords
+    if os.environ.get("NODE_ENV") == "production":
+        raise ValueError(f"CRITICAL SECURITY ERROR: Database password for {role_prefix} ({password_var}) is not configured in production mode.")
     
     # Local default passwords
     default_passwords = {

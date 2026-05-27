@@ -17,6 +17,9 @@ class Http2SessionManager {
   private static lastStateChange = Date.now();
   private static maxFailures = 3;
   private static cooldownPeriodMs = 10000; // 10 seconds
+  private static lastConnectionAttempt = 0;
+  private static connectionBackoffMs = 100; // initial backoff 100ms
+  private static maxBackoffMs = 5000;       // max backoff 5 seconds
 
   public static getSession(url: string): http2.ClientHttp2Session {
     if (this.circuitBreakerState === 'OPEN') {
@@ -31,6 +34,14 @@ class Http2SessionManager {
     if (this.session && this.url === url && !this.session.destroyed && !this.session.closed) {
       return this.session;
     }
+
+    // Enforce exponential backoff on reconnection attempts
+    const timeSinceLastAttempt = Date.now() - this.lastConnectionAttempt;
+    if (timeSinceLastAttempt < this.connectionBackoffMs) {
+      throw new Error(`Connection attempt to ${url} backed off. Cooldown active for another ${this.connectionBackoffMs - timeSinceLastAttempt}ms.`);
+    }
+
+    this.lastConnectionAttempt = Date.now();
 
     if (this.session) {
       try { this.session.destroy(); } catch {}
@@ -58,12 +69,14 @@ class Http2SessionManager {
       this.circuitBreakerState = 'CLOSED';
       this.circuitBreakerFailureCount = 0;
       this.lastStateChange = Date.now();
+      this.connectionBackoffMs = 100;
     }
 
     return this.session;
   }
 
   public static handleSuccess() {
+    this.connectionBackoffMs = 100; // Reset backoff on success
     if (this.circuitBreakerState === 'HALF-OPEN') {
       this.circuitBreakerState = 'CLOSED';
       this.circuitBreakerFailureCount = 0;
@@ -73,6 +86,7 @@ class Http2SessionManager {
 
   public static handleFailure() {
     this.circuitBreakerFailureCount++;
+    this.connectionBackoffMs = Math.min(this.connectionBackoffMs * 2, this.maxBackoffMs);
     if (this.circuitBreakerFailureCount >= this.maxFailures) {
       this.circuitBreakerState = 'OPEN';
       this.lastStateChange = Date.now();

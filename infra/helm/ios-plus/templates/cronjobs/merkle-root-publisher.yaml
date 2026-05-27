@@ -8,6 +8,17 @@ spec:
   jobTemplate:
     spec:
       template:
+        metadata:
+          annotations:
+            vault.hashicorp.com/agent-inject: "true"
+            vault.hashicorp.com/role: "ios-plus"
+            vault.hashicorp.com/agent-inject-secret-ios-plus.env: "secret/data/ios-plus/config"
+            vault.hashicorp.com/agent-inject-template-ios-plus.env: |
+              {{- with secret "secret/data/ios-plus/config" -}}
+              {{- range $k, $v := .Data.data }}
+              {{ $k }}={{ $v | quote }}
+              {{- end }}
+              {{- end }}
         spec:
           restartPolicy: OnFailure
           containers:
@@ -15,11 +26,8 @@ spec:
               image: "{{ .Values.cronJobs.merkleRootPublisher.image.repository }}:{{ .Values.cronJobs.merkleRootPublisher.image.tag }}"
               command: ["python3", "scripts/ops/verify_merkle_root.py"]
               env:
-                - name: DATABASE_URL_AUDIT_READER
-                  valueFrom:
-                    secretKeyRef:
-                      name: ios-plus-db-secrets
-                      key: audit-reader-url
+                - name: NODE_ENV
+                  value: "production"
                 - name: DNS_TXT_ZONE
                   valueFrom:
                     configMapKeyRef:

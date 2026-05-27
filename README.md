@@ -9,7 +9,25 @@ Built for enterprise AI workflows that require:
 - real-time policy enforcement,
 - immutable auditability,
 - sector-aware retrieval,
-- and deployment-ready operational controls.
+- and deployment-oriented operational controls.
+
+---
+
+## Current Repository Status
+
+The repository now contains a materially hardened implementation of the IOS+ platform, including:
+
+- authenticated administrative control-plane routes,
+- fail-closed semantic classification and synthesis behavior,
+- dependency-aware readiness diagnostics,
+- HTTP/2 and IPC support for Gate 530 transport,
+- Vault-oriented secret ingestion and bootstrap assets,
+- database migration and invariant verification tooling,
+- Prometheus-compatible metrics and alert-rule scaffolding,
+- release orchestration and rollback automation,
+- and recent successful CI runs on `main`.
+
+IOS+ should currently be understood as a **working integration candidate undergoing operational hardening**. The repository is substantially beyond proof-of-concept status, but final production readiness still depends on target-environment validation, cloud service provisioning, and end-to-end operational activation.
 
 ---
 
@@ -38,6 +56,7 @@ Runtime compliance evaluation for AI and agent workflows.
 - Evaluates requests against mapped compliance dimensions
 - Applies sector-aware decision logic
 - Produces structured allow/deny/escalate outcomes
+- Supports colocated IPC and HTTP/2 transport modes
 - Records policy evaluation metadata for downstream audit
 
 ### Evidence Fabric
@@ -47,6 +66,7 @@ Cryptographic audit evidence for AI activity.
 - Ed25519-signed evidence records
 - JCS-canonicalized payloads aligned with RFC 8785
 - Event-level traceability for policy and inference actions
+- Vault transit signing support and triple-publication key verification paths
 - Verification support for downstream audit and operations
 
 ### RAG Vault
@@ -66,6 +86,7 @@ Compliance-first persistence layer for evidence and audit records.
 - Append-only audit table design
 - WORM-enforced audit protections
 - Compliance-primary indexing for traceable review and retention workflows
+- Migration and invariant verification support for deployment gating
 
 ---
 
@@ -104,6 +125,15 @@ The platform is organized as a modular middleware and evidence stack:
 - retrieval services,
 - and database services for audit and persistence.
 
+The current repo also includes deployment-focused hardening assets such as:
+
+- dependency-aware `/ready` diagnostics,
+- Prometheus-compatible `/metrics` output,
+- Vault secret projection support,
+- migration and invariant verification jobs,
+- release orchestration scripts,
+- and alert-rule configuration.
+
 ## Repository Structure
 
 ```text
@@ -119,7 +149,9 @@ ios-plus/
 ├── infra/
 │   ├── helm/ios-plus/
 │   ├── kubernetes/
-│   └── terraform/
+│   ├── monitoring/
+│   ├── terraform/
+│   └── vault/
 ├── db/
 │   ├── migrations/
 │   ├── grants/
@@ -154,11 +186,23 @@ npm run db:verify-worm
 npm run dev
 ```
 
+### Common Validation Commands
+
+```bash
+npm run test
+npm run typecheck
+npm run lint
+npm run build
+helm lint infra/helm/ios-plus
+```
+
 ---
 
 ## Deployment
 
-The repository includes infrastructure assets for Kubernetes-based deployment.
+The repository includes infrastructure assets for Kubernetes-based deployment and production-oriented orchestration.
+
+### Helm Deploy
 
 ```bash
 helm upgrade --install ios-plus infra/helm/ios-plus \
@@ -168,22 +212,69 @@ helm upgrade --install ios-plus infra/helm/ios-plus \
   --atomic --timeout 10m --wait
 ```
 
-Deployment and operational procedures include:
+### Release Orchestration
+
+A closed-loop deployment helper is included at:
+
+```bash
+./scripts/ops/deploy_orchestration.sh
+```
+
+This script is intended to automate:
+
+- deployment preflight checks,
+- database migration execution,
+- schema/invariant verification,
+- Helm upgrade,
+- rollout validation,
+- readiness verification,
+- and rollback on failed deployment health checks.
+
+### Included Operational Assets
+
+The repo now includes assets for:
 
 - key management workflows,
+- Vault bootstrap and policy application,
 - seed data loading,
 - Helm-based deployment,
-- replication setup,
-- and post-deployment validation.
+- migration and post-migration validation,
+- Merkle root publication and verification,
+- alert-rule configuration,
+- and post-deployment verification.
 
 ---
 
 ## Security Notes
 
 - Private keys are never committed to this repository
-- Keys are managed through HashiCorp Vault transit workflows
-- Seed CSVs are not stored in the repo
+- Keys are managed through HashiCorp Vault transit workflows or local development custody paths
 - Audit tables are designed with append-only and WORM enforcement controls
+- Administrative rule-management endpoints require explicit authentication
+- Production startup paths are intended to fail closed when critical credentials are missing
+
+---
+
+## Readiness and Production Posture
+
+The repo currently supports a stronger operational posture than earlier versions, including:
+
+- readiness checks for core dependencies,
+- secret-ingestion support through Vault-projected env files,
+- migration verification gates,
+- admin mutation audit logging,
+- and alerting/metrics scaffolding.
+
+That said, this repository should still be described carefully:
+
+> IOS+ is a materially hardened integration candidate, not a fully proven production deployment by repository evidence alone.
+
+Final production readiness still requires:
+
+- target-environment Vault activation,
+- cloud DNS and service identity configuration,
+- end-to-end staging validation,
+- and sustained operational verification in the live environment.
 
 ---
 

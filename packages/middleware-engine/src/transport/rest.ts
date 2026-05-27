@@ -266,7 +266,7 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     }
   });
 
-  app.put("/v1/compliance/rules/:ucoNodeId", async (req, res) => {
+  app.put("/v1/compliance/rules/:ucoNodeId", requireAdminAuth, async (req, res) => {
     try {
       const pool = deps.cosRegistry.pool("cos_admin");
       const { ucoNodeId } = req.params;
@@ -314,7 +314,7 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     }
   });
 
-  app.delete("/v1/compliance/rules/:ucoNodeId", async (req, res) => {
+  app.delete("/v1/compliance/rules/:ucoNodeId", requireAdminAuth, async (req, res) => {
     try {
       const pool = deps.cosRegistry.pool("cos_admin");
       const { ucoNodeId } = req.params;

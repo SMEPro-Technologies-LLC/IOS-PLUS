@@ -9,6 +9,77 @@ import http2 from "node:http2";
 import type { LayerResult, ExecutionContext, NAICSProfile } from "@ios-plus/shared";
 import type { Gate530EvaluationResult } from "@ios-plus/gate-530";
 
+class Http2SessionManager {
+  private static session: http2.ClientHttp2Session | null = null;
+  private static url: string | null = null;
+  private static circuitBreakerFailureCount = 0;
+  private static circuitBreakerState: 'CLOSED' | 'OPEN' | 'HALF-OPEN' = 'CLOSED';
+  private static lastStateChange = Date.now();
+  private static maxFailures = 3;
+  private static cooldownPeriodMs = 10000; // 10 seconds
+
+  public static getSession(url: string): http2.ClientHttp2Session {
+    if (this.circuitBreakerState === 'OPEN') {
+      if (Date.now() - this.lastStateChange > this.cooldownPeriodMs) {
+        this.circuitBreakerState = 'HALF-OPEN';
+        this.lastStateChange = Date.now();
+      } else {
+        throw new Error(`Circuit breaker is OPEN for ${url}`);
+      }
+    }
+
+    if (this.session && this.url === url && !this.session.destroyed && !this.session.closed) {
+      return this.session;
+    }
+
+    if (this.session) {
+      try { this.session.destroy(); } catch {}
+    }
+
+    this.url = url;
+    this.session = http2.connect(url);
+
+    this.session.on('error', (err) => {
+      this.handleFailure();
+      try { this.session?.destroy(); } catch {}
+      this.session = null;
+    });
+
+    this.session.on('goaway', () => {
+      try { this.session?.destroy(); } catch {}
+      this.session = null;
+    });
+
+    this.session.on('close', () => {
+      this.session = null;
+    });
+
+    if (this.circuitBreakerState === 'HALF-OPEN') {
+      this.circuitBreakerState = 'CLOSED';
+      this.circuitBreakerFailureCount = 0;
+      this.lastStateChange = Date.now();
+    }
+
+    return this.session;
+  }
+
+  public static handleSuccess() {
+    if (this.circuitBreakerState === 'HALF-OPEN') {
+      this.circuitBreakerState = 'CLOSED';
+      this.circuitBreakerFailureCount = 0;
+      this.lastStateChange = Date.now();
+    }
+  }
+
+  public static handleFailure() {
+    this.circuitBreakerFailureCount++;
+    if (this.circuitBreakerFailureCount >= this.maxFailures) {
+      this.circuitBreakerState = 'OPEN';
+      this.lastStateChange = Date.now();
+    }
+  }
+}
+
 export async function runL5(
   ctx: ExecutionContext,
   detectedActivity: string,
@@ -24,10 +95,10 @@ export async function runL5(
     return new Promise((resolve) => {
       let client: http2.ClientHttp2Session;
       try {
-        client = http2.connect(http2Url);
+        client = Http2SessionManager.getSession(http2Url);
       } catch (err) {
         resolve({
-          layer: 5, success: false, latencyMs: Date.now() - start, error: String(err),
+          layer: 5, success: false, latencyMs: Date.now() - start, error: `Circuit breaker / Connection blocked: ${String(err)}`,
           gateResult: {
             gateDecisionId: "",
             sessionId: ctx.sessionId, tenantId: ctx.tenantId,
@@ -41,7 +112,7 @@ export async function runL5(
       let timedOut = false;
       const timer = setTimeout(() => {
         timedOut = true;
-        client.destroy();
+        Http2SessionManager.handleFailure();
         resolve({
           layer: 5, success: false, latencyMs: Date.now() - start,
           error: "Gate530 HTTP/2 timeout — BLOCK enforced",
@@ -53,20 +124,6 @@ export async function runL5(
           }
         });
       }, timeoutMs);
-
-      client.on('error', (err) => {
-        clearTimeout(timer);
-        client.destroy();
-        resolve({
-          layer: 5, success: false, latencyMs: Date.now() - start, error: String(err),
-          gateResult: {
-            gateDecisionId: "",
-            sessionId: ctx.sessionId, tenantId: ctx.tenantId,
-            nodeResults: [], aggregatePolicyAction: "BLOCK",
-            evaluationLatencyMs: Date.now() - start, cachedResult: false, quarantinedNodeIds: []
-          }
-        });
-      });
 
       const req = client.request({
         ':method': 'POST',
@@ -95,17 +152,18 @@ export async function runL5(
 
       req.on('end', () => {
         clearTimeout(timer);
-        client.close();
         if (timedOut) return;
 
         try {
           const resp = JSON.parse(responseData);
+          Http2SessionManager.handleSuccess();
           resolve({
             layer: 5, success: resp.ok,
             latencyMs: Date.now() - start,
             gateResult: resp.result as Gate530EvaluationResult,
           });
         } catch (err) {
+          Http2SessionManager.handleFailure();
           resolve({
             layer: 5, success: false, latencyMs: Date.now() - start, error: `Invalid JSON response: ${String(err)}`,
             gateResult: {
@@ -120,7 +178,8 @@ export async function runL5(
       
       req.on('error', (err) => {
         clearTimeout(timer);
-        client.close();
+        if (timedOut) return;
+        Http2SessionManager.handleFailure();
         resolve({
           layer: 5, success: false, latencyMs: Date.now() - start, error: String(err),
           gateResult: {
@@ -133,6 +192,7 @@ export async function runL5(
       });
     });
   }
+
 
   // Fallback to IPC Unix socket:
   return new Promise((resolve) => {

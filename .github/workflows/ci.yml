@@ -30,7 +30,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --workspaces
+        run: npm ci
 
       - name: Typecheck (all packages)
         run: npx turbo run typecheck
@@ -61,4 +61,5 @@ print(f'  OK: {sys.argv[1]}')
       - name: Validate Helm chart
         run: |
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm dependency build infra/helm/ios-plus/
           helm lint infra/helm/ios-plus/

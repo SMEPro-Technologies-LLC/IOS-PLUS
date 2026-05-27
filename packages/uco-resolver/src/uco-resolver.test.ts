@@ -46,15 +46,15 @@ vi.mock("pg", () => {
     return { rows: [] };
   });
 
+  class PoolMock {
+    query = queryMock;
+    end = vi.fn().mockResolvedValue(undefined);
+  }
   return {
     default: {
-      Pool: vi.fn().mockImplementation(() => {
-        return {
-          query: queryMock,
-          end: vi.fn().mockResolvedValue(undefined)
-        };
-      })
-    }
+      Pool: PoolMock
+    },
+    Pool: PoolMock
   };
 });
 

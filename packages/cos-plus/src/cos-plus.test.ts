@@ -4,16 +4,15 @@ import type { EvidencePackage, GateDecisionRecord } from "@ios-plus/shared";
 
 vi.mock("pg", () => {
   const queryMock = vi.fn().mockResolvedValue({ rows: [{ package_id: "pkg-1", payload: {} }] });
-  const poolMock = vi.fn().mockImplementation(() => {
-    return {
-      query: queryMock,
-      end: vi.fn().mockResolvedValue(undefined)
-    };
-  });
+  class PoolMock {
+    query = queryMock;
+    end = vi.fn().mockResolvedValue(undefined);
+  }
   return {
     default: {
-      Pool: poolMock
-    }
+      Pool: PoolMock
+    },
+    Pool: PoolMock
   };
 });
 

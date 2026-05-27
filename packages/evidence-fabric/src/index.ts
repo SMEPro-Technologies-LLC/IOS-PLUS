@@ -85,17 +85,12 @@ export class EvidenceFabricService {
 
   private async signPayloadWithCustody(payload: EvidencePackagePayload): Promise<string> {
     if (this.config.vault && this.config.vault.vaultAddr && this.config.vault.token) {
-      try {
-        return await this.signWithVault(payload);
-      } catch (err) {
-        console.warn("Vault signing failed, falling back to local key provider:", err);
-        const privateKeyBytes = await this.keyProvider.getSigningKey(payload.tenantId);
-        return await signPayload(payload, privateKeyBytes);
-      }
-    } else {
-      const privateKeyBytes = await this.keyProvider.getSigningKey(payload.tenantId);
-      return await signPayload(payload, privateKeyBytes);
+      // HSM-backed transit signing: key is never loaded into application memory.
+      return await this.signWithVault(payload);
     }
+    // Fallback/Local development mode:
+    const privateKeyBytes = await this.keyProvider.getSigningKey(payload.tenantId);
+    return await signPayload(payload, privateKeyBytes);
   }
 
   private async signWithVault(payload: EvidencePackagePayload): Promise<string> {

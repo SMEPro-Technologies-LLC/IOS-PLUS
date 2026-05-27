@@ -51,11 +51,11 @@ jobs:
             echo "  Checking: $f"
             # Basic syntax: ensure no unclosed quotes
             python3 -c "
-import sys
-content = open(sys.argv[1]).read()
-assert 'WORM VIOLATION' in content or 'CREATE' in content or 'INSERT' in content, f'Empty migration: {sys.argv[1]}'
-print(f'  OK: {sys.argv[1]}')
-" "$f"
+            import sys
+            content = open(sys.argv[1]).read()
+            assert 'WORM VIOLATION' in content or 'CREATE' in content or 'INSERT' in content, f'Empty migration: {sys.argv[1]}'
+            print(f'  OK: {sys.argv[1]}')
+            " "$f"
           done
 
       - name: Validate Helm chart

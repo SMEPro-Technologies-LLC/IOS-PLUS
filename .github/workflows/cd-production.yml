@@ -19,7 +19,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Verify tag signature
-        run: git verify-tag ${{ github.ref_name }} || echo "Warning: unsigned tag"
+        run: |
+          git verify-tag ${{ github.ref_name }} || echo "Warning: unsigned tag"
 
       - name: Configure kubectl (production)
         uses: azure/k8s-set-context@v3

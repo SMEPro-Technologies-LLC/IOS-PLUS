@@ -245,7 +245,8 @@ class UCOSeedValidator:
                         ("FedRAMP PMO", "FedRAMP Program Management Office", "Federal"),
                         ("US Access Board", "United States Access Board", "Federal"),
                         ("FAR Council", "Federal Acquisition Regulatory Council", "Federal"),
-                        ("Agency Privacy Officers", "Agency Privacy Officers", "Federal")
+                        ("Agency Privacy Officers", "Agency Privacy Officers", "Federal"),
+                        ("DOL OFCCP", "Department of Labor - Office of Federal Contract Compliance Programs", "Federal")
                     ]
                     # Add dummy agencies to reach 80 to satisfy min agency count V-007
                     for i in range(1, 70):

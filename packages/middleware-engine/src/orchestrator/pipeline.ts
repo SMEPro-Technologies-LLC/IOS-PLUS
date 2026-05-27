@@ -21,6 +21,7 @@ import type { RAGVaultService } from "@ios-plus/rag-vault";
 import { GateDecisionRepository, CosConnectionRegistry } from "@ios-plus/cos-plus";
 import crypto from "node:crypto";
 import type { ParkedContext } from "./quarantineStore.js";
+import { MetricsRegistry } from "../transport/metrics.js";
 
 export interface PipelineDependencies {
   ucoResolver: UCOResolver;
@@ -40,13 +41,16 @@ export async function executePipeline(
 
   const l1 = await runL1(request);
   latencies["L1"] = l1.latencyMs;
+  MetricsRegistry.observe("ios_middleware_layer_latency_ms", l1.latencyMs, { layer: "L1" });
   if (!l1.success) throw new Error(l1.error);
 
   const l2 = await runL2(l1.normalizedInput);
   latencies["L2"] = l2.latencyMs;
+  MetricsRegistry.observe("ios_middleware_layer_latency_ms", l2.latencyMs, { layer: "L2" });
 
   const l3 = await runL3(naicsProfile, deps.ucoResolver);
   latencies["L3"] = l3.latencyMs;
+  MetricsRegistry.observe("ios_middleware_layer_latency_ms", l3.latencyMs, { layer: "L3" });
 
   const ctx: ExecutionContext = {
     requestId: request.requestId,
@@ -63,9 +67,11 @@ export async function executePipeline(
   const requestHash = crypto.createHash("sha256").update(l1.normalizedInput).digest("hex");
   const l4 = await runL4(ctx, deps.evidenceFabric, requestHash);
   latencies["L4"] = l4.latencyMs;
+  MetricsRegistry.observe("ios_middleware_layer_latency_ms", l4.latencyMs, { layer: "L4" });
 
   const l5 = await runL5(ctx, l2.output.detectedActivity, naicsProfile);
   latencies["L5"] = l5.latencyMs;
+  MetricsRegistry.observe("ios_middleware_layer_latency_ms", l5.latencyMs, { layer: "L5" });
 
   // Audit decisions to database for triggered nodes
   for (const nodeRes of l5.gateResult.nodeResults) {
@@ -87,7 +93,9 @@ export async function executePipeline(
   }
 
   if (l5.gateResult.aggregatePolicyAction === "BLOCK") {
-    return await runL7(ctx, l5.gateResult, { chunks: [], sectorPartitionsQueried: [], ucoNodeIdsFiltered: [], latencyMs: 0, efSearchUsed: 0 }, Date.now() - pipelineStart, latencies);
+    const response = await runL7(ctx, l5.gateResult, { chunks: [], sectorPartitionsQueried: [], ucoNodeIdsFiltered: [], latencyMs: 0, efSearchUsed: 0 }, Date.now() - pipelineStart, latencies);
+    MetricsRegistry.observe("ios_middleware_layer_latency_ms", response.layerLatencies["L7"] || 0, { layer: "L7" });
+    return response;
   }
 
   if (l5.gateResult.aggregatePolicyAction === "ESCALATE") {
@@ -109,9 +117,13 @@ export async function executePipeline(
 
   const l6 = await runL6(ctx, l1.normalizedInput, deps.ragVault);
   latencies["L6"] = l6.latencyMs;
+  MetricsRegistry.observe("ios_middleware_layer_latency_ms", l6.latencyMs, { layer: "L6" });
 
-  return await runL7(ctx, l5.gateResult, l6.ragResult, Date.now() - pipelineStart, latencies);
+  const response = await runL7(ctx, l5.gateResult, l6.ragResult, Date.now() - pipelineStart, latencies);
+  MetricsRegistry.observe("ios_middleware_layer_latency_ms", response.layerLatencies["L7"] || 0, { layer: "L7" });
+  return response;
 }
+
 
 export async function resumePipeline(
   parked: ParkedContext,

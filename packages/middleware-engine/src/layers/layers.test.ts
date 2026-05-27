@@ -126,4 +126,35 @@ describe("Orchestration Layers Unit Tests", () => {
     expect(res.policyAction).toBe("APPROVE");
     expect(res.output).toBe("Mocked compliance response.");
   });
+
+  it("Layer 7 Synthesis: throws error if API key is missing", async () => {
+    delete process.env["OPENAI_API_KEY"];
+    const ctx: any = {
+      requestId: "req-1",
+      tenantId: "tenant-1",
+      sessionId: "session-1",
+      classificationLevel: "CONFIDENTIAL",
+      ucoContext: { resolvedNodeIds: [], nodes: [], crossCuttingNodes: [] },
+      request: { rawInput: "Original query" }
+    };
+    const gateRes: any = { aggregatePolicyAction: "APPROVE", quarantinedNodeIds: [], nodeResults: [] };
+    const ragRes: any = { chunks: [{ chunkText: "Mocked RAG chunk text" }] };
+    await expect(runL7(ctx, gateRes, ragRes, 45, {})).rejects.toThrow("OpenAI API Key is missing");
+  });
+
+  it("Layer 7 Synthesis: returns empty output if RAG chunks are empty", async () => {
+    const ctx: any = {
+      requestId: "req-1",
+      tenantId: "tenant-1",
+      sessionId: "session-1",
+      classificationLevel: "CONFIDENTIAL",
+      ucoContext: { resolvedNodeIds: [], nodes: [], crossCuttingNodes: [] },
+      request: { rawInput: "Original query" }
+    };
+    const gateRes: any = { aggregatePolicyAction: "APPROVE", quarantinedNodeIds: [], nodeResults: [] };
+    const ragRes: any = { chunks: [] };
+    const res = await runL7(ctx, gateRes, ragRes, 45, {});
+    expect(res.policyAction).toBe("APPROVE");
+    expect(res.output).toBe("");
+  });
 });

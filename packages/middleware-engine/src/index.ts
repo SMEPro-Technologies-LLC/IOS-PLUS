@@ -83,17 +83,28 @@ async function main() {
     log.info("Initialized LocalEnvKeyProvider (SaaS / Default custody)");
   }
 
+  let vaultToken = process.env["VAULT_TOKEN"];
+  if (!vaultToken && fs.existsSync("/vault/secrets/token")) {
+    try {
+      vaultToken = fs.readFileSync("/vault/secrets/token", "utf8").trim();
+      log.info("Loaded Vault token from Vault Agent projection /vault/secrets/token");
+    } catch (err) {
+      log.error({ err }, "Failed to read Vault token from /vault/secrets/token");
+    }
+  }
+
   // Evidence Fabric (L4 — Evidence Anchoring)
   const evidenceFabric = new EvidenceFabricService({
     vault: {
       vaultAddr: requireEnv("VAULT_ADDR"),
       keyPath:   requireEnv("VAULT_TRANSIT_KEY_PATH"),
-      token:     requireEnv("VAULT_TOKEN"),
+      token:     vaultToken ?? "",
     },
     publicKeyFilesystemPath: process.env["SIGNING_KEY_PUBKEY_PATH"] ?? "/run/secrets/signing-pubkey.pem",
     dnsTxtZone:  requireEnv("SIGNING_KEY_DNS_ZONE"),
     activeKeyId: requireEnv("SIGNING_KEY_ACTIVE_ID"),
   }, cosRegistry, keyProvider);
+
 
   // RAG Vault (L6 — Retrieval Augmented Generation)
   const ragVault = new RAGVaultService({

@@ -19,7 +19,15 @@ spec:
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "ios-plus"
         vault.hashicorp.com/agent-inject-status: "update"
+        vault.hashicorp.com/agent-inject-secret-ios-plus.env: "secret/data/ios-plus/config"
+        vault.hashicorp.com/agent-inject-template-ios-plus.env: |
+          {{ "{{" }}- with secret "secret/data/ios-plus/config" -{{ "}}" }}
+          {{ "{{" }}- range $k, $v := .Data.data -{{ "}}" }}
+          {{ "{{" }} $k -{{ "}}" }}={{ "{{" }} $v | quote -{{ "}}" }}
+          {{ "{{" }}- end -{{ "}}" }}
+          {{ "{{" }}- end -{{ "}}" }}
     spec:
+
       serviceAccountName: ios-plus-sa
       containers:
         - name: middleware-engine

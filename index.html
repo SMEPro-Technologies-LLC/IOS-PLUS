@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SMEPro Technologies — Deterministic Regulatory Automation</title>
+<meta name="description" content="Deterministic regulatory automation for organizations that cannot afford uncertainty. The Governance OS for AI — compliance enforced before AI touches your data." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cascadia+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  /* Official SMEPro Brand Palette */
+  --smepro-navy:        #003070;
+  --smepro-navy-dark:   #002040;
+  --smepro-navy-mid:    #103060;
+  --smepro-navy-light:  #004080;
+  --smepro-accent:      #6070B0;
+  --smepro-sky:         #C0E0F0;
+  --smepro-slate:       #A0B0D0;
+  --smepro-surface:     #F5F7FA;
+  --smepro-white:       #FFFFFF;
+  --smepro-gray-10:     #FAF9F8;
+  --smepro-gray-30:     #EDEBE9;
+  --smepro-gray-60:     #C8C6C4;
+  --smepro-gray-90:     #8A8886;
+  --smepro-gray-160:    #201F1E;
+  --smepro-success:     #107C10;
+  --smepro-warning:     #C19C00;
+  --smepro-error:       #A4262C;
+
+  /* Fluent Depth Shadows */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.04);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.06), 0 8px 16px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 12px rgba(0,48,112,0.15), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-xl: 0 12px 28px rgba(0,0,0,0.08), 0 6px 12px rgba(0,0,0,0.04);
+  --shadow-blue: 0 8px 24px -8px rgba(0, 48, 112, 0.35);
+  --shadow-green: 0 8px 24px -8px rgba(16, 124, 16, 0.35);
+
+  /* Typography Fallbacks */
+  --font-sans: 'Segoe UI', 'Segoe UI Variable', 'Inter', sans-serif;
+  --font-mono: 'Cascadia Code', 'Cascadia Mono', 'Consolas', monospace;
+
+  /* Legacy Mapping for SMEPro Brand Alignment */
+  --ms-blue:            var(--smepro-navy);
+  --ms-blue-dark:       var(--smepro-navy-mid);
+  --ms-blue-deep:       var(--smepro-navy-dark);
+  --ms-blue-pale:       rgba(0, 48, 112, 0.05);
+  --ms-green:           var(--smepro-success);
+  --ms-green-light:     #16A616;
+  --ms-green-pale:      rgba(16, 124, 16, 0.04);
+  --ms-green-deep:      #0B5A0B;
+  --ink:                var(--smepro-gray-160);
+  --ink-2:              #323130;
+  --gray-text:          var(--smepro-gray-90);
+  --gray-2:             var(--smepro-gray-30);
+  --gray-1:             var(--smepro-gray-10);
+  --bg:                 var(--smepro-white);
+  --bg-soft:            var(--smepro-surface);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--smepro-gray-160);
+  background: var(--smepro-surface); /* Mica background tint */
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.utility {
+  background: var(--smepro-navy-dark);
+  color: var(--smepro-gray-30);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.utility-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+.utility-left { display: flex; gap: 28px; align-items: center; }
+.status { display: inline-flex; align-items: center; gap: 8px; }
+.status-dot {
+  width: 6px; height: 6px;
+  background: #6EE7B7;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #34D399;
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.92); }
+}
+.utility-right { display: flex; gap: 22px; }
+.utility-right a {
+  color: var(--smepro-slate);
+  text-decoration: none;
+  transition: color 0.18s;
+}
+.utility-right a:hover { color: var(--smepro-white); }
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--smepro-gray-30);
+}
+.nav-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 14px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+  position: relative;
+}
+.brand-name {
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.2px;
+  color: var(--smepro-navy);
+}
+.brand-tag, .brand-sub {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--smepro-slate);
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  position: relative;
+  overflow: visible;
+}
+.brand-mark::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  background: radial-gradient(circle, rgba(96,112,176,0.06) 0%, transparent 70%);
+  filter: blur(4px);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.brand:hover .brand-mark::before, .brand.hover .brand-mark::before { opacity: 1; }
+.brand-mark .quad {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.brand-mark .q-tl { transform-origin: 8px 8px; }
+.brand-mark .q-tr { transform-origin: 28px 8px; }
+.brand-mark .q-bl { transform-origin: 8px 28px; }
+.brand-mark .q-br { transform-origin: 28px 28px; }
+
+.brand:hover .brand-mark .q-tl, .brand.hover .brand-mark .q-tl { transform: translate(-2px, -2px) scale(1.05) rotate(-4deg); }
+.brand:hover .brand-mark .q-tr, .brand.hover .brand-mark .q-tr { transform: translate(2px, -2px) scale(1.05) rotate(4deg); }
+.brand:hover .brand-mark .q-bl, .brand.hover .brand-mark .q-bl { transform: translate(-2px, 2px) scale(1.05) rotate(4deg); }
+.brand:hover .brand-mark .q-br, .brand.hover .brand-mark .q-br { transform: translate(2px, 2px) scale(1.05) rotate(-4deg); }
+
+.brand-text {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  line-height: 1.1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.brand-name {
+  font-weight: 600;
+  color: var(--smepro-navy);
+}
+.brand-sub {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--smepro-slate);
+  text-transform: uppercase;
+}
+
+.nav-links { display: flex; gap: 32px; align-items: center; }
+.nav-links > a:not(.nav-cta) {
+  color: var(--smepro-gray-160);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 0.18s;
+  position: relative;
+}
+.nav-links > a:not(.nav-cta)::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--smepro-navy);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.nav-links > a:not(.nav-cta):hover { color: var(--smepro-navy); }
+.nav-links > a:not(.nav-cta):hover::after { transform: scaleX(1); }
+.nav-cta {
+  background: var(--smepro-navy);
+  color: var(--smepro-white) !important;
+  padding: 8px 18px;
+  border-radius: var(--r-sm);
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  transition: all 0.2s !important;
+  border: 1px solid var(--smepro-navy);
+  text-decoration: none;
+}
+.nav-cta:hover {
+  background: var(--smepro-navy-dark);
+  border-color: var(--smepro-navy-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-blue);
+}
+
+.hero {
+  position: relative;
+  background: linear-gradient(135deg, var(--smepro-navy-dark) 0%, var(--smepro-navy) 60%, var(--smepro-navy-light) 100%);
+  color: var(--smepro-white);
+  overflow: hidden;
+  padding: 80px 0 112px;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 90%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 90%);
+  pointer-events: none;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  top: -120px;
+  right: -120px;
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(16,124,16,0.12) 0%, transparent 70%);
+  pointer-events: none;
+  animation: float 18s ease-in-out infinite;
+}
+@keyframes float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-20px, 20px); }
+}
+.hero-inner {
+  position: relative;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 80px;
+  align-items: center;
+  z-index: 2;
+}
+.hero-content { animation: rise-in 1s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--smepro-sky);
+  margin-bottom: 32px;
+  backdrop-filter: blur(8px);
+}
+.hero-eyebrow::before {
+  content: '';
+  display: block;
+  width: 6px;
+  height: 6px;
+  background: var(--smepro-success);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--smepro-success);
+}
+.hero h1 {
+  font-weight: 300;
+  font-size: clamp(38px, 4.8vw, 64px);
+  line-height: 1.06;
+  letter-spacing: -0.022em;
+  color: var(--smepro-white);
+  margin-bottom: 28px;
+}
+.hero h1 strong { font-weight: 700; color: var(--smepro-white); }
+.hero h1 .accent { font-weight: 700; color: #6EE7B7; }
+.hero-sub {
+  font-size: 19px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.82);
+  max-width: 540px;
+  margin-bottom: 40px;
+}
+.hero-sub strong { color: var(--smepro-white); font-weight: 600; }
+.hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+
+.btn-primary {
+  background: var(--smepro-success);
+  color: var(--smepro-white);
+  padding: 14px 26px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--smepro-success);
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+.btn-primary::after {
+  content: '\2192';
+  display: inline-block;
+  transition: transform 0.22s;
+}
+.btn-primary:hover {
+  background: #0B5A0B;
+  border-color: #0B5A0B;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-green);
+}
+.btn-primary:hover::after { transform: translateX(4px); }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--smepro-white);
+  padding: 14px 22px;
+  border-radius: var(--r-md);
+  border: 1px solid rgba(255,255,255,0.4);
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+}
+.btn-secondary:hover {
+  border-color: var(--smepro-white);
+  background: rgba(255,255,255,0.08);
+  color: var(--smepro-white);
+}
+
+.hero-tagline {
+  margin-top: 56px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding-top: 32px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  position: relative;
+}
+.hero-tagline::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 80px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--smepro-accent) 0%, var(--smepro-success) 100%);
+}
+.tagline-line {
+  font-family: var(--font-sans);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 22px;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+.tagline-line:first-of-type { color: var(--smepro-sky); font-weight: 600; }
+.tagline-line:last-of-type { color: #6EE7B7; font-weight: 600; }
+.tagline-divider {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+}
+
+.diagram-wrap { position: relative; animation: rise-in 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+.diagram-frame {
+  background: var(--smepro-white);
+  border: 1px solid var(--smepro-gray-30);
+  border-radius: var(--r-md);
+  padding: 28px 28px 32px;
+  box-shadow: var(--shadow-xl);
+  position: relative;
+}
+.diagram-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--smepro-gray-30);
+}
+.diagram-title { font-size: 13px; font-weight: 600; color: var(--smepro-gray-160); }
+.diagram-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--smepro-gray-90);
+  letter-spacing: 0.04em;
+}
+.diagram-svg { width: 100%; height: auto; display: block; }
+.flow-line { stroke-dasharray: 6 6; animation: flow 2.8s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -24; } }
+
+.trust {
+  background: var(--smepro-white);
+  border-bottom: 1px solid var(--smepro-gray-30);
+  padding: 32px 0;
+}
+.trust-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 56px;
+  flex-wrap: wrap;
+}
+.trust-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--smepro-gray-90);
+  max-width: 200px;
+  line-height: 1.5;
+}
+.trust-frameworks {
+  display: flex;
+  gap: 36px;
+  flex-wrap: wrap;
+  align-items: center;
+  flex: 1;
+}
+.trust-frameworks span {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--smepro-gray-90);
+  letter-spacing: -0.005em;
+  position: relative;
+  transition: color 0.2s;
+}
+.trust-frameworks span:hover { color: var(--smepro-navy); }
+.trust-frameworks span:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: -18px;
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  background: var(--smepro-gray-30);
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+
+.section { padding: 96px 0; position: relative; }
+.section.tinted-blue { background: var(--smepro-gray-10); }
+.section.tinted-green { background: rgba(16,124,16,0.03); }
+.section.white { background: var(--smepro-white); }
+.section-inner { max-width: 1320px; margin: 0 auto; padding: 0 32px; }
+
+.section-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--smepro-navy);
+  margin-bottom: 24px;
+}
+.section-eyebrow::before {
+  content: '';
+  display: block;
+  width: 32px;
+  height: 2px;
+  background: var(--smepro-navy);
+}
+.section-eyebrow.green { color: var(--smepro-success); }
+.section-eyebrow.green::before { background: var(--smepro-success); }
+.section-headline {
+  font-weight: 300;
+  font-size: clamp(32px, 4.2vw, 52px);
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+  color: var(--smepro-gray-160);
+  max-width: 920px;
+  margin-bottom: 28px;
+}
+.section-headline strong { font-weight: 700; color: var(--smepro-navy); }
+.section-headline .accent { font-weight: 700; color: var(--smepro-success); }
+.section-lede {
+  font-size: 19px;
+  line-height: 1.6;
+  color: var(--smepro-gray-90);
+  max-width: 760px;
+  margin-bottom: 8px;
+}
+
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 72px;
+}
+.compare-card {
+  background: var(--smepro-white);
+  border: 1px solid var(--smepro-gray-30);
+  border-radius: var(--r-md);
+  padding: 40px 36px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.compare-card.before { box-shadow: var(--shadow-sm); }
+.compare-card.after {
+  border-left: 4px solid var(--smepro-success);
+  box-shadow: var(--shadow-md);
+}
+.compare-card.after::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 160px; height: 160px;
+  background: radial-gradient(circle, rgba(16,124,16,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+.compare-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.compare-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 2px;
+  margin-bottom: 20px;
+}
+.compare-card.before .compare-tag { background: var(--smepro-gray-10); color: var(--smepro-gray-90); }
+.compare-card.after .compare-tag { background: var(--smepro-sky); color: var(--smepro-navy); }
+.compare-card h3 {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin-bottom: 18px;
+  color: var(--smepro-navy);
+}
+.compare-card p {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--smepro-gray-160);
+}
+.compare-card p code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 2px 6px;
+  background: var(--smepro-gray-10);
+  border-radius: 2px;
+  color: var(--smepro-navy-dark);
+}
+
+.pillars {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 64px;
+}
+.pillar {
+  background: var(--smepro-white);
+  border: 1px solid var(--smepro-gray-30);
+  border-radius: var(--r-md);
+  padding: 36px 32px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.pillar:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: transparent; }
+.pillar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--smepro-navy);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pillar:hover::before { transform: scaleY(1); }
+.pillar:nth-child(2)::before, .pillar:nth-child(4)::before { background: var(--smepro-success); }
+.pillar-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--smepro-gray-90);
+  margin-bottom: 16px;
+  display: block;
+}
+.pillar h3 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+  margin-bottom: 14px;
+  color: var(--smepro-gray-160);
+}
+.pillar h3 strong { font-weight: 700; color: var(--smepro-navy); }
+.pillar:nth-child(2) h3 strong, .pillar:nth-child(4) h3 strong { color: var(--smepro-success); }
+.pillar p { font-size: 15px; line-height: 1.6; color: var(--smepro-gray-90); }
+
+.deploy-list {
+  margin-top: 64px;
+  background: var(--smepro-white);
+  border: 1px solid var(--smepro-gray-30);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+.deploy-row {
+  display: grid;
+  grid-template-columns: 220px 1fr 1.4fr;
+  gap: 40px;
+  padding: 32px 36px;
+  align-items: start;
+  border-bottom: 1px solid var(--smepro-gray-30);
+  transition: background 0.2s;
+}
+.deploy-row:last-child { border-bottom: none; }
+.deploy-row:hover { background: var(--smepro-gray-10); }
+.deploy-mode {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  color: var(--smepro-navy);
+}
+.deploy-mode.green { color: var(--smepro-success); }
+.deploy-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--smepro-gray-90);
+  margin-bottom: 10px;
+}
+.deploy-text { font-size: 15px; line-height: 1.6; color: var(--smepro-gray-160); }
+
+.proof-block {
+  background: linear-gradient(135deg, rgba(192,224,240,0.15) 0%, var(--smepro-white) 50%, rgba(223,246,221,0.15) 100%);
+  border: 1px solid var(--smepro-gray-30);
+  border-radius: var(--r-lg);
+  padding: 56px 56px;
+  margin-top: 56px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+.proof-block::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(16,124,16,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+.proof-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  margin-top: 36px;
+  padding-top: 32px;
+  border-top: 1px solid var(--smepro-gray-30);
+}
+.proof-stat-value {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--smepro-navy);
+  letter-spacing: -0.015em;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.proof-stat-value.green { color: var(--smepro-success); }
+.proof-stat-label { font-size: 14px; color: var(--smepro-gray-160); line-height: 1.4; }
+.proof-block p { font-size: 18px; line-height: 1.6; color: var(--smepro-gray-160); max-width: 720px; }
+.proof-note { font-size: 14px; color: var(--smepro-gray-90); margin-top: 16px !important; font-style: italic; }
+
+.cta-banner {
+  background: linear-gradient(135deg, var(--smepro-navy-dark) 0%, var(--smepro-navy) 60%, var(--smepro-navy-light) 100%);
+  padding: 96px 0;
+  color: var(--smepro-white);
+  position: relative;
+  overflow: hidden;
+}
+.cta-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+  background-size: 64px 64px;
+  pointer-events: none;
+}
+.cta-inner {
+  position: relative;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+.cta-inner h2 {
+  font-weight: 300;
+  font-size: clamp(34px, 4.2vw, 52px);
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+  margin-bottom: 24px;
+}
+.cta-inner h2 .green { font-weight: 700; color: #6EE7B7; }
+.cta-inner p {
+  font-size: 17px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.75);
+  max-width: 540px;
+}
+.cta-actions { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+.cta-banner .btn-primary {
+  background: var(--smepro-success);
+  border-color: var(--smepro-success);
+  font-size: 16px;
+  padding: 16px 30px;
+  color: var(--smepro-white);
+}
+.cta-banner .btn-primary:hover {
+  background: #0B5A0B;
+  border-color: #0B5A0B;
+  box-shadow: var(--shadow-green);
+}
+.cta-banner .btn-secondary {
+  background: transparent;
+  color: var(--smepro-white);
+  border-color: rgba(255,255,255,0.2);
+}
+.cta-banner .btn-secondary:hover {
+  border-color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.05);
+  color: var(--smepro-white);
+}
+
+footer { background: var(--smepro-gray-10); padding: 56px 0 40px; border-top: 1px solid var(--smepro-gray-30); }
+.footer-inner { max-width: 1320px; margin: 0 auto; padding: 0 32px; }
+.footer-top {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 48px;
+  margin-bottom: 40px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--smepro-gray-30);
+}
+.footer-brand-block { max-width: 360px; }
+.footer-brand-block .brand { margin-bottom: 16px; }
+.footer-tagline { font-size: 14px; color: var(--smepro-gray-90); line-height: 1.5; font-style: italic; }
+.footer-col h4 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--smepro-gray-90);
+  margin-bottom: 14px;
+}
+.footer-col a {
+  display: block;
+  font-size: 14px;
+  color: var(--smepro-gray-160);
+  text-decoration: none;
+  margin-bottom: 8px;
+  transition: color 0.18s;
+}
+.footer-col a:hover { color: var(--smepro-navy); }
+.footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--smepro-gray-90);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-top: 1px solid var(--smepro-gray-30);
+  padding-top: 24px;
+}
+.footer-bottom .patent { color: var(--smepro-success); font-weight: 600; }
+
+@media (max-width: 1024px) {
+  .hero-inner, .cta-inner { grid-template-columns: 1fr; gap: 48px; }
+  .diagram-wrap { max-width: 540px; margin: 0 auto; }
+  .compare, .pillars { grid-template-columns: 1fr; }
+  .deploy-row { grid-template-columns: 1fr; gap: 12px; padding: 24px 24px; }
+  .proof-stats { grid-template-columns: 1fr; gap: 20px; }
+  .footer-top { grid-template-columns: 1fr; gap: 32px; }
+}
+@media (max-width: 720px) {
+  .nav-links > a:not(.nav-cta) { display: none; }
+  .utility-left span:nth-child(2) { display: none; }
+  .section { padding: 64px 0; }
+  .hero { padding: 48px 0 72px; }
+  .hero-tagline { gap: 16px; margin-top: 40px; padding-top: 24px; }
+  .tagline-line { font-size: 18px; }
+  .trust-inner { gap: 24px; }
+  .trust-frameworks { gap: 24px; }
+  .proof-block { padding: 36px 28px; }
+  .cta-banner { padding: 64px 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="utility">
+  <div class="utility-inner">
+    <div class="utility-left">
+      <span class="status" id="status"><span class="status-dot"></span>OPERATIONAL · 99.9% UPTIME</span>
+      <span>U.S. PROVISIONAL 63/986,802 · PATENT PENDING</span>
+    </div>
+    <div class="utility-right">
+      <a href="docs-index.html">Documentation</a>
+      <a href="investors.html">Investors</a>
+      <a href="mailto:partnerships@smeprotech.com">Contact</a>
+    </div>
+  </div>
+</div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#" class="brand">
+      <svg class="brand-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="logo-navy-grad" x1="0" y1="0" x2="16" y2="16" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0E2548" />
+            <stop offset="100%" stop-color="#061224" />
+          </linearGradient>
+          <linearGradient id="logo-green-grad" x1="20" y1="0" x2="36" y2="16" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#34A853" />
+            <stop offset="100%" stop-color="#1B7A36" />
+          </linearGradient>
+          <linearGradient id="logo-accent-grad" x1="0" y1="20" x2="16" y2="36" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#557095" />
+            <stop offset="100%" stop-color="#3B5270" />
+          </linearGradient>
+          <linearGradient id="logo-darknavy-grad" x1="20" y1="20" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0A1E3D" />
+            <stop offset="100%" stop-color="#051024" />
+          </linearGradient>
+        </defs>
+        <g class="quad q-tl">
+          <rect x="0" y="0" width="16" height="16" rx="3" fill="url(#logo-navy-grad)"><title>IOS+ (Intelligence Orchestration System Plus)</title></rect>
+          <path d="M8 4V12M4 8H12" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.85" />
+        </g>
+        <g class="quad q-tr">
+          <rect x="20" y="0" width="16" height="16" rx="3" fill="url(#logo-green-grad)"><title>Yellow Brick Road (Deterministic Execution)</title></rect>
+          <path d="M22 14 C 23 10, 26 8, 30 5" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.3" />
+          <path d="M24 15 C 25 11, 28 9, 32 6" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.3" />
+          <path d="M23 14.5 C 24 10.5, 27 8.5, 31 5.5" stroke="#FFFFFF" stroke-width="0.8" stroke-dasharray="1.5,1.5" stroke-linecap="round" fill="none" opacity="0.9" />
+          <path d="M28 8 L 31 5 L 33 2" stroke="#FFFFFF" stroke-width="1" stroke-linecap="round" fill="none" opacity="0.95" />
+          <circle cx="28" cy="8" r="0.8" fill="#FFFFFF" />
+          <circle cx="31" cy="5" r="0.8" fill="#FFFFFF" />
+          <circle cx="33" cy="2" r="1" fill="#FFFFFF" />
+        </g>
+        <g class="quad q-bl">
+          <rect x="0" y="20" width="16" height="16" rx="3" fill="url(#logo-accent-grad)"><title>Universal Decoding Matrix (Ontological Context)</title></rect>
+          <path d="M3 23 H13 M3 27 H13 M3 31 H13" stroke="#FFFFFF" stroke-width="0.6" opacity="0.3" />
+          <path d="M4 23 V31 M8 23 V31 M12 23 V31" stroke="#FFFFFF" stroke-width="0.6" opacity="0.3" />
+          <path d="M4 27 L 8 31 M 8 23 L 12 27" stroke="#FFFFFF" stroke-width="0.8" opacity="0.6" />
+          <circle cx="4" cy="23" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="8" cy="23" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="12" cy="23" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="4" cy="27" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="8" cy="27" r="1.1" fill="#FFFFFF" />
+          <circle cx="12" cy="27" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="4" cy="31" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="8" cy="31" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="12" cy="31" r="0.9" fill="#FFFFFF" opacity="0.8" />
+        </g>
+        <g class="quad q-br">
+          <rect x="20" y="20" width="16" height="16" rx="3" fill="url(#logo-darknavy-grad)"><title>COS (Compliance OS)</title></rect>
+          <path d="M23 23.5 L28 21.5 L33 23.5 C33 27, 31 30.5, 28 32.5 C25 30.5, 23 27, 23 23.5 Z" stroke="#FFFFFF" stroke-width="1.2" stroke-linejoin="round" fill="none" opacity="0.85" />
+          <path d="M26 27 L27.5 28.5 L30.5 25.5" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.85" />
+          <circle cx="31" cy="30.5" r="1.8" fill="#1B7A36" stroke="#FFFFFF" stroke-width="0.6" />
+          <path d="M30 30.5 L30.7 31.2 L32 29.8" stroke="#FFFFFF" stroke-width="0.5" stroke-linecap="round" fill="none" />
+        </g>
+      </svg>
+      <div class="brand-text">
+        <span class="brand-name">SMEPro</span>
+        <span class="brand-sub">Technologies</span>
+      </div>
+    </a>
+    <div class="nav-links">
+      <a href="#platform">Platform</a>
+      <a href="#why">Why SMEPro</a>
+      <a href="#deploy">Deploy</a>
+      <a href="#proof">Proof</a>
+      <a href="mailto:partnerships@smeprotech.com?subject=Demo%20request" class="nav-cta">Request a Demo</a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero" id="middleware">
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-eyebrow">THE GOVERNANCE OS FOR AI</div>
+      <h1>Deterministic regulatory automation for organizations that <strong>cannot afford</strong> <span class="accent">uncertainty.</span></h1>
+      <p class="hero-sub">SMEPro is the cryptographically-governed Intelligence OS that evaluates every AI request against your regulatory obligations <strong>before</strong> the model touches your data. Reproducible decisions. Mathematically verifiable evidence. Audit-grade by construction.</p>
+      <div class="hero-ctas">
+        <a href="mailto:partnerships@smeprotech.com?subject=Demo%20request%20%E2%80%94%20SMEPro%20IOS%2B" class="btn-primary">Request a Demo</a>
+        <a href="mailto:partnerships@smeprotech.com?subject=Talk%20to%20Sales%20%E2%80%94%20SMEPro" class="btn-secondary">Talk to Sales</a>
+      </div>
+      <div class="hero-tagline">
+        <span class="tagline-line">Empower Intelligence.</span>
+        <span class="tagline-divider"></span>
+        <span class="tagline-line">Orchestrate Compliance.</span>
+      </div>
+    </div>
+    <div class="diagram-wrap">
+      <div class="diagram-frame">
+        <div class="diagram-header">
+          <div class="diagram-title">IOS+ Deterministic Architecture</div>
+          <div class="diagram-meta">L1 -> L7 PIPELINE</div>
+        </div>
+        <svg class="diagram-svg" viewBox="0 0 560 660" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SMEPro IOS+ architecture lineage diagram">
+          <defs>
+            <linearGradient id="blue-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#003070" />
+              <stop offset="100%" stop-color="#004080" />
+            </linearGradient>
+            <linearGradient id="green-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#107C10" />
+              <stop offset="100%" stop-color="#0B5A0B" />
+            </linearGradient>
+            <filter id="soft-shadow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+              <feOffset dy="2" result="offsetblur"/>
+              <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+              <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <line x1="280" y1="56" x2="280" y2="604" stroke="#EDEBE9" stroke-width="1.5"/>
+          <line class="flow-line" x1="280" y1="82" x2="280" y2="160" stroke="#003070" stroke-width="2" opacity="0.5"/>
+          <line class="flow-line" x1="280" y1="186" x2="280" y2="264" stroke="#003070" stroke-width="2" opacity="0.5"/>
+          <line class="flow-line" x1="280" y1="290" x2="280" y2="368" stroke="#003070" stroke-width="2" opacity="0.6"/>
+          <line class="flow-line" x1="280" y1="394" x2="280" y2="472" stroke="#107C10" stroke-width="2" opacity="0.6"/>
+          <line class="flow-line" x1="280" y1="498" x2="280" y2="576" stroke="#107C10" stroke-width="2" opacity="0.6"/>
+          <g>
+            <rect x="165" y="38" width="230" height="50" rx="2" fill="url(#blue-grad)" filter="url(#soft-shadow)"/>
+            <text x="280" y="62" text-anchor="middle" fill="white" font-family="Segoe UI" font-size="17" font-weight="700">IOS<tspan baseline-shift="super" font-size="13">+</tspan></text>
+            <text x="280" y="80" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-family="Cascadia Code, monospace" font-size="9" letter-spacing="0.08em">INTELLIGENCE ORCHESTRATION</text>
+          </g>
+          <g>
+            <rect x="180" y="142" width="200" height="46" rx="2" fill="#FFFFFF" stroke="#003070" stroke-width="1.5" filter="url(#soft-shadow)"/>
+            <text x="280" y="166" text-anchor="middle" fill="#003070" font-family="Segoe UI" font-size="15" font-weight="700">COS</text>
+            <text x="280" y="181" text-anchor="middle" fill="#605E5C" font-family="Cascadia Code, monospace" font-size="9" letter-spacing="0.08em">COMPLIANCE OS</text>
+          </g>
+          <g>
+            <rect x="180" y="246" width="200" height="46" rx="2" fill="#FFFFFF" stroke="#003070" stroke-width="1.5" filter="url(#soft-shadow)"/>
+            <text x="280" y="270" text-anchor="middle" fill="#003070" font-family="Segoe UI" font-size="15" font-weight="700">UDM</text>
+            <text x="280" y="285" text-anchor="middle" fill="#605E5C" font-family="Cascadia Code, monospace" font-size="9" letter-spacing="0.08em">UNIVERSAL DECODING MATRIX</text>
+          </g>
+          <g>
+            <rect x="180" y="350" width="200" height="46" rx="2" fill="#DEECF9" stroke="#003070" stroke-width="1.5" filter="url(#soft-shadow)"/>
+            <text x="280" y="374" text-anchor="middle" fill="#003070" font-family="Segoe UI" font-size="15" font-weight="700">UDME</text>
+            <text x="280" y="389" text-anchor="middle" fill="#605E5C" font-family="Cascadia Code, monospace" font-size="9" letter-spacing="0.08em">DECODING MATRIX ENGINE</text>
+          </g>
+          <g>
+            <rect x="180" y="454" width="200" height="46" rx="2" fill="#DFF6DD" stroke="#107C10" stroke-width="1.5" filter="url(#soft-shadow)"/>
+            <text x="280" y="478" text-anchor="middle" fill="#107C10" font-family="Segoe UI" font-size="15" font-weight="700">YBR</text>
+            <text x="280" y="493" text-anchor="middle" fill="#605E5C" font-family="Cascadia Code, monospace" font-size="9" letter-spacing="0.08em">YELLOW BRICK ROAD</text>
+          </g>
+          <g>
+            <rect x="135" y="554" width="290" height="50" rx="2" fill="url(#green-grad)" filter="url(#soft-shadow)"/>
+            <text x="280" y="578" text-anchor="middle" fill="white" font-family="Segoe UI" font-size="17" font-weight="700">Reporter IOS<tspan baseline-shift="super" font-size="13">+</tspan></text>
+            <text x="280" y="596" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-family="Cascadia Code, monospace" font-size="9" letter-spacing="0.08em">PRODUCTIZED DELIVERY</text>
+          </g>
+          <g>
+            <line x1="425" y1="579" x2="488" y2="579" stroke="#107C10" stroke-width="1" stroke-dasharray="3 3" opacity="0.5"/>
+            <circle cx="510" cy="579" r="24" fill="white" stroke="#107C10" stroke-width="1.5" filter="url(#soft-shadow)"/>
+            <text x="510" y="584" text-anchor="middle" fill="#107C10" font-family="Segoe UI" font-size="11" font-weight="700">RI-42</text>
+            <text x="510" y="624" text-anchor="middle" fill="#605E5C" font-family="Cascadia Code, monospace" font-size="7" letter-spacing="0.08em">RECURSIVE</text>
+            <text x="510" y="635" text-anchor="middle" fill="#605E5C" font-family="Cascadia Code, monospace" font-size="7" letter-spacing="0.08em">INTELLIGENCE</text>
+          </g>
+          <text x="78" y="66" text-anchor="end" fill="#8A8886" font-family="Cascadia Code, monospace" font-size="9" letter-spacing="0.08em">L1 · INGEST</text>
+          <text x="78" y="168" text-anchor="end" fill="#8A8886" font-family="Cascadia Code, monospace" font-size="9" letter-spacing="0.08em">L2-L3 · SEMANTIC</text>
+          <text x="78" y="272" text-anchor="end" fill="#8A8886" font-family="Cascadia Code, monospace" font-size="9" letter-spacing="0.08em">L4 · EVIDENCE</text>
+          <text x="78" y="376" text-anchor="end" fill="#8A8886" font-family="Cascadia Code, monospace" font-size="9" letter-spacing="0.08em">L5 · GATE 530</text>
+          <text x="78" y="480" text-anchor="end" fill="#8A8886" font-family="Cascadia Code, monospace" font-size="9" letter-spacing="0.08em">L6 · CONTEXT</text>
+          <text x="78" y="582" text-anchor="end" fill="#8A8886" font-family="Cascadia Code, monospace" font-size="9" letter-spacing="0.08em">L7 · SYNTHESIS</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="trust" id="trust">
+  <div class="trust-inner">
+    <div class="trust-label">Built for regulatory frameworks operators actually answer to</div>
+    <div class="trust-frameworks">
+      <span>FERPA</span><span>SOC 2</span><span>HIPAA</span><span>GDPR</span><span>PHMSA</span><span>EU AI Act</span><span>NIST AI RMF</span>
+    </div>
+  </div>
+</div>
+
+<div id="products" style="scroll-margin-top: 100px;"></div>
+<section class="section white" id="platform">
+  <div class="section-inner">
+    <div class="section-eyebrow">The Problem</div>
+    <h2 class="section-headline">Every AI governance tool monitors what the AI <strong>did.</strong> None of them prove what the AI <span class="accent">will do.</span></h2>
+    <p class="section-lede">The pattern in AI enforcement actions is the same: the AI executes, compliance finds out after the fact, and the institution explains itself to regulators. SMEPro inverts the sequence. Governance executes first. AI executes second. Every decision is signed before it lands.</p>
+    <div class="compare">
+      <div class="compare-card before">
+        <div class="compare-tag">Conventional AI governance</div>
+        <h3>Observation. Audit. Apology.</h3>
+        <p>Vanta, Drata, OneTrust, Credo AI — all <code>observe</code> AI behavior after execution. Reports get filed after data is touched. Compliance teams reconstruct what happened from logs. By then the regulator already knows.</p>
+      </div>
+      <div class="compare-card after">
+        <div class="compare-tag">SMEPro IOS+</div>
+        <h3>Evaluation. Enforcement. Evidence.</h3>
+        <p>Every AI request passes through a deterministic compliance gate in 3-5 milliseconds, evaluated against your institution's regulatory obligations, and signed as <code>Ed25519</code> evidence before the model touches data. Reproducible. Defensible. Independently verifiable.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section tinted-blue" id="why">
+  <div class="section-inner">
+    <div class="section-eyebrow">Why SMEPro is different</div>
+    <h2 class="section-headline">Four architectural commitments competitors <strong>cannot bolt on.</strong></h2>
+    <div class="pillars">
+      <div class="pillar">
+        <span class="pillar-num">01 · PRE-EXECUTION</span>
+        <h3>Governance runs <strong>before</strong> AI touches data</h3>
+        <p>Deterministic dimensional evaluation at the infrastructure layer. Compliance is evaluated against your institution's regulatory obligations before any inference occurs. Sub-5ms gate latency at P99.</p>
+      </div>
+      <div class="pillar">
+        <span class="pillar-num">02 · CRYPTOGRAPHIC</span>
+        <h3>Every decision <strong>independently verifiable</strong></h3>
+        <p>Ed25519 signatures over JCS-canonical records per RFC 8785. A regulator or auditor can verify your audit log using our public verification key — without our cooperation, without trust assumptions.</p>
+      </div>
+      <div class="pillar">
+        <span class="pillar-num">03 · APPEND-ONLY</span>
+        <h3>Audit records that <strong>cannot be modified</strong></h3>
+        <p>Two-layer enforcement at the database tier — role-based access control plus row-level trigger. Even your own administrators cannot alter the audit trail. WORM compliance by construction, not by policy.</p>
+      </div>
+      <div class="pillar">
+        <span class="pillar-num">04 · DETERMINISTIC</span>
+        <h3>Same input. <strong>Same decision.</strong> Every time.</h3>
+        <p>Probabilistic AI cannot make this claim. SMEPro's gate evaluation is reproducible, defensible in regulatory examination, and produces identical outcomes across identical inputs. Where compliance demands certainty, deterministic decisions are the only option.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section white" id="deploy">
+  <div class="section-inner">
+    <div class="section-eyebrow">How it deploys</div>
+    <h2 class="section-headline">Three deployment models. <strong>One verification model.</strong></h2>
+    <p class="section-lede">On-prem signing keys for institutions with data sovereignty requirements. Cloud KMS for SaaS-tier deployments. Hybrid for everything in between. The Ed25519 verification scheme is mathematically identical across all three.</p>
+    <div class="deploy-list">
+      <div class="deploy-row">
+        <div class="deploy-mode">On-premises</div>
+        <div><div class="deploy-label">Fits when</div><div class="deploy-text">Data residency mandates. Institutional IT capability. HIPAA, FERPA, FedRAMP postures.</div></div>
+        <div><div class="deploy-label">What you get</div><div class="deploy-text">Full stack on your infrastructure. You hold signing keys, audit log, and data. We provide software, runbook, and deployment support.</div></div>
+      </div>
+      <div class="deploy-row">
+        <div class="deploy-mode">Managed SaaS</div>
+        <div><div class="deploy-label">Fits when</div><div class="deploy-text">Mid-market institutions seeking fast time-to-value. Pilot deployments before on-prem commitment.</div></div>
+        <div><div class="deploy-label">What you get</div><div class="deploy-text">Dedicated tenant infrastructure on Google Cloud. Per-tenant encryption, isolated key custody via Cloud KMS. SLAs, status, 24/7 operations.</div></div>
+      </div>
+      <div class="deploy-row">
+        <div class="deploy-mode green">Hybrid</div>
+        <div><div class="deploy-label">Fits when</div><div class="deploy-text">Cloud-managed control plane with customer-resident data plane. Sensitive workloads that cannot leave your perimeter.</div></div>
+        <div><div class="deploy-label">What you get</div><div class="deploy-text">We operate the orchestration layer. You host evaluation, audit, and evidence. Data never leaves your boundary.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section tinted-green" id="proof">
+  <div class="section-inner">
+    <div class="section-eyebrow green">Proof in production</div>
+    <h2 class="section-headline">Operating today at a regulated institution. <span class="accent">FERPA-bound. Real time. Audit-grade.</span></h2>
+    <div class="proof-block">
+      <p>SMEPro is intermediating compliance-bound institutional workflows in production today. Every inference produces a signed evidence record. Every gate decision is reproducible. Every audit query reconstructs in under four seconds across a 90-day window.</p>
+      <div class="proof-stats">
+        <div><div class="proof-stat-value">3-5<span style="font-size:0.6em;color:var(--smepro-gray-90);">ms</span></div><div class="proof-stat-label">Gate evaluation latency at P99</div></div>
+        <div><div class="proof-stat-value green">100%</div><div class="proof-stat-label">Cryptographically signed inferences</div></div>
+        <div><div class="proof-stat-value">90<span style="font-size:0.6em;color:var(--smepro-gray-90);">d</span></div><div class="proof-stat-label">Audit window reconstruction under 4s</div></div>
+      </div>
+      <p class="proof-note">Reference details and architectural deep-dives available to qualified evaluators under NDA.</p>
+    </div>
+  </div>
+</section>
+
+<section class="cta-banner">
+  <div class="cta-inner">
+    <div>
+      <h2>30 minutes. Architecture, deployment, <span class="green">your regulatory environment.</span></h2>
+      <p>Request a briefing and we'll walk through the production reference deployment, the cryptographic verification model, and how SMEPro fits your specific compliance posture.</p>
+    </div>
+    <div class="cta-actions">
+      <a href="mailto:partnerships@smeprotech.com?subject=Demo%20request%20%E2%80%94%20SMEPro%20IOS%2B" class="btn-primary">Request a Demo</a>
+      <a href="mailto:partnerships@smeprotech.com?subject=Talk%20to%20Sales%20%E2%80%94%20SMEPro" class="btn-secondary">Talk to Sales</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand-block">
+        <a href="#" class="brand">
+          <svg class="brand-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="logo-navy-grad-ft" x1="0" y1="0" x2="16" y2="16" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#0E2548" />
+                <stop offset="100%" stop-color="#061224" />
+              </linearGradient>
+              <linearGradient id="logo-green-grad-ft" x1="20" y1="0" x2="36" y2="16" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#34A853" />
+                <stop offset="100%" stop-color="#1B7A36" />
+              </linearGradient>
+              <linearGradient id="logo-accent-grad-ft" x1="0" y1="20" x2="16" y2="36" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#557095" />
+                <stop offset="100%" stop-color="#3B5270" />
+              </linearGradient>
+              <linearGradient id="logo-darknavy-grad-ft" x1="20" y1="20" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#0A1E3D" />
+                <stop offset="100%" stop-color="#051024" />
+              </linearGradient>
+            </defs>
+            <g class="quad q-tl">
+              <rect x="0" y="0" width="16" height="16" rx="3" fill="url(#logo-navy-grad-ft)"><title>IOS+ (Intelligence Orchestration System Plus)</title></rect>
+              <path d="M8 4V12M4 8H12" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.85" />
+            </g>
+            <g class="quad q-tr">
+              <rect x="20" y="0" width="16" height="16" rx="3" fill="url(#logo-green-grad-ft)"><title>Yellow Brick Road (Deterministic Execution)</title></rect>
+              <path d="M22 14 C 23 10, 26 8, 30 5" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.3" />
+              <path d="M24 15 C 25 11, 28 9, 32 6" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.3" />
+              <path d="M23 14.5 C 24 10.5, 27 8.5, 31 5.5" stroke="#FFFFFF" stroke-width="0.8" stroke-dasharray="1.5,1.5" stroke-linecap="round" fill="none" opacity="0.9" />
+              <path d="M28 8 L 31 5 L 33 2" stroke="#FFFFFF" stroke-width="1" stroke-linecap="round" fill="none" opacity="0.95" />
+              <circle cx="28" cy="8" r="0.8" fill="#FFFFFF" />
+              <circle cx="31" cy="5" r="0.8" fill="#FFFFFF" />
+              <circle cx="33" cy="2" r="1" fill="#FFFFFF" />
+            </g>
+            <g class="quad q-bl">
+              <rect x="0" y="20" width="16" height="16" rx="3" fill="url(#logo-accent-grad-ft)"><title>Universal Decoding Matrix (Ontological Context)</title></rect>
+              <path d="M3 23 H13 M3 27 H13 M3 31 H13" stroke="#FFFFFF" stroke-width="0.6" opacity="0.3" />
+              <path d="M4 23 V31 M8 23 V31 M12 23 V31" stroke="#FFFFFF" stroke-width="0.6" opacity="0.3" />
+              <path d="M4 27 L 8 31 M 8 23 L 12 27" stroke="#FFFFFF" stroke-width="0.8" opacity="0.6" />
+              <circle cx="4" cy="23" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="8" cy="23" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="12" cy="23" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="4" cy="27" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="8" cy="27" r="1.1" fill="#FFFFFF" />
+              <circle cx="12" cy="27" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="4" cy="31" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="8" cy="31" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="12" cy="31" r="0.9" fill="#FFFFFF" opacity="0.8" />
+            </g>
+            <g class="quad q-br">
+              <rect x="20" y="20" width="16" height="16" rx="3" fill="url(#logo-darknavy-grad-ft)"><title>COS (Compliance OS)</title></rect>
+              <path d="M23 23.5 L28 21.5 L33 23.5 C33 27, 31 30.5, 28 32.5 C25 30.5, 23 27, 23 23.5 Z" stroke="#FFFFFF" stroke-width="1.2" stroke-linejoin="round" fill="none" opacity="0.85" />
+              <path d="M26 27 L27.5 28.5 L30.5 25.5" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.85" />
+              <circle cx="31" cy="30.5" r="1.8" fill="#1B7A36" stroke="#FFFFFF" stroke-width="0.6" />
+              <path d="M30 30.5 L30.7 31.2 L32 29.8" stroke="#FFFFFF" stroke-width="0.5" stroke-linecap="round" fill="none" />
+            </g>
+          </svg>
+          <div class="brand-text">
+            <span class="brand-name">SMEPro</span>
+            <span class="brand-sub">Technologies</span>
+          </div>
+        </a>
+        <div class="footer-tagline">Empower Intelligence. Orchestrate Compliance. Govern the Future.</div>
+      </div>
+      <div class="footer-col">
+        <h4>Platform</h4>
+        <a href="#platform">IOS+ Architecture</a>
+        <a href="#why">Why SMEPro</a>
+        <a href="#deploy">Deploy</a>
+        <a href="#proof">Proof in Production</a>
+      </div>
+      <div class="footer-col">
+        <h4>Verticals</h4>
+        <a href="edu-reporter.html">Higher Education</a>
+        <a href="reporter-ios-plus.html">Energy & Industrial</a>
+        <a href="reporter.html">Regulated Enterprise</a>
+      </div>
+      <div class="footer-col">
+        <h4>Engage</h4>
+        <a href="mailto:partnerships@smeprotech.com?subject=Demo%20request">Request a Demo</a>
+        <a href="mailto:partnerships@smeprotech.com?subject=Talk%20to%20Sales">Talk to Sales</a>
+        <a href="mailto:support@smeprotech.com?subject=Investor%20inquiry">Investors</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>© 2026 SMEPro Technologies LLC · All rights reserved</div>
+      <div class="patent">PATENT PENDING — U.S. PROVISIONAL 63/986,802</div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

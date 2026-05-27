@@ -1,7 +1,7 @@
 # IOS+ Middleware Engine & COS+ Database
 
 > **Compliance-Native AI Infrastructure for the Agentic Enterprise**
-> SMEPro Technologies | Confidential | cmiguez@smeprotech.com
+> SMEPro Technologies | Confidential | support@smeprotech.com
 
 ---
 
@@ -85,7 +85,7 @@ Full implementation specifications are in the NDA-classified Engineering Body se
 | EB Doc 5 | RAG Vault UCO-Partitioned Pipeline |
 | EB Doc 6 | Deployment, Operations & Recovery Runbook |
 
-Contact: **cmiguez@smeprotech.com**
+Contact: **support@smeprotech.com**
 
 ## Security
 

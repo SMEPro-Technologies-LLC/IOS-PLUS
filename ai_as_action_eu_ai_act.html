@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EU AI Act Compliance Matrix — AI-AS-ACTION</title>
+<meta name="description" content="Article-by-article architectural alignment with the EU AI Act. How the IOS+ platform addresses Articles 9 through 17 of Regulation (EU) 2024/1689." />
+<meta name="theme-color" content="#0078D4" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cascadia+Code:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  /* Official SMEPro Brand Palette */
+  --smepro-navy:        #003070;
+  --smepro-navy-dark:   #002040;
+  --smepro-navy-mid:    #103060;
+  --smepro-navy-light:  #004080;
+  --smepro-accent:      #6070B0;
+  --smepro-sky:         #C0E0F0;
+  --smepro-slate:       #A0B0D0;
+  --smepro-surface:     #F5F7FA;
+  --smepro-white:       #FFFFFF;
+  --smepro-gray-10:     #FAF9F8;
+  --smepro-gray-30:     #EDEBE9;
+  --smepro-gray-60:     #C8C6C4;
+  --smepro-gray-90:     #8A8886;
+  --smepro-gray-160:    #201F1E;
+  --smepro-success:     #107C10;
+  --smepro-warning:     #C19C00;
+  --smepro-error:       #A4262C;
+
+  /* Fluent Depth Shadows */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.04);
+  --shadow-md: 0 2px 4px rgba(0,0,0,0.06), 0 8px 16px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 12px rgba(0,48,112,0.15), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-xl: 0 12px 28px rgba(0,0,0,0.08), 0 6px 12px rgba(0,0,0,0.04);
+  --shadow-blue: 0 8px 24px -8px rgba(0, 48, 112, 0.35);
+  --shadow-green: 0 8px 24px -8px rgba(16, 124, 16, 0.35);
+
+  /* Typography Fallbacks */
+  --font-sans: 'Segoe UI', 'Segoe UI Variable', 'Inter', sans-serif;
+  --font-mono: 'Cascadia Code', 'Cascadia Mono', 'Consolas', monospace;
+
+  /* Legacy Mapping for SMEPro Brand Alignment */
+  --ms-blue:            var(--smepro-navy);
+  --ms-blue-dark:       var(--smepro-navy-mid);
+  --ms-blue-deep:       var(--smepro-navy-dark);
+  --ms-blue-pale:       rgba(0, 48, 112, 0.05);
+  --ms-green:           var(--smepro-success);
+  --ms-green-light:     #16A616;
+  --ms-green-pale:      rgba(16, 124, 16, 0.04);
+  --ms-green-deep:      #0B5A0B;
+  --ink:                var(--smepro-gray-160);
+  --ink-2:              #323130;
+  --gray-text:          var(--smepro-gray-90);
+  --gray-2:             var(--smepro-gray-30);
+  --gray-1:             var(--smepro-gray-10);
+  --bg:                 var(--smepro-white);
+  --bg-soft:            var(--smepro-surface);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--white);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============ UTILITY + NAV (shared) ============ */
+.utility {
+  background: var(--gray-900);
+  color: var(--gray-200);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  padding: 8px 0;
+}
+.utility-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+.utility-left { display: flex; gap: 28px; align-items: center; }
+.status { display: inline-flex; align-items: center; gap: 8px; }
+.status-dot {
+  width: 6px; height: 6px;
+  background: #6EE7B7;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #34D399;
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.92); }
+}
+.utility-right { display: flex; gap: 22px; }
+.utility-right a {
+  color: var(--gray-300);
+  text-decoration: none;
+  transition: color 0.18s;
+}
+.utility-right a:hover { color: var(--white); }
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-bottom: 1px solid var(--gray-200);
+}
+.nav-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 18px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+}
+.brand-name {
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.2px;
+  color: var(--smepro-navy);
+}
+.brand-tag, .brand-sub {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--smepro-slate);
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 3px;
+}
+.brand-mark span { display: block; border-radius: 1px; transition: transform 0.3s; }
+.brand-mark span:nth-child(1) { background: var(--ms-blue); }
+.brand-mark span:nth-child(2) { background: var(--ms-green); }
+.brand-mark span:nth-child(3) { background: var(--ms-green); }
+.brand-mark span:nth-child(4) { background: var(--ms-blue); }
+.brand-text {
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--ink);
+  line-height: 1.1;
+}
+.brand-text-sub {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-top: 2px;
+}
+.nav-links { display: flex; gap: 28px; align-items: center; }
+.nav-links > a:not(.nav-cta):not(.nav-signin) {
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.18s;
+  position: relative;
+}
+.nav-links > a:not(.nav-cta):not(.nav-signin):hover { color: var(--ms-blue-deep); }
+.nav-signin {
+  color: var(--text-secondary) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  text-decoration: none;
+}
+.nav-cta {
+  background: var(--ms-blue);
+  color: var(--white) !important;
+  padding: 10px 20px;
+  border-radius: var(--r-sm);
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  transition: all 0.2s !important;
+  border: 1px solid var(--ms-blue);
+  text-decoration: none;
+}
+.nav-cta:hover {
+  background: var(--ms-blue-deep);
+  border-color: var(--ms-blue-deep);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-blue);
+}
+
+/* ============ BREADCRUMB ============ */
+.breadcrumb {
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  padding: 14px 0;
+}
+.breadcrumb-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 32px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+.breadcrumb-inner a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.18s;
+}
+.breadcrumb-inner a:hover { color: var(--ms-blue-deep); }
+.breadcrumb-inner .sep {
+  display: inline-block;
+  margin: 0 10px;
+  color: var(--gray-300);
+}
+.breadcrumb-inner .current { color: var(--ink); font-weight: 600; }
+
+/* ============ HERO ============ */
+.page-hero {
+  position: relative;
+  background: linear-gradient(135deg, var(--pale-blue) 0%, rgba(222, 236, 249, 0.5) 22%, var(--white) 50%, rgba(223, 246, 221, 0.5) 78%, var(--pale-green) 100%);
+  overflow: hidden;
+  padding: 64px 0 56px;
+}
+.page-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,120,212,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,120,212,0.04) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 90%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 90%);
+  pointer-events: none;
+}
+.page-hero-inner {
+  position: relative;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 32px;
+  z-index: 2;
+}
+.page-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 14px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ms-blue-deep);
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+}
+.page-hero-eyebrow::before {
+  content: '';
+  display: block;
+  width: 6px;
+  height: 6px;
+  background: var(--ms-green);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--ms-green);
+}
+.page-hero h1 {
+  font-weight: 300;
+  font-size: clamp(36px, 4.6vw, 60px);
+  line-height: 1.05;
+  letter-spacing: -0.024em;
+  color: var(--ink);
+  margin-bottom: 20px;
+  max-width: 1000px;
+}
+.page-hero h1 em { font-style: italic; font-weight: 600; color: var(--ms-blue-darker); }
+.page-hero h1 strong { font-weight: 700; color: var(--ms-green-darker); }
+.page-hero-sub {
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  max-width: 800px;
+  margin-bottom: 0;
+}
+.page-hero-sub strong { color: var(--ink); font-weight: 600; }
+
+/* ============ SCORE SUMMARY ============ */
+.score-summary {
+  background: var(--white);
+  border-top: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--gray-200);
+  padding: 40px 0;
+}
+.score-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 56px;
+  align-items: center;
+}
+.score-badge {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 32px;
+  background: linear-gradient(135deg, var(--pale-blue-soft) 0%, var(--pale-green-soft) 100%);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-md);
+}
+.score-value {
+  font-family: var(--font-mono);
+  font-size: 44px;
+  font-weight: 700;
+  color: var(--ms-blue-darker);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.score-label {
+  display: flex;
+  flex-direction: column;
+}
+.score-label-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.score-label-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ms-green-darker);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.score-text {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.score-text strong { color: var(--ink); font-weight: 600; }
+.score-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  text-align: right;
+}
+.score-meta-row { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.score-meta-label { color: var(--text-muted); }
+.score-meta-value { color: var(--ms-blue-deep); font-weight: 600; }
+
+/* ============ DISCLAIMER STRIP ============ */
+.disclaimer-strip {
+  background: var(--pale-amber);
+  border-bottom: 1px solid #E8C770;
+  padding: 14px 0;
+}
+.disclaimer-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  color: #5C3000;
+  line-height: 1.5;
+}
+.disclaimer-inner .icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--warn-amber);
+}
+.disclaimer-inner strong { color: #3C1F00; font-weight: 700; }
+
+/* ============ FILTER BAR ============ */
+.filter-bar {
+  background: var(--white);
+  border-bottom: 1px solid var(--gray-200);
+  padding: 24px 0;
+  position: sticky;
+  top: 73px;
+  z-index: 50;
+  backdrop-filter: blur(16px);
+  background: rgba(255,255,255,0.96);
+}
+.filter-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.filter-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.filter-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.filter-pill {
+  padding: 8px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  background: var(--gray-50);
+  color: var(--text-secondary);
+  border: 1px solid var(--gray-200);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.18s;
+  text-transform: uppercase;
+}
+.filter-pill:hover {
+  background: var(--pale-blue-soft);
+  color: var(--ms-blue-deep);
+  border-color: var(--ms-blue);
+}
+.filter-pill.active {
+  background: var(--ms-blue);
+  color: var(--white);
+  border-color: var(--ms-blue);
+}
+.expand-controls {
+  display: flex;
+  gap: 12px;
+}
+.expand-controls button {
+  padding: 8px 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ms-blue-deep);
+  background: transparent;
+  border: 1px solid var(--gray-300);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.expand-controls button:hover {
+  background: var(--pale-blue-soft);
+  border-color: var(--ms-blue);
+}
+
+/* ============ MATRIX (the interactive content) ============ */
+.matrix-section { padding: 64px 0 96px; background: var(--white); }
+.matrix-inner { max-width: 1320px; margin: 0 auto; padding: 0 32px; }
+
+.article-row {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--r-md);
+  margin-bottom: 12px;
+  overflow: hidden;
+  background: var(--white);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.article-row:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--gray-300);
+}
+.article-row.open {
+  box-shadow: var(--shadow-lg);
+  border-color: var(--ms-blue);
+}
+
+.article-header {
+  display: grid;
+  grid-template-columns: 80px 1fr 200px 140px 32px;
+  gap: 24px;
+  align-items: center;
+  padding: 22px 28px;
+  cursor: pointer;
+  transition: background 0.18s;
+  user-select: none;
+}
+.article-header:hover { background: var(--pale-blue-soft); }
+.article-row.open .article-header { background: var(--pale-blue-soft); border-bottom: 1px solid var(--gray-200); }
+
+.article-num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ms-blue-darker);
+  letter-spacing: 0.04em;
+  background: var(--pale-blue);
+  padding: 6px 10px;
+  border-radius: 2px;
+  text-align: center;
+}
+.article-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  line-height: 1.3;
+}
+.article-subsystem {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.article-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  justify-self: end;
+}
+.article-status.aligned { background: var(--pale-green); color: var(--ms-green-darker); }
+.article-status.exceeds { background: var(--pale-green); color: var(--ms-green-darker); }
+.article-status.exceeds::before {
+  content: '\2713';
+  font-weight: 700;
+}
+.article-status.aligned::before {
+  content: '\25CB';
+  font-size: 9px;
+}
+.article-status.partial { background: var(--pale-amber); color: var(--warn-amber); }
+.article-status.partial::before { content: '\25D0'; font-size: 9px; }
+
+.article-chevron {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-500);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.article-row.open .article-chevron { transform: rotate(180deg); color: var(--ms-blue-deep); }
+.article-chevron svg { width: 16px; height: 16px; }
+
+.article-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.article-row.open .article-body { max-height: 3000px; }
+
+.article-body-inner {
+  padding: 32px 36px 36px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px;
+}
+
+.body-block {
+  background: var(--gray-50);
+  border-radius: var(--r-md);
+  padding: 24px 26px;
+  border-left: 3px solid var(--ms-blue);
+}
+.body-block.green { border-left-color: var(--ms-green); }
+.body-block h4 {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ms-blue-darker);
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.body-block.green h4 { color: var(--ms-green-darker); }
+.body-block p {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  margin-bottom: 12px;
+}
+.body-block p:last-child { margin-bottom: 0; }
+.body-block code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  padding: 2px 6px;
+  background: var(--white);
+  border-radius: 2px;
+  color: var(--ms-blue-darker);
+  font-weight: 500;
+  border: 1px solid var(--gray-200);
+}
+.body-block.green code { color: var(--ms-green-darker); }
+.body-block ul {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0 0;
+}
+.body-block ul li {
+  position: relative;
+  padding-left: 22px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+.body-block ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  background: var(--ms-blue);
+  border-radius: 50%;
+}
+.body-block.green ul li::before { background: var(--ms-green); }
+
+.subsystem-tags {
+  margin-top: 20px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 20px;
+  border-top: 1px solid var(--gray-200);
+}
+.subsystem-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ms-blue-deep);
+  background: var(--pale-blue-soft);
+  border: 1px solid var(--pale-blue);
+  padding: 4px 10px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.subsystem-tag.green {
+  color: var(--ms-green-darker);
+  background: var(--pale-green-soft);
+  border-color: var(--pale-green);
+}
+
+/* ============ AUTHORITY SECTION ============ */
+.authority-section { padding: 80px 0; background: var(--gray-50); border-top: 1px solid var(--gray-200); }
+.authority-inner { max-width: 1320px; margin: 0 auto; padding: 0 32px; }
+.authority-section h2 {
+  font-weight: 300;
+  font-size: clamp(28px, 3.4vw, 40px);
+  line-height: 1.15;
+  letter-spacing: -0.018em;
+  color: var(--ink);
+  margin-bottom: 24px;
+  max-width: 800px;
+}
+.authority-section h2 em { font-style: italic; font-weight: 600; color: var(--ms-blue-darker); }
+.authority-section p {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  margin-bottom: 16px;
+  max-width: 800px;
+}
+.authority-section a {
+  color: var(--ms-blue-deep);
+  text-decoration: none;
+  border-bottom: 1px solid var(--pale-blue);
+  transition: all 0.2s;
+}
+.authority-section a:hover {
+  color: var(--ms-blue-darker);
+  border-bottom-color: var(--ms-blue);
+}
+
+/* ============ DARK CTA ============ */
+.cta-banner {
+  background: var(--dark-banner);
+  background-image:
+    radial-gradient(ellipse 700px 400px at 100% 0%, rgba(16,124,16,0.20) 0%, transparent 60%),
+    radial-gradient(ellipse 600px 400px at 0% 100%, rgba(0,120,212,0.15) 0%, transparent 60%);
+  padding: 80px 0;
+  color: var(--white);
+  position: relative;
+  overflow: hidden;
+}
+.cta-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 64px 64px;
+  pointer-events: none;
+}
+.cta-inner {
+  position: relative;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+.cta-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6EE7B7;
+  margin-bottom: 16px;
+  display: inline-block;
+}
+.cta-inner h2 {
+  font-weight: 300;
+  font-size: clamp(28px, 3.4vw, 42px);
+  line-height: 1.15;
+  letter-spacing: -0.018em;
+  margin-bottom: 20px;
+}
+.cta-inner h2 .green { font-weight: 700; color: #6EE7B7; }
+.cta-inner p {
+  font-size: 16px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.75);
+  max-width: 540px;
+}
+.cta-actions { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+.btn-primary {
+  background: var(--ms-blue);
+  color: var(--white);
+  padding: 14px 26px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--ms-blue);
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-primary::after { content: '\2192'; transition: transform 0.22s; }
+.btn-primary:hover { transform: translateY(-2px); }
+.btn-primary:hover::after { transform: translateX(4px); }
+.cta-banner .btn-primary {
+  background: var(--ms-green);
+  border-color: var(--ms-green);
+  font-size: 15px;
+  padding: 14px 26px;
+}
+.cta-banner .btn-primary:hover {
+  background: var(--ms-green-deep);
+  border-color: var(--ms-green-deep);
+  box-shadow: var(--shadow-green);
+}
+.btn-secondary {
+  background: transparent;
+  color: var(--white);
+  padding: 14px 22px;
+  border-radius: var(--r-sm);
+  border: 1px solid rgba(255,255,255,0.2);
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-secondary:hover {
+  border-color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.05);
+}
+
+/* ============ FOOTER ============ */
+footer { background: var(--gray-50); padding: 56px 0 32px; border-top: 1px solid var(--gray-200); }
+.footer-inner { max-width: 1320px; margin: 0 auto; padding: 0 32px; }
+.footer-top {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 40px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--gray-200);
+}
+.footer-brand-block { max-width: 320px; }
+.footer-brand-block .brand { margin-bottom: 14px; }
+.footer-tagline { font-size: 13px; color: var(--text-secondary); line-height: 1.55; }
+.footer-col h4 {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.footer-col a {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-decoration: none;
+  margin-bottom: 8px;
+  transition: color 0.18s;
+}
+.footer-col a:hover { color: var(--ms-blue-deep); }
+.footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+  gap: 16px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+.footer-bottom .copyright strong { color: var(--ms-green-deep); }
+.footer-legal { display: flex; gap: 22px; }
+.footer-legal a { color: var(--text-muted); text-decoration: none; }
+.footer-legal a:hover { color: var(--ms-blue-deep); }
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 1100px) {
+  .score-inner { grid-template-columns: 1fr; gap: 24px; text-align: center; }
+  .score-meta { text-align: center; align-items: center; }
+  .cta-inner { grid-template-columns: 1fr; gap: 40px; }
+  .footer-top { grid-template-columns: 1fr 1fr; gap: 32px; }
+  .article-header { grid-template-columns: 60px 1fr 110px 28px; gap: 16px; padding: 18px 20px; }
+  .article-subsystem { display: none; }
+  .article-body-inner { grid-template-columns: 1fr; gap: 16px; padding: 24px 22px 28px; }
+}
+@media (max-width: 720px) {
+  .nav-links > a:not(.nav-cta):not(.nav-signin) { display: none; }
+  .nav-signin { display: none; }
+  .utility-left span:not(.status) { display: none; }
+  .page-hero { padding: 48px 0 40px; }
+  .footer-top { grid-template-columns: 1fr; gap: 28px; }
+  .filter-inner { gap: 16px; }
+  .filter-pills { gap: 6px; }
+  .filter-pill { padding: 6px 12px; font-size: 11px; }
+  .article-header { grid-template-columns: 50px 1fr 90px 24px; gap: 12px; padding: 16px 16px; }
+  .article-title { font-size: 14px; }
+  .article-status { font-size: 10px; padding: 4px 8px; }
+  .body-block { padding: 18px 20px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- UTILITY STRIP                                                  -->
+<!-- ============================================================ -->
+<div class="utility">
+  <div class="utility-inner">
+    <div class="utility-left">
+      <span class="status" id="status"><span class="status-dot"></span>YBR PIPELINE · LIVE</span>
+      <span>PATENT PENDING · 63/986,802</span>
+    </div>
+    <div class="utility-right">
+      <a href="smeprotech.html#trust">Trust Center</a>
+      <a href="docs-index.html">Docs</a>
+      <a href="https://status.smeprotech.com">Status</a>
+      <a href="investors.html">Investors</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- NAV                                                            -->
+<!-- ============================================================ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="AI_AS_ACTION_Homepage.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="logo-navy-grad" x1="0" y1="0" x2="16" y2="16" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0E2548" />
+            <stop offset="100%" stop-color="#061224" />
+          </linearGradient>
+          <linearGradient id="logo-green-grad" x1="20" y1="0" x2="36" y2="16" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#34A853" />
+            <stop offset="100%" stop-color="#1B7A36" />
+          </linearGradient>
+          <linearGradient id="logo-accent-grad" x1="0" y1="20" x2="16" y2="36" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#557095" />
+            <stop offset="100%" stop-color="#3B5270" />
+          </linearGradient>
+          <linearGradient id="logo-darknavy-grad" x1="20" y1="20" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0A1E3D" />
+            <stop offset="100%" stop-color="#051024" />
+          </linearGradient>
+        </defs>
+        <g class="quad q-tl">
+          <rect x="0" y="0" width="16" height="16" rx="3" fill="url(#logo-navy-grad)"><title>IOS+ (Intelligence Orchestration System Plus)</title></rect>
+          <path d="M8 4V12M4 8H12" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.85" />
+        </g>
+        <g class="quad q-tr">
+          <rect x="20" y="0" width="16" height="16" rx="3" fill="url(#logo-green-grad)"><title>Yellow Brick Road (Deterministic Execution)</title></rect>
+          <path d="M22 14 C 23 10, 26 8, 30 5" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.3" />
+          <path d="M24 15 C 25 11, 28 9, 32 6" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.3" />
+          <path d="M23 14.5 C 24 10.5, 27 8.5, 31 5.5" stroke="#FFFFFF" stroke-width="0.8" stroke-dasharray="1.5,1.5" stroke-linecap="round" fill="none" opacity="0.9" />
+          <path d="M28 8 L 31 5 L 33 2" stroke="#FFFFFF" stroke-width="1" stroke-linecap="round" fill="none" opacity="0.95" />
+          <circle cx="28" cy="8" r="0.8" fill="#FFFFFF" />
+          <circle cx="31" cy="5" r="0.8" fill="#FFFFFF" />
+          <circle cx="33" cy="2" r="1" fill="#FFFFFF" />
+        </g>
+        <g class="quad q-bl">
+          <rect x="0" y="20" width="16" height="16" rx="3" fill="url(#logo-accent-grad)"><title>Universal Decoding Matrix (Ontological Context)</title></rect>
+          <path d="M3 23 H13 M3 27 H13 M3 31 H13" stroke="#FFFFFF" stroke-width="0.6" opacity="0.3" />
+          <path d="M4 23 V31 M8 23 V31 M12 23 V31" stroke="#FFFFFF" stroke-width="0.6" opacity="0.3" />
+          <path d="M4 27 L 8 31 M 8 23 L 12 27" stroke="#FFFFFF" stroke-width="0.8" opacity="0.6" />
+          <circle cx="4" cy="23" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="8" cy="23" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="12" cy="23" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="4" cy="27" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="8" cy="27" r="1.1" fill="#FFFFFF" />
+          <circle cx="12" cy="27" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="4" cy="31" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="8" cy="31" r="0.9" fill="#FFFFFF" opacity="0.8" />
+          <circle cx="12" cy="31" r="0.9" fill="#FFFFFF" opacity="0.8" />
+        </g>
+        <g class="quad q-br">
+          <rect x="20" y="20" width="16" height="16" rx="3" fill="url(#logo-darknavy-grad)"><title>COS (Compliance OS)</title></rect>
+          <path d="M23 23.5 L28 21.5 L33 23.5 C33 27, 31 30.5, 28 32.5 C25 30.5, 23 27, 23 23.5 Z" stroke="#FFFFFF" stroke-width="1.2" stroke-linejoin="round" fill="none" opacity="0.85" />
+          <path d="M26 27 L27.5 28.5 L30.5 25.5" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.85" />
+          <circle cx="31" cy="30.5" r="1.8" fill="#1B7A36" stroke="#FFFFFF" stroke-width="0.6" />
+          <path d="M30 30.5 L30.7 31.2 L32 29.8" stroke="#FFFFFF" stroke-width="0.5" stroke-linecap="round" fill="none" />
+        </g>
+      </svg>
+      <div>
+        <div class="brand-text">AI-AS-ACTION<span style="font-size:0.6em;vertical-align:super;">™</span></div>
+        <div class="brand-text-sub">Governed Intelligence</div>
+      </div>
+    </a>
+    <div class="nav-links">
+      <a href="ai_as_action_ios.html">Platform</a>
+      <a href="AI_AS_ACTION_Homepage.html#industries">Solutions</a>
+      <a href="ai_as_action_eu_ai_act.html">Why IOS+</a>
+      <a href="#" class="nav-signin">Sign in</a>
+      <a href="mailto:partnerships@smeprotech.com?subject=Activate%20AI-AS-ACTION" class="nav-cta">Activate AI-AS-ACTION</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============================================================ -->
+<!-- BREADCRUMB                                                     -->
+<!-- ============================================================ -->
+<div class="breadcrumb">
+  <div class="breadcrumb-inner">
+    <a href="AI_AS_ACTION_Homepage.html">Home</a>
+    <span class="sep">/</span>
+    <a href="ai_as_action_ios.html">Platform</a>
+    <span class="sep">/</span>
+    <span class="current">EU AI Act Compliance Matrix</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- HERO                                                           -->
+<!-- ============================================================ -->
+<section class="page-hero">
+  <div class="page-hero-inner">
+    <div class="page-hero-eyebrow">REGULATION (EU) 2024/1689 · HIGH-RISK AI SYSTEMS</div>
+    <h1>EU AI Act compliance matrix. <em>Article by article.</em> <strong>Architecturally aligned.</strong></h1>
+    <p class="page-hero-sub">
+      The IOS+ platform was built before the EU AI Act took final form, but the architectural commitments converge with what the Act requires of high-risk AI systems. This matrix documents that convergence — article by article, with the specific IOS+ subsystem that addresses each requirement.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- DISCLAIMER STRIP — honest scoping                              -->
+<!-- ============================================================ -->
+<div class="disclaimer-strip">
+  <div class="disclaimer-inner">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="8" x2="12" y2="12"></line>
+      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+    </svg>
+    <span><strong>Self-attested architectural alignment.</strong> This matrix documents how the IOS+ platform's architecture addresses each EU AI Act requirement as of May 2026. Formal conformity assessment per Article 43 is independent of this documentation. Final regulatory determination is the responsibility of the deploying institution and the relevant notified body.</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCORE SUMMARY                                                  -->
+<!-- ============================================================ -->
+<div class="score-summary">
+  <div class="score-inner">
+    <div class="score-badge">
+      <div class="score-value">9/9</div>
+      <div class="score-label">
+        <div class="score-label-title">Architecturally aligned</div>
+        <div class="score-label-sub">ARTICLES 9 — 17 · HIGH-RISK PROVIDERS</div>
+      </div>
+    </div>
+    <div class="score-text">
+      Coverage of <strong>Articles 9 through 17</strong> — the core technical and operational requirements for providers of high-risk AI systems under <strong>Regulation (EU) 2024/1689</strong>. Each article below maps to an IOS+ subsystem with concrete architectural mechanisms.
+    </div>
+    <div class="score-meta">
+      <div class="score-meta-row">
+        <span class="score-meta-label">DOCUMENT VERSION</span>
+        <span class="score-meta-value">v1.0 · MAY 2026</span>
+      </div>
+      <div class="score-meta-row">
+        <span class="score-meta-label">REGULATION</span>
+        <span class="score-meta-value">(EU) 2024/1689</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- FILTER BAR                                                     -->
+<!-- ============================================================ -->
+<div class="filter-bar">
+  <div class="filter-inner">
+    <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+      <div class="filter-label">Filter by Subsystem</div>
+      <div class="filter-pills">
+        <button class="filter-pill active" data-filter="all">All Articles</button>
+        <button class="filter-pill" data-filter="ios">IOS+</button>
+        <button class="filter-pill" data-filter="cos">Compliance OS</button>
+        <button class="filter-pill" data-filter="udm">UDM</button>
+        <button class="filter-pill" data-filter="ledger">Evidence Ledger</button>
+      </div>
+    </div>
+    <div class="expand-controls">
+      <button onclick="expandAll()">Expand all</button>
+      <button onclick="collapseAll()">Collapse all</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- THE MATRIX                                                     -->
+<!-- ============================================================ -->
+<section class="matrix-section">
+  <div class="matrix-inner">
+
+    <!-- ============ ARTICLE 9 — Risk Management System ============ -->
+    <div class="article-row" data-subsystems="ios cos">
+      <div class="article-header" onclick="toggleRow(this.parentElement)">
+        <div class="article-num">Art. 9</div>
+        <div>
+          <div class="article-title">Risk Management System</div>
+        </div>
+        <div class="article-subsystem">IOS+ · Compliance OS</div>
+        <div class="article-status aligned">Aligned</div>
+        <div class="article-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="article-body">
+        <div class="article-body-inner">
+          <div class="body-block">
+            <h4>Regulatory Requirement</h4>
+            <p>Article 9 requires a documented, continuous risk management process across the full AI lifecycle — identifying and evaluating known and foreseeable risks to health, safety, and fundamental rights. The process must be iterative and updated as new risks emerge.</p>
+          </div>
+          <div class="body-block green">
+            <h4>IOS+ Architectural Alignment</h4>
+            <p>The <code>Gate 530</code> dimensional matrix operates as a continuous, runtime risk assessment system. Every AI request is evaluated against six compliance dimensions before execution, producing a deterministic risk verdict (<code>PASS</code>, <code>BLOCK</code>, or <code>ESCALATE</code>). Risks are not assessed at design time alone — they are assessed on every inference.</p>
+            <ul>
+              <li>Six-dimensional risk evaluation per request</li>
+              <li>Tenant-scoped risk thresholds (configurable)</li>
+              <li>Escalation ladder (Claim 8) for risk pattern detection</li>
+              <li>Quarantine queue for novel risk scenarios requiring human review</li>
+            </ul>
+          </div>
+        </div>
+        <div style="padding: 0 36px 28px;">
+          <div class="subsystem-tags">
+            <span class="subsystem-tag">IOS+</span>
+            <span class="subsystem-tag">Gate 530</span>
+            <span class="subsystem-tag">Escalation Ladder</span>
+            <span class="subsystem-tag green">Quarantine Queue</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ARTICLE 10 — Data and Data Governance ============ -->
+    <div class="article-row" data-subsystems="udm cos">
+      <div class="article-header" onclick="toggleRow(this.parentElement)">
+        <div class="article-num">Art. 10</div>
+        <div>
+          <div class="article-title">Data and Data Governance</div>
+        </div>
+        <div class="article-subsystem">UDM · Compliance OS</div>
+        <div class="article-status aligned">Aligned</div>
+        <div class="article-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="article-body">
+        <div class="article-body-inner">
+          <div class="body-block">
+            <h4>Regulatory Requirement</h4>
+            <p>Article 10 mandates data governance practices ensuring training, validation, and testing datasets are relevant, representative, and free from errors and biases. Data governance must address data collection, preparation, and any required annotation, labeling, and cleaning.</p>
+          </div>
+          <div class="body-block green">
+            <h4>IOS+ Architectural Alignment</h4>
+            <p>The <code>Universal Decoding Matrix</code> is the data governance layer for inputs entering the AI pipeline. Every data element is mapped through the Five-Layer Ontological Crosswalk before being made available to the model — ensuring semantic consistency, regulatory classification, and provenance tracking from origin to inference.</p>
+            <ul>
+              <li>Semantic translation across CIP, SOC, NAICS, SIC, ISIC, HS-HTS</li>
+              <li>Schema reconciliation across portal and ERP sources</li>
+              <li>L3 Resolver binds each data element to applicable regulatory regime</li>
+              <li>Data lineage preserved in evidence packages at L4</li>
+            </ul>
+          </div>
+        </div>
+        <div style="padding: 0 36px 28px;">
+          <div class="subsystem-tags">
+            <span class="subsystem-tag">UDM</span>
+            <span class="subsystem-tag">L3 Resolver</span>
+            <span class="subsystem-tag">Ontological Crosswalk</span>
+            <span class="subsystem-tag green">Data Lineage</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ARTICLE 11 — Technical Documentation ============ -->
+    <div class="article-row" data-subsystems="ios ledger">
+      <div class="article-header" onclick="toggleRow(this.parentElement)">
+        <div class="article-num">Art. 11</div>
+        <div>
+          <div class="article-title">Technical Documentation</div>
+        </div>
+        <div class="article-subsystem">IOS+ · Evidence Ledger</div>
+        <div class="article-status aligned">Aligned</div>
+        <div class="article-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="article-body">
+        <div class="article-body-inner">
+          <div class="body-block">
+            <h4>Regulatory Requirement</h4>
+            <p>Article 11 requires technical documentation drawn up before the AI system is placed on the market or put into service, demonstrating compliance with Articles 8 to 15. Documentation must be kept up to date and provide national competent authorities with sufficient information to assess compliance.</p>
+          </div>
+          <div class="body-block green">
+            <h4>IOS+ Architectural Alignment</h4>
+            <p>The IOS+ platform is documented across a multi-volume engineering body — Architecture, Cryptographic Audit Fabric, Schema and Role Architecture, Dimension Matrix, RAG Pipeline, Deployment Runbook. Each document is version-controlled and updated with each platform release. The Evidence Ledger provides authoritative cryptographic record of every architectural decision propagated to production.</p>
+            <ul>
+              <li>Vol I — IOS+ Architecture (L1–L7 pipeline reference)</li>
+              <li>Vol II — Gate 530 Compliance Framework</li>
+              <li>Vol III — Live Deployment and Operational Integrity</li>
+              <li>Engineering Body — Internal architecture spec (NDA-required)</li>
+            </ul>
+          </div>
+        </div>
+        <div style="padding: 0 36px 28px;">
+          <div class="subsystem-tags">
+            <span class="subsystem-tag">Engineering Body</span>
+            <span class="subsystem-tag">Versioned Spec</span>
+            <span class="subsystem-tag green">Evidence Ledger</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ARTICLE 12 — Record-Keeping ============ -->
+    <div class="article-row" data-subsystems="ledger ios">
+      <div class="article-header" onclick="toggleRow(this.parentElement)">
+        <div class="article-num">Art. 12</div>
+        <div>
+          <div class="article-title">Record-Keeping</div>
+        </div>
+        <div class="article-subsystem">Evidence Ledger · IOS+</div>
+        <div class="article-status exceeds">Exceeds</div>
+        <div class="article-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="article-body">
+        <div class="article-body-inner">
+          <div class="body-block">
+            <h4>Regulatory Requirement</h4>
+            <p>Article 12 requires automatic logging of events while the high-risk AI system is operating. Logs must enable identification of situations that may result in risks to fundamental rights or substantial modifications, and facilitate post-market monitoring.</p>
+          </div>
+          <div class="body-block green">
+            <h4>IOS+ Architectural Alignment — Exceeds</h4>
+            <p>The Evidence Ledger goes beyond Article 12's logging requirement. Every event is <code>Ed25519</code>-signed over <code>JCS</code>-canonical records per <code>RFC 8785</code> — meaning logs are not only retained, they are cryptographically authenticated and independently verifiable by any qualified third party without trust in SMEPro or the operating institution.</p>
+            <ul>
+              <li>Ed25519 cryptographic signatures (RFC 8032)</li>
+              <li>JCS canonical form for verification consistency (RFC 8785)</li>
+              <li>SHA-256 request and response hashing (FIPS 180-4)</li>
+              <li>Two-layer WORM enforcement at database tier (RBAC + row-level trigger)</li>
+              <li>Independent verifiability by any third party with public key</li>
+            </ul>
+          </div>
+        </div>
+        <div style="padding: 0 36px 28px;">
+          <div class="subsystem-tags">
+            <span class="subsystem-tag">Ed25519</span>
+            <span class="subsystem-tag">JCS / RFC 8785</span>
+            <span class="subsystem-tag">WORM Database</span>
+            <span class="subsystem-tag green">Independent Verification</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ARTICLE 13 — Transparency ============ -->
+    <div class="article-row" data-subsystems="ios cos">
+      <div class="article-header" onclick="toggleRow(this.parentElement)">
+        <div class="article-num">Art. 13</div>
+        <div>
+          <div class="article-title">Transparency and Provision of Information to Deployers</div>
+        </div>
+        <div class="article-subsystem">IOS+ · Compliance OS</div>
+        <div class="article-status aligned">Aligned</div>
+        <div class="article-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="article-body">
+        <div class="article-body-inner">
+          <div class="body-block">
+            <h4>Regulatory Requirement</h4>
+            <p>Article 13 requires high-risk AI systems to be sufficiently transparent for deployers to interpret outputs and use them appropriately. Information must include intended purpose, performance characteristics, expected lifetime, and instructions for use.</p>
+          </div>
+          <div class="body-block green">
+            <h4>IOS+ Architectural Alignment</h4>
+            <p>Every IOS+ decision exposes the reasoning behind it. Gate 530 evaluations produce per-dimension scores and textual rationales — surfaced to deployers via the inference response API. Every quarantined request includes the specific UCO node and dimension that triggered the action, so deployers and reviewers understand why an outcome occurred.</p>
+            <ul>
+              <li>Per-dimension scoring exposed in API responses</li>
+              <li>Textual rationale per evaluated UCO node</li>
+              <li>Administrative dashboard for compliance queue review</li>
+              <li>Documented intended purpose, capabilities, and limitations per deployment</li>
+            </ul>
+          </div>
+        </div>
+        <div style="padding: 0 36px 28px;">
+          <div class="subsystem-tags">
+            <span class="subsystem-tag">Gate 530 Rationale</span>
+            <span class="subsystem-tag">API Transparency</span>
+            <span class="subsystem-tag green">Admin Dashboard</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ARTICLE 14 — Human Oversight ============ -->
+    <div class="article-row" data-subsystems="cos ios">
+      <div class="article-header" onclick="toggleRow(this.parentElement)">
+        <div class="article-num">Art. 14</div>
+        <div>
+          <div class="article-title">Human Oversight</div>
+        </div>
+        <div class="article-subsystem">Compliance OS · IOS+</div>
+        <div class="article-status exceeds">Exceeds</div>
+        <div class="article-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="article-body">
+        <div class="article-body-inner">
+          <div class="body-block">
+            <h4>Regulatory Requirement</h4>
+            <p>Article 14 requires high-risk AI systems to be designed and developed to allow effective oversight by natural persons during their use. Human oversight must enable the deployer to fully understand capabilities and limitations, monitor outputs, and intervene or interrupt operation when necessary.</p>
+          </div>
+          <div class="body-block green">
+            <h4>IOS+ Architectural Alignment — Exceeds</h4>
+            <p>Human oversight is not a feature in IOS+ — it is a first-class architectural primitive. The <code>ESCALATE</code> policy action and the administrative quarantine queue exist specifically to route decisions to human reviewers. The <code>POST /v1/compliance/queue/:id/clear</code> and <code>POST /v1/compliance/queue/:id/block</code> endpoints are the formal mechanisms by which human decisions resume or halt AI execution.</p>
+            <ul>
+              <li>ESCALATE policy action routes requests to human reviewers</li>
+              <li>Quarantine queue parks execution context for review</li>
+              <li>Administrative API endpoints for clear/block decisions</li>
+              <li>Execution context preserved during suspension, resumable after review</li>
+              <li>Escalation Ladder (Claim 8) prevents review queue flooding</li>
+            </ul>
+          </div>
+        </div>
+        <div style="padding: 0 36px 28px;">
+          <div class="subsystem-tags">
+            <span class="subsystem-tag">ESCALATE Action</span>
+            <span class="subsystem-tag">Quarantine Queue</span>
+            <span class="subsystem-tag">Admin Endpoints</span>
+            <span class="subsystem-tag green">Claim 8 Ladder</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ARTICLE 15 — Accuracy, Robustness, Cybersecurity ============ -->
+    <div class="article-row" data-subsystems="cos ledger ios">
+      <div class="article-header" onclick="toggleRow(this.parentElement)">
+        <div class="article-num">Art. 15</div>
+        <div>
+          <div class="article-title">Accuracy, Robustness and Cybersecurity</div>
+        </div>
+        <div class="article-subsystem">Compliance OS · Evidence Ledger</div>
+        <div class="article-status aligned">Aligned</div>
+        <div class="article-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="article-body">
+        <div class="article-body-inner">
+          <div class="body-block">
+            <h4>Regulatory Requirement</h4>
+            <p>Article 15 requires high-risk AI systems to maintain appropriate levels of accuracy, robustness, and cybersecurity throughout their lifecycle, and to resist errors, faults, inconsistencies, and adversarial attacks (including data poisoning, model evasion, and confidentiality attacks).</p>
+          </div>
+          <div class="body-block green">
+            <h4>IOS+ Architectural Alignment</h4>
+            <p>Gate 530's deterministic dimensional evaluation produces reproducible outputs — same input, same decision, every time. Reproducibility is the foundation of accuracy and robustness claims. Cybersecurity is addressed through the isolated sidecar architecture, role-based database access, and append-only evidence ledger that resists tampering even from privileged adversaries.</p>
+            <ul>
+              <li>Deterministic gate evaluation (3–5ms at P99)</li>
+              <li>Isolated sidecar boundary (Unix domain socket)</li>
+              <li>Cryptographic integrity for every evaluated decision</li>
+              <li>Two-layer WORM enforcement prevents log tampering</li>
+              <li>Bifurcated key custody (on-prem soft HSM / Cloud KMS) for tenant-specific threat models</li>
+            </ul>
+          </div>
+        </div>
+        <div style="padding: 0 36px 28px;">
+          <div class="subsystem-tags">
+            <span class="subsystem-tag">Deterministic Gate</span>
+            <span class="subsystem-tag">Sidecar Isolation</span>
+            <span class="subsystem-tag">WORM Audit</span>
+            <span class="subsystem-tag green">Bifurcated Custody</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ARTICLE 16 — Provider Obligations ============ -->
+    <div class="article-row" data-subsystems="ios cos">
+      <div class="article-header" onclick="toggleRow(this.parentElement)">
+        <div class="article-num">Art. 16</div>
+        <div>
+          <div class="article-title">Obligations of Providers of High-Risk AI Systems</div>
+        </div>
+        <div class="article-subsystem">IOS+ Platform Operations</div>
+        <div class="article-status aligned">Aligned</div>
+        <div class="article-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="article-body">
+        <div class="article-body-inner">
+          <div class="body-block">
+            <h4>Regulatory Requirement</h4>
+            <p>Article 16 establishes the umbrella obligations of providers — ensuring high-risk systems comply with Articles 8 to 15, indicating provider identity on the system, having a quality management system in place, ensuring conformity assessment is conducted, registering the system, and ensuring the system bears CE marking before placing on the EU market.</p>
+          </div>
+          <div class="body-block green">
+            <h4>IOS+ Architectural Alignment</h4>
+            <p>SMEPro's role as platform provider includes operational responsibility for the IOS+ infrastructure itself. The integrated subsystems — IOS+, COS, UDM, Evidence Ledger — together satisfy the technical requirements of Articles 9–15. The Trust Center documents provider identity, conformity posture, and architectural commitments. Conformity assessment for specific deployments is performed jointly with the deploying institution and the relevant notified body.</p>
+            <ul>
+              <li>Provider identity and platform branding embedded in every signed evidence record</li>
+              <li>Trust Center documenting compliance posture</li>
+              <li>Quality management practices (versioned engineering body, CI/CD)</li>
+              <li>Notified-body engagement protocol (deployment-specific)</li>
+            </ul>
+          </div>
+        </div>
+        <div style="padding: 0 36px 28px;">
+          <div class="subsystem-tags">
+            <span class="subsystem-tag">Trust Center</span>
+            <span class="subsystem-tag">Provider ID</span>
+            <span class="subsystem-tag green">Conformity Protocol</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ARTICLE 17 — Quality Management System ============ -->
+    <div class="article-row" data-subsystems="ios">
+      <div class="article-header" onclick="toggleRow(this.parentElement)">
+        <div class="article-num">Art. 17</div>
+        <div>
+          <div class="article-title">Quality Management System</div>
+        </div>
+        <div class="article-subsystem">IOS+ Platform Operations</div>
+        <div class="article-status partial">Partial</div>
+        <div class="article-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+      <div class="article-body">
+        <div class="article-body-inner">
+          <div class="body-block">
+            <h4>Regulatory Requirement</h4>
+            <p>Article 17 requires providers to put in place a documented quality management system covering regulatory compliance strategy, design control, technical specifications, data management, risk management, post-market monitoring, incident reporting, and resource management.</p>
+          </div>
+          <div class="body-block green">
+            <h4>IOS+ Architectural Alignment — Partial</h4>
+            <p>Engineering and architectural quality controls are in place: versioned engineering body, deterministic gating with reproducibility, append-only audit, comprehensive test infrastructure. Formal ISO 9001 / ISO/IEC 42001 certification is on the roadmap but not yet completed. Documentation of the formal quality management system is maturing alongside platform commercial readiness.</p>
+            <ul>
+              <li>Versioned engineering body (architectural and operational documentation)</li>
+              <li>CI/CD with automated testing and integration verification</li>
+              <li>Deterministic and reproducible execution paths</li>
+              <li>Post-market monitoring via signed evidence telemetry</li>
+              <li><strong>In development:</strong> ISO 9001 / ISO/IEC 42001 conformance documentation</li>
+            </ul>
+          </div>
+        </div>
+        <div style="padding: 0 36px 28px;">
+          <div class="subsystem-tags">
+            <span class="subsystem-tag">Engineering Body</span>
+            <span class="subsystem-tag">CI/CD</span>
+            <span class="subsystem-tag">Telemetry</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- AUTHORITY / SOURCES                                            -->
+<!-- ============================================================ -->
+<section class="authority-section">
+  <div class="authority-inner">
+    <h2>Source authority and <em>scope of this matrix.</em></h2>
+    <p>This matrix references <strong>Regulation (EU) 2024/1689 of the European Parliament and of the Council</strong> establishing harmonised rules on artificial intelligence (the EU AI Act). The full text of the Regulation is available via the official EUR-Lex repository and is mirrored at <a href="https://artificialintelligenceact.eu" target="_blank" rel="noopener">artificialintelligenceact.eu</a>, the public reference maintained by the Future of Life Institute.</p>
+    <p>This matrix addresses <strong>Articles 9 through 17</strong> — the core technical and operational requirements applicable to providers of high-risk AI systems under Sections 2 and 3 of the Regulation. It does not address obligations specific to deployers (Article 26), general-purpose AI providers (Articles 51–55), or AI systems falling outside the high-risk classification.</p>
+    <p>This matrix does not constitute legal advice or formal conformity assessment. Conformity assessment per Article 43 must be conducted by the deploying institution and, where applicable, the relevant notified body designated under Article 31. The architectural commitments documented here are SMEPro's representations of platform capabilities as of May 2026 and are subject to ongoing engineering evolution.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- DARK CTA                                                       -->
+<!-- ============================================================ -->
+<section class="cta-banner">
+  <div class="cta-inner">
+    <div>
+      <div class="cta-eyebrow">Ready to deploy under the EU AI Act?</div>
+      <h2>Schedule a compliance architecture review for <span class="green">your deployment context.</span></h2>
+      <p>30 minutes. Walk through how IOS+ addresses each EU AI Act article for your specific high-risk use case. Architecture, deployment model, conformity assessment pathway.</p>
+    </div>
+    <div class="cta-actions">
+      <a href="mailto:partnerships@smeprotech.com?subject=EU%20AI%20Act%20compliance%20review" class="btn-primary">Request architecture review</a>
+      <a href="mailto:partnerships@smeprotech.com?subject=EU%20AI%20Act%20documentation" class="btn-secondary">Request full documentation</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- FOOTER                                                         -->
+<!-- ============================================================ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand-block">
+        <a href="AI_AS_ACTION_Homepage.html" class="brand">
+          <svg class="brand-mark" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="logo-navy-grad-ft" x1="0" y1="0" x2="16" y2="16" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#0E2548" />
+                <stop offset="100%" stop-color="#061224" />
+              </linearGradient>
+              <linearGradient id="logo-green-grad-ft" x1="20" y1="0" x2="36" y2="16" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#34A853" />
+                <stop offset="100%" stop-color="#1B7A36" />
+              </linearGradient>
+              <linearGradient id="logo-accent-grad-ft" x1="0" y1="20" x2="16" y2="36" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#557095" />
+                <stop offset="100%" stop-color="#3B5270" />
+              </linearGradient>
+              <linearGradient id="logo-darknavy-grad-ft" x1="20" y1="20" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#0A1E3D" />
+                <stop offset="100%" stop-color="#051024" />
+              </linearGradient>
+            </defs>
+            <g class="quad q-tl">
+              <rect x="0" y="0" width="16" height="16" rx="3" fill="url(#logo-navy-grad-ft)"><title>IOS+ (Intelligence Orchestration System Plus)</title></rect>
+              <path d="M8 4V12M4 8H12" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" opacity="0.85" />
+            </g>
+            <g class="quad q-tr">
+              <rect x="20" y="0" width="16" height="16" rx="3" fill="url(#logo-green-grad-ft)"><title>Yellow Brick Road (Deterministic Execution)</title></rect>
+              <path d="M22 14 C 23 10, 26 8, 30 5" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.3" />
+              <path d="M24 15 C 25 11, 28 9, 32 6" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.3" />
+              <path d="M23 14.5 C 24 10.5, 27 8.5, 31 5.5" stroke="#FFFFFF" stroke-width="0.8" stroke-dasharray="1.5,1.5" stroke-linecap="round" fill="none" opacity="0.9" />
+              <path d="M28 8 L 31 5 L 33 2" stroke="#FFFFFF" stroke-width="1" stroke-linecap="round" fill="none" opacity="0.95" />
+              <circle cx="28" cy="8" r="0.8" fill="#FFFFFF" />
+              <circle cx="31" cy="5" r="0.8" fill="#FFFFFF" />
+              <circle cx="33" cy="2" r="1" fill="#FFFFFF" />
+            </g>
+            <g class="quad q-bl">
+              <rect x="0" y="20" width="16" height="16" rx="3" fill="url(#logo-accent-grad-ft)"><title>Universal Decoding Matrix (Ontological Context)</title></rect>
+              <path d="M3 23 H13 M3 27 H13 M3 31 H13" stroke="#FFFFFF" stroke-width="0.6" opacity="0.3" />
+              <path d="M4 23 V31 M8 23 V31 M12 23 V31" stroke="#FFFFFF" stroke-width="0.6" opacity="0.3" />
+              <path d="M4 27 L 8 31 M 8 23 L 12 27" stroke="#FFFFFF" stroke-width="0.8" opacity="0.6" />
+              <circle cx="4" cy="23" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="8" cy="23" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="12" cy="23" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="4" cy="27" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="8" cy="27" r="1.1" fill="#FFFFFF" />
+              <circle cx="12" cy="27" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="4" cy="31" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="8" cy="31" r="0.9" fill="#FFFFFF" opacity="0.8" />
+              <circle cx="12" cy="31" r="0.9" fill="#FFFFFF" opacity="0.8" />
+            </g>
+            <g class="quad q-br">
+              <rect x="20" y="20" width="16" height="16" rx="3" fill="url(#logo-darknavy-grad-ft)"><title>COS (Compliance OS)</title></rect>
+              <path d="M23 23.5 L28 21.5 L33 23.5 C33 27, 31 30.5, 28 32.5 C25 30.5, 23 27, 23 23.5 Z" stroke="#FFFFFF" stroke-width="1.2" stroke-linejoin="round" fill="none" opacity="0.85" />
+              <path d="M26 27 L27.5 28.5 L30.5 25.5" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.85" />
+              <circle cx="31" cy="30.5" r="1.8" fill="#1B7A36" stroke="#FFFFFF" stroke-width="0.6" />
+              <path d="M30 30.5 L30.7 31.2 L32 29.8" stroke="#FFFFFF" stroke-width="0.5" stroke-linecap="round" fill="none" />
+            </g>
+          </svg>
+          <div>
+            <div class="brand-text">AI-AS-ACTION<span style="font-size:0.6em;vertical-align:super;">™</span></div>
+            <div class="brand-text-sub">Governed Intelligence</div>
+          </div>
+        </a>
+        <div class="footer-tagline">The world's first AI Data Compliance Middleware. Governing the data layer of enterprise AI — before training, before inference, before execution.</div>
+      </div>
+      <div class="footer-col">
+        <h4>Platform</h4>
+        <a href="ai_as_action_ios.html">IOS+</a>
+        <a href="ai_as_action_compliance_os.html">Compliance OS</a>
+        <a href="ai_as_action_udm.html">Universal Decoding Matrix</a>
+        <a href="ai_as_action_aaa.html">AI-AS-ACTION</a>
+        <a href="ai_as_action_evidence_ledger.html">Evidence Ledger</a>
+        <a href="ai_as_action_eu_ai_act.html">EU AI Act Matrix</a>
+      </div>
+      <div class="footer-col">
+        <h4>Solutions</h4>
+        <a href="#">Higher Education</a>
+        <a href="#">Energy & Industrial</a>
+        <a href="#">Regulated Enterprise</a>
+      </div>
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <a href="docs-index.html">Documentation</a>
+        <a href="investors.html">Architecture Whitepaper</a>
+        <a href="investors.html">Investor Deck</a>
+        <a href="#">Case Studies</a>
+        <a href="smeprotech.html#trust">Trust Center</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Leadership</a>
+        <a href="#">Careers</a>
+        <a href="#">Press</a>
+        <a href="mailto:partnerships@smeprotech.com">Contact</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="copyright">© 2026 AI-AS-ACTION, Inc. · IOS+™, Compliance OS™, Universal Decoding Matrix™, and AI-AS-ACTION™ are trademarks of AI-AS-ACTION, Inc. · <strong>PATENT PENDING 63/986,802</strong></div>
+      <div class="footer-legal">
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <a href="#">Cookies</a>
+        <a href="#">DPA</a>
+        <a href="#">Responsible AI</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Toggle individual article row
+function toggleRow(row) {
+  row.classList.toggle('open');
+}
+
+// Expand / collapse all
+function expandAll() {
+  document.querySelectorAll('.article-row').forEach(r => r.classList.add('open'));
+}
+function collapseAll() {
+  document.querySelectorAll('.article-row').forEach(r => r.classList.remove('open'));
+}
+
+// Filter pills
+document.querySelectorAll('.filter-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    // Update active state
+    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+
+    const filter = pill.dataset.filter;
+    document.querySelectorAll('.article-row').forEach(row => {
+      if (filter === 'all') {
+        row.style.display = '';
+      } else {
+        const subsystems = (row.dataset.subsystems || '').split(' ');
+        row.style.display = subsystems.includes(filter) ? '' : 'none';
+      }
+    });
+  });
+});
+
+// Keyboard accessibility — Enter/Space toggles open state when header is focused
+document.querySelectorAll('.article-header').forEach(header => {
+  header.setAttribute('tabindex', '0');
+  header.setAttribute('role', 'button');
+  header.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleRow(header.parentElement);
+    }
+  });
+});
+</script>
+
+</body>
+</html>

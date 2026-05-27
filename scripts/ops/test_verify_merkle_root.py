@@ -1,11 +1,18 @@
-import unittest
-from unittest.mock import patch, MagicMock
-import os
-import io
-import urllib.error
+import sys
+from unittest.mock import MagicMock
+sys.modules['psycopg2'] = MagicMock()
+sys.modules['boto3'] = MagicMock()
+sys.modules['botocore'] = MagicMock()
+sys.modules['botocore.exceptions'] = MagicMock()
 
 # Import the functions to test
 import verify_merkle_root
+
+import unittest
+from unittest.mock import patch
+import os
+import io
+import urllib.error
 
 class TestVerifyMerkleRootDNS(unittest.TestCase):
     def setUp(self):

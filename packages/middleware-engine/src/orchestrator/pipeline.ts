@@ -18,7 +18,7 @@ import { runL7 } from "../layers/L7_synthesis.js";
 import type { UCOResolver } from "@ios-plus/uco-resolver";
 import type { EvidenceFabricService } from "@ios-plus/evidence-fabric";
 import type { RAGVaultService } from "@ios-plus/rag-vault";
-import { GateDecisionRepository } from "@ios-plus/cos-plus";
+import { GateDecisionRepository, CosConnectionRegistry } from "@ios-plus/cos-plus";
 import crypto from "node:crypto";
 import type { ParkedContext } from "./quarantineStore.js";
 
@@ -27,6 +27,7 @@ export interface PipelineDependencies {
   evidenceFabric: EvidenceFabricService;
   ragVault: RAGVaultService;
   gateDecisionRepository: GateDecisionRepository;
+  cosRegistry: CosConnectionRegistry;
 }
 
 export async function executePipeline(

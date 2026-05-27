@@ -83,6 +83,59 @@ export class EvidenceFabricService {
     this.keyProvider = keyProvider;
   }
 
+  private async signPayloadWithCustody(payload: EvidencePackagePayload): Promise<string> {
+    if (this.config.vault && this.config.vault.vaultAddr && this.config.vault.token) {
+      try {
+        return await this.signWithVault(payload);
+      } catch (err) {
+        console.warn("Vault signing failed, falling back to local key provider:", err);
+        const privateKeyBytes = await this.keyProvider.getSigningKey(payload.tenantId);
+        return await signPayload(payload, privateKeyBytes);
+      }
+    } else {
+      const privateKeyBytes = await this.keyProvider.getSigningKey(payload.tenantId);
+      return await signPayload(payload, privateKeyBytes);
+    }
+  }
+
+  private async signWithVault(payload: EvidencePackagePayload): Promise<string> {
+    const canonical = (canonicalize as unknown as (v: unknown) => string)(payload as unknown as Record<string, unknown>);
+    const base64Input = Buffer.from(canonical).toString('base64');
+    
+    const { vaultAddr, keyPath, token } = this.config.vault;
+    const parts = keyPath.split('/');
+    const mount = parts[0] || 'transit';
+    const keyName = parts[parts.length - 1];
+    
+    const url = `${vaultAddr}/v1/${mount}/sign/${keyName}`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'X-Vault-Token': token,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        input: base64Input,
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Vault sign request failed with status ${response.status}: ${errorText}`);
+    }
+    
+    const resData = await response.json() as any;
+    const vaultSignature = resData?.data?.signature;
+    if (!vaultSignature || typeof vaultSignature !== 'string') {
+      throw new Error(`Invalid response from Vault sign: ${JSON.stringify(resData)}`);
+    }
+    
+    const signatureBase64 = vaultSignature.split(':').pop() || '';
+    // Convert standard base64 to base64url
+    return signatureBase64.replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  }
+
   /**
    * Create, sign, and WORM-commit an evidence package.
    * Called at L4 (Evidence Anchoring) and L5 (Gate 530 gate decisions).
@@ -95,8 +148,7 @@ export class EvidenceFabricService {
       eventId: uuidv7(),
     };
 
-    const privateKeyBytes = await this.keyProvider.getSigningKey(fullPayload.tenantId);
-    const signature = await signPayload(fullPayload, privateKeyBytes);
+    const signature = await this.signPayloadWithCustody(fullPayload);
 
     const pkg: EvidencePackage = {
       packageId: uuidv7(),

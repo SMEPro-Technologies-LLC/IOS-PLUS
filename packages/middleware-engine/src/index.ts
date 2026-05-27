@@ -138,6 +138,7 @@ async function main() {
     evidenceFabric,
     ragVault,
     gateDecisionRepository,
+    cosRegistry,
   };
 
   const app = await createRestApp(deps, naicsProfile);

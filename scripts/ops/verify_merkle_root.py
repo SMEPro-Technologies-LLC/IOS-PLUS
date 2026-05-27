@@ -16,7 +16,52 @@ import psycopg2
 from datetime import datetime, timezone
 from uuid import uuid4
 
-DB_READER_URL = os.environ["DATABASE_URL_AUDIT_READER"]
+# Load environment from .env file if running locally
+def load_dotenv():
+    for path in ['.env', '../.env', '../../.env']:
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        k, v = line.split('=', 1)
+                        v = v.strip().strip("'").strip('"')
+                        if k not in os.environ:
+                            os.environ[k] = v
+            break
+
+load_dotenv()
+
+def get_db_url(role_prefix):
+    env_var = f"DATABASE_URL_{role_prefix}"
+    if env_var in os.environ:
+        return os.environ[env_var]
+    
+    # Try using passwords from environment to construct DSN
+    host = os.environ.get("COS_DB_HOST", os.environ.get("COS_HOST", "localhost"))
+    port = os.environ.get("COS_DB_PORT", os.environ.get("COS_PORT", "5432"))
+    db_name = os.environ.get("COS_DB_NAME", os.environ.get("COS_DATABASE", "ios_plus"))
+    role_user = role_prefix.lower()
+    
+    password_var = f"COS_DB_PASSWORD_{role_prefix}"
+    if password_var not in os.environ:
+        # Fallback to alternative naming conventions
+        password_var = f"COS_PASSWORD_{role_prefix}"
+    password = os.environ.get(password_var)
+    
+    if password:
+        return f"postgresql://{role_user}:{password}@{host}:{port}/{db_name}"
+    
+    # Local default passwords
+    default_passwords = {
+        "AUDIT_READER": "iosplus_dev_audit_reader",
+        "AUDIT_WRITER": "iosplus_dev_audit_writer"
+    }
+    password = default_passwords.get(role_prefix, "CHANGE_ME")
+    return f"postgresql://{role_user}:{password}@localhost:5432/ios_plus"
+
+DB_READER_URL = get_db_url("AUDIT_READER")
+DB_WRITER_URL = get_db_url("AUDIT_WRITER")
 DNS_TXT_ZONE  = os.environ.get("DNS_TXT_ZONE", "_ios-merkle.smeprotech.com")
 
 def sha256(data: str) -> str:
@@ -32,16 +77,80 @@ def compute_merkle_root(leaves: list[str]) -> str:
         layer = [sha256(layer[i] + layer[i+1]) for i in range(0, len(layer), 2)]
     return layer[0]
 
-def main():
-    conn_r = psycopg2.connect(DB_READER_URL)
-    cur = conn_r.cursor()
+def publish_dns_txt_record(txt_zone, merkle_root):
+    try:
+        import boto3
+        formatted_value = f'"{merkle_root}"'
+        print(f"Attempting to publish DNS TXT record for {txt_zone} to Route53...")
+        
+        client = boto3.client('route53')
+        zone_id = os.environ.get("ROUTE53_ZONE_ID")
+        
+        if not zone_id:
+            domain_name = txt_zone.lstrip('_').split('.', 1)[-1]
+            if not domain_name.endswith('.'):
+                domain_name += '.'
+                
+            paginator = client.get_paginator('list_hosted_zones')
+            for page in paginator.paginate():
+                for hz in page['HostedZones']:
+                    hz_name = hz['Name']
+                    if domain_name == hz_name or hz_name.endswith(domain_name):
+                        zone_id = hz['Id']
+                        print(f"Resolved hosted zone ID {zone_id} for domain {domain_name}")
+                        break
+                if zone_id:
+                    break
+                    
+        if not zone_id:
+            print("WARNING: Could not resolve Route53 Hosted Zone ID. Skipping Route53 TXT record publication.")
+            return False
+            
+        client.change_resource_record_sets(
+            HostedZoneId=zone_id,
+            ChangeBatch={
+                'Comment': 'IOS+ Merkle Root auto-publication',
+                'Changes': [
+                    {
+                        'Action': 'UPSERT',
+                        'ResourceRecordSet': {
+                            'Name': txt_zone,
+                            'Type': 'TXT',
+                            'TTL': 300,
+                            'ResourceRecords': [{'Value': formatted_value}]
+                        }
+                    }
+                ]
+            }
+        )
+        print("Successfully published Merkle root to Route53 TXT record.")
+        return True
+    except Exception as e:
+        print(f"WARNING: Route53 TXT update failed or skipped: {e}")
+        return False
 
-    # Fetch evidence packages not yet included in a Merkle batch
+def main():
+    print(f"[{datetime.now(timezone.utc).isoformat()}] Starting Merkle Root Integrity Publisher")
+    
+    try:
+        conn_r = psycopg2.connect(DB_READER_URL)
+        cur = conn_r.cursor()
+    except Exception as e:
+        print(f"ERROR: Failed to connect to Reader Database: {e}")
+        return
+
+    # Fetch evidence packages not yet included in any Merkle roots batch.
+    # Checks containment in the JSONB batch_package_ids arrays of merkle_roots.
     cur.execute("""
-        SELECT package_id, signature
-        FROM evidence_packages
-        WHERE merkle_root_id IS NULL
-        ORDER BY published_at
+        SELECT ep.package_id, ep.signature
+        FROM evidence_packages ep
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM merkle_roots mr
+            WHERE mr.batch_package_ids @> jsonb_build_array(ep.package_id::text)
+               OR mr.batch_package_ids @> jsonb_build_array(ep.package_id)
+        )
+        ORDER BY ep.published_at
         LIMIT 1000
     """)
     rows = cur.fetchall()
@@ -59,9 +168,25 @@ def main():
     print(f"Batch size:   {len(package_ids)}")
     print(f"Merkle root:  {merkle_root}")
     print(f"Batch ID:     {batch_id}")
-    print(f"Published at: {datetime.now(timezone.utc).isoformat()}")
     print(f"DNS zone:     {DNS_TXT_ZONE}")
-    print("NOTE: DNS publication requires out-of-band Route53/DNS update in production.")
+
+    # Trigger Route53 dynamic DNS TXT record update
+    dns_published = publish_dns_txt_record(DNS_TXT_ZONE, merkle_root)
+    dns_published_at = datetime.now(timezone.utc) if dns_published else None
+
+    # Write batch record to merkle_roots table via audit_writer
+    try:
+        conn_w = psycopg2.connect(DB_WRITER_URL)
+        cur_w = conn_w.cursor()
+        cur_w.execute("""
+            INSERT INTO merkle_roots (merkle_root_id, batch_package_ids, merkle_root, batch_size, computed_at, dns_published_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (batch_id, json.dumps(package_ids), merkle_root, len(package_ids), datetime.now(timezone.utc), dns_published_at))
+        conn_w.commit()
+        conn_w.close()
+        print("Successfully committed Merkle root record to database.")
+    except Exception as e:
+        print(f"ERROR: Failed to commit Merkle root to database: {e}")
 
 if __name__ == "__main__":
     main()

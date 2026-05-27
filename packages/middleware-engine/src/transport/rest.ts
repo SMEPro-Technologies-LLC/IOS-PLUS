@@ -170,5 +170,146 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     }
   });
 
+  // --- UCO Compliance Rule Management Routes ---
+
+  app.get("/v1/compliance/rules", async (req, res) => {
+    try {
+      const pool = deps.cosRegistry.pool("cos_admin");
+      const { naics, policy_action, governing_agency } = req.query;
+      let query = "SELECT * FROM uco_nodes WHERE 1=1";
+      const params: any[] = [];
+      
+      if (naics) {
+        params.push(naics);
+        query += ` AND naics = $${params.length}`;
+      }
+      if (policy_action) {
+        params.push(policy_action);
+        query += ` AND policy_action = $${params.length}`;
+      }
+      if (governing_agency) {
+        params.push(governing_agency);
+        query += ` AND governing_agency = $${params.length}`;
+      }
+      
+      query += " ORDER BY uco_node_id ASC LIMIT 100";
+      
+      const { rows } = await pool.query(query, params);
+      res.json(rows);
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.post("/v1/compliance/rules", async (req, res) => {
+    try {
+      const pool = deps.cosRegistry.pool("cos_admin");
+      const b = req.body;
+      
+      const required = [
+        "uco_node_id", "broad_industry", "industry_subtype", "specific_activity",
+        "jurisdiction_level", "governing_agency", "regulation_name", "naics",
+        "ontology_level", "enforcement_type", "risk_weight", "ybr_gate", "policy_action"
+      ];
+      for (const f of required) {
+        if (b[f] === undefined) {
+          return res.status(400).json({ error: `Missing required field: ${f}` });
+        }
+      }
+      
+      await pool.query(
+        `INSERT INTO uco_nodes (
+          uco_node_id, broad_industry, industry_subtype, specific_activity,
+          jurisdiction_level, governing_agency, regulation_name, cfr_usc_citation,
+          report_form_name, form_code, filing_frequency, key_due_dates,
+          business_segment, penalties_consequences, cip, sic, naics, soc,
+          isic, hs_hts, notes, ontology_level, compliance_chain_ref,
+          operating_segment, responsible_role, enforcement_type, risk_weight,
+          ybr_gate, policy_action
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29
+        )`,
+        [
+          b.uco_node_id, b.broad_industry, b.industry_subtype, b.specific_activity,
+          b.jurisdiction_level, b.governing_agency, b.regulation_name, b.cfr_usc_citation ?? null,
+          b.report_form_name ?? null, b.form_code ?? null, b.filing_frequency ?? null, b.key_due_dates ?? null,
+          b.business_segment ?? null, b.penalties_consequences ?? null, b.cip ?? null, b.sic ?? null, b.naics, b.soc ?? null,
+          b.isic ?? null, b.hs_hts ?? null, b.notes ?? null, b.ontology_level, b.compliance_chain_ref ?? null,
+          b.operating_segment ?? null, b.responsible_role ?? null, b.enforcement_type, parseInt(b.risk_weight),
+          b.ybr_gate, b.policy_action
+        ]
+      );
+      
+      res.status(201).json({ status: "created", uco_node_id: b.uco_node_id });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.put("/v1/compliance/rules/:ucoNodeId", async (req, res) => {
+    try {
+      const pool = deps.cosRegistry.pool("cos_admin");
+      const { ucoNodeId } = req.params;
+      const b = req.body;
+      
+      const check = await pool.query("SELECT 1 FROM uco_nodes WHERE uco_node_id = $1", [ucoNodeId]);
+      if (!check.rows[0]) {
+        return res.status(404).json({ error: `Rule not found: ${ucoNodeId}` });
+      }
+      
+      const fields = [
+        "broad_industry", "industry_subtype", "specific_activity",
+        "jurisdiction_level", "governing_agency", "regulation_name", "cfr_usc_citation",
+        "report_form_name", "form_code", "filing_frequency", "key_due_dates",
+        "business_segment", "penalties_consequences", "cip", "sic", "naics", "soc",
+        "isic", "hs_hts", "notes", "ontology_level", "compliance_chain_ref",
+        "operating_segment", "responsible_role", "enforcement_type", "risk_weight",
+        "ybr_gate", "policy_action"
+      ];
+      
+      let setClause = "";
+      const params: any[] = [ucoNodeId];
+      let paramIndex = 2;
+      
+      for (const f of fields) {
+        if (b[f] !== undefined) {
+          setClause += (setClause ? ", " : "") + `${f} = $${paramIndex}`;
+          params.push(f === "risk_weight" ? parseInt(b[f]) : b[f]);
+          paramIndex++;
+        }
+      }
+      
+      if (!setClause) {
+        return res.status(400).json({ error: "No fields provided to update" });
+      }
+      
+      await pool.query(
+        `UPDATE uco_nodes SET ${setClause}, last_updated = CURRENT_DATE WHERE uco_node_id = $1`,
+        params
+      );
+      
+      res.json({ status: "updated", uco_node_id: ucoNodeId });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
+  app.delete("/v1/compliance/rules/:ucoNodeId", async (req, res) => {
+    try {
+      const pool = deps.cosRegistry.pool("cos_admin");
+      const { ucoNodeId } = req.params;
+      
+      const check = await pool.query("SELECT 1 FROM uco_nodes WHERE uco_node_id = $1", [ucoNodeId]);
+      if (!check.rows[0]) {
+        return res.status(404).json({ error: `Rule not found: ${ucoNodeId}` });
+      }
+      
+      await pool.query("DELETE FROM uco_nodes WHERE uco_node_id = $1", [ucoNodeId]);
+      res.json({ status: "deleted", uco_node_id: ucoNodeId });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   return app;
 }

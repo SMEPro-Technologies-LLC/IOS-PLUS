@@ -12,7 +12,8 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    environment: production
+    environment:
+      name: production
     # Production deployments require two approvers (configured in GitHub environment)
 
     steps:

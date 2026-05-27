@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "psycopg2-binary",
+# ]
+# ///
 """
 verify_key_publication_consistency.py
 IOS+ Evidence Fabric — Triple-Publication Key Consistency Check

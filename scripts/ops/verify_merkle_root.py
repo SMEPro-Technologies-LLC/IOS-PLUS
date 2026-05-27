@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "psycopg2-binary",
+#   "boto3",
+# ]
+# ///
 """
 verify_merkle_root.py
 IOS+ Evidence Fabric — Merkle Root Integrity Publisher

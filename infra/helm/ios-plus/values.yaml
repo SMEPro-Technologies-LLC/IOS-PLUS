@@ -107,6 +107,10 @@ ragVault:
 # ── COS+ Database (PostgreSQL 16) ─────────────────────────────
 cosPlus:
   enabled: true
+  # Name of the K8s Secret holding the audit_reader DSN
+  auditReaderSecretName: cos-plus-audit-reader
+  # Name of the K8s Secret holding the ios_app DSN (used by middleware engine)
+  appSecretName: cos-plus-app
   image:
     repository: pgvector/pgvector
     tag: "pg16"
@@ -196,3 +200,53 @@ secrets:
     cosAdmin: ""
   openaiApiKey: ""
   dnsTxtZone: "_ios-signing-key.smeprotech.com"
+
+# ── Ops container image ───────────────────────────────────────
+ops:
+  image:
+    repository: gcr.io/smepro-prod/ios-plus-ops
+    tag: ""          # Defaults to .Chart.AppVersion
+    pullPolicy: IfNotPresent
+
+# ── UCO Seed Validation ───────────────────────────────────────
+ucoSeedValidation:
+  # -- Enable/disable the daily CronJob
+  enabled: true
+
+  # -- Cron schedule (UTC). Offset from worm-integrity-check (02:00) to
+  #    avoid simultaneous DB load spikes.
+  schedule: "0 3 * * *"
+
+  # -- Hard timeout for the validation job (seconds)
+  timeoutSeconds: 300
+
+  # -- How long to retain completed Job pods (seconds)
+  ttlAfterFinished: 86400   # 24 hours
+
+  # -- Trigger a one-shot Job on this Helm release (set to true for post-deploy)
+  runJobNow: false
+
+  # -- Post-deploy Job configuration
+  postDeployJob:
+    enabled: false
+    # -- Register as a Helm post-install/post-upgrade hook
+    helmHook: true
+    # -- Hard timeout for the one-shot Job (seconds — allow extra time for
+    #    COS+ to settle after migration)
+    timeoutSeconds: 600
+    ttlAfterFinished: 3600  # 1 hour
+
+  # -- Resource requests/limits for the validator container
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+  # -- Node selector (optional — target compliance node pool)
+  nodeSelector: {}
+
+  # -- Tolerations (optional)
+  tolerations: []

@@ -11,11 +11,32 @@ import type { PipelineDependencies } from "../orchestrator/pipeline.js";
 import { executePipeline, resumePipeline } from "../orchestrator/pipeline.js";
 import { quarantineStore } from "../orchestrator/quarantineStore.js";
 import crypto from "node:crypto";
+import fs from "node:fs";
+import { MetricsRegistry } from "./metrics.js";
 
 export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSProfile) {
   const app = express();
   app.use(express.json({ limit: "1mb" }));
   app.use(express.static(process.cwd()));
+
+  // Middleware to track HTTP requests
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on("finish", () => {
+      MetricsRegistry.inc("ios_middleware_http_requests_total", {
+        method: req.method,
+        path: req.path,
+        status: String(res.statusCode)
+      });
+      // Optionally track overall http latency
+      const duration = Date.now() - start;
+      MetricsRegistry.observe("ios_middleware_http_latency_ms", duration, {
+        method: req.method,
+        path: req.path
+      });
+    });
+    next();
+  });
 
   app.get("/health", (_req, res) => res.json({ status: "ok" }));
   app.get("/ready", async (_req, res) => {
@@ -24,6 +45,8 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
       redis: "unknown",
       gate530: "unknown",
       vault: "unknown",
+      vaultSecrets: "unknown",
+      openai: "unknown",
     };
     
     let isHealthy = true;
@@ -50,10 +73,12 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
       } else {
         checks.redis = `unhealthy: received ${pong}`;
         isHealthy = false;
+        MetricsRegistry.inc("ios_redis_errors_total", { reason: "invalid_pong" });
       }
     } catch (err) {
       checks.redis = `unhealthy: ${String(err)}`;
       isHealthy = false;
+      MetricsRegistry.inc("ios_redis_errors_total", { reason: "exception" });
     }
 
     // 3. Test Gate 530 sidecar
@@ -93,9 +118,10 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     } catch (err) {
       checks.gate530 = `unhealthy: ${String(err)}`;
       isHealthy = false;
+      MetricsRegistry.inc("ios_gate530_errors_total", { reason: "connection_failed" });
     }
 
-    // 4. Test Vault
+    // 4. Test Vault sys health
     try {
       const vaultAddr = process.env["VAULT_ADDR"];
       if (vaultAddr) {
@@ -115,6 +141,61 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
       isHealthy = false;
     }
 
+    // 5. Test Vault dynamic secrets projection presence / freshness
+    const vaultSecretsPath = "/vault/secrets/ios-plus.env";
+    if (fs.existsSync(vaultSecretsPath)) {
+      try {
+        const stats = fs.statSync(vaultSecretsPath);
+        const ageSec = (Date.now() - stats.mtimeMs) / 1000;
+        if (stats.size > 0) {
+          checks.vaultSecrets = `healthy (age: ${Math.round(ageSec)}s, size: ${stats.size}b)`;
+        } else {
+          checks.vaultSecrets = "unhealthy: empty file";
+          isHealthy = false;
+        }
+      } catch (err) {
+        checks.vaultSecrets = `unhealthy: ${String(err)}`;
+        isHealthy = false;
+      }
+    } else {
+      // In local dev without Vault, we don't block readiness if environment variables are populated
+      if (process.env["NODE_ENV"] !== "production") {
+        checks.vaultSecrets = "healthy (local development: file bypassed)";
+      } else {
+        checks.vaultSecrets = "unhealthy: file missing";
+        isHealthy = false;
+      }
+    }
+
+    // 6. Test OpenAI Egress & API Key validity
+    try {
+      if (process.env["OPENAI_API_KEY"]) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1000);
+        // Execute a fast public metadata check that doesn't consume tokens/cost money
+        const res = await fetch("https://api.openai.com/v1/models", {
+          headers: { "Authorization": `Bearer ${process.env["OPENAI_API_KEY"]}` },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (res.status === 200 || res.status === 401) {
+          checks.openai = res.status === 200 ? "healthy" : "invalid_credentials";
+          if (res.status === 401) {
+            isHealthy = false;
+          }
+        } else {
+          checks.openai = `unhealthy: HTTP ${res.status}`;
+          isHealthy = false;
+        }
+      } else {
+        checks.openai = "unhealthy: missing API key";
+        isHealthy = false;
+      }
+    } catch (err) {
+      checks.openai = `unhealthy: ${String(err)}`;
+      isHealthy = false;
+    }
+
     const statusCode = isHealthy ? 200 : 503;
     res.status(statusCode).json({
       status: isHealthy ? "ready" : "degraded",
@@ -122,6 +203,20 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
       timestamp: new Date().toISOString(),
     });
   });
+
+  app.get("/metrics", (_req, res) => {
+    // Capture DB Pool metrics dynamically before rendering
+    try {
+      const iosAppPool = deps.cosRegistry.pool("ios_app");
+      const total = (iosAppPool as any).totalCount || 0;
+      const idle = (iosAppPool as any).idleCount || 0;
+      MetricsRegistry.set("ios_db_pool_saturation", total - idle, { pool: "ios_app" });
+    } catch {}
+
+    res.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
+    res.send(MetricsRegistry.render());
+  });
+
 
   app.post("/v1/inference", async (req, res) => {
     const requestId = uuidv7();

@@ -73,6 +73,11 @@ describe("Orchestration Layers Unit Tests", () => {
     expect(res.output.intent).toBe("mock-intent");
   });
 
+  it("Layer 2 Semantics: throws error if API key is missing", async () => {
+    delete process.env["OPENAI_API_KEY"];
+    await expect(runL2("Query text")).rejects.toThrow("OpenAI API Key is missing");
+  });
+
   it("Layer 7 Synthesis: enforces compliance block outcome", async () => {
     const ctx: any = {
       requestId: "req-1",

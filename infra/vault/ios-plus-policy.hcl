@@ -21,3 +21,17 @@ path "transit/keys/ios-evidence-signing/*" {
 path "transit/keys/*" {
   capabilities = ["deny"]
 }
+
+# Allow reading secrets from the KV store
+path "secret/data/ios-plus/*" {
+  capabilities = ["read"]
+}
+
+path "secret/metadata/ios-plus/*" {
+  capabilities = ["read"]
+}
+
+path "secret/ios-plus/*" {
+  capabilities = ["read"]
+}
+

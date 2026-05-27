@@ -296,7 +296,46 @@ export const DEFAULT_GATE530_CONFIG: Gate530Config = {
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 
+function loadVaultSecrets() {
+  const vaultSecretsPath = "/vault/secrets/ios-plus.env";
+  if (fs.existsSync(vaultSecretsPath)) {
+    try {
+      const content = fs.readFileSync(vaultSecretsPath, "utf8");
+      for (const line of content.split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith("#") && trimmed.includes("=")) {
+          const eqIndex = trimmed.indexOf("=");
+          const key = trimmed.slice(0, eqIndex).trim();
+          const val = trimmed.slice(eqIndex + 1).trim();
+          const cleanedVal = val.replace(/^['"]|['"]$/g, "");
+          if (key) {
+            process.env[key] = cleanedVal;
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+}
+
 async function main(): Promise<void> {
+  loadVaultSecrets();
+
+  // Apply loaded environment variables to configuration
+  if (process.env['REDIS_URL']) {
+    DEFAULT_GATE530_CONFIG.redisUrl = process.env['REDIS_URL'];
+  }
+  if (process.env['GATE530_TRANSPORT']) {
+    DEFAULT_GATE530_CONFIG.transport = process.env['GATE530_TRANSPORT'] as 'ipc' | 'http2';
+  }
+  if (process.env['GATE530_PORT']) {
+    DEFAULT_GATE530_CONFIG.port = parseInt(process.env['GATE530_PORT']);
+  }
+  if (process.env['GATE530_IPC_SOCKET']) {
+    DEFAULT_GATE530_CONFIG.ipcSocketPath = process.env['GATE530_IPC_SOCKET'];
+  }
+
   const log = (level: number, msg: string, extra: Record<string, unknown> = {}) =>
     process.stdout.write(JSON.stringify({ level, time: Date.now(), pid: process.pid, msg, ...extra }) + '\n');
 
@@ -309,6 +348,7 @@ async function main(): Promise<void> {
   });
 
   const engine = new Gate530Engine(DEFAULT_GATE530_CONFIG);
+
 
   try { await engine['redis'].ping(); log(30, 'Redis verified'); }
   catch (err) { log(50, 'Redis ping failed', { error: String(err) }); process.exit(1); }

@@ -8,8 +8,8 @@ on:
 
 env:
   NODE_VERSION: "20.12.2"
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+  TURBO_TOKEN: ${{ secrets['TURBO_TOKEN'] }}
+  TURBO_TEAM: ${{ secrets['TURBO_TEAM'] }}
 
 jobs:
   ci:

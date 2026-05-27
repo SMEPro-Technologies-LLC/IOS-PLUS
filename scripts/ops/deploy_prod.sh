@@ -13,6 +13,7 @@ TF_DIR="${PROJECT_DIR}/infra/terraform"
 HELM_DIR="${PROJECT_DIR}/infra/helm/ios-plus"
 NAMESPACE="ios-plus"
 VAULT_NAMESPACE="vault"
+TF_STATE_BUCKET="${TF_STATE_BUCKET:-ios-plus-tf-state}"
 
 echo "======================================================================"
 echo "Starting IOS+ Production Deployment and Closed-Loop Bring-up"
@@ -31,7 +32,7 @@ echo "All CLI dependencies verified."
 # 2. Provision Infrastructure via Terraform
 echo "Initializing and applying Terraform resources..."
 cd "${TF_DIR}"
-terraform init
+terraform init -backend-config="bucket=${TF_STATE_BUCKET}"
 terraform apply -auto-approve \
   -var="environment=${ENV}" \
   -var="gcp_project=$(gcloud config get-value project 2>/dev/null || echo 'smepro-prod')"

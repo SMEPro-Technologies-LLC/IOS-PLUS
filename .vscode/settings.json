@@ -1,8 +1,8 @@
 {
   "yaml.schemas": {
     "none": [
-      ".github/workflows/*.yml",
-      ".github/workflows/*.yaml"
+      "**/.github/workflows/*.yml",
+      "**/.github/workflows/*.yaml"
     ]
   }
 }

@@ -34,7 +34,7 @@ jobs:
         uses: azure/k8s-set-context@v3
         with:
           method: kubeconfig
-          kubeconfig: ${{ secrets.PRODUCTION_KUBECONFIG }}
+          kubeconfig: ${{ secrets['PRODUCTION_KUBECONFIG'] }}
 
       - name: Helm upgrade production
         run: |

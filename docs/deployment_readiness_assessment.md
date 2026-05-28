@@ -6,7 +6,7 @@ This document provides a highly objective, concrete teardown of the deployment p
 
 ## Executive Summary
 
-The codebase has reached high maturity from a local sandbox/engineering perspective: the core security middleware, SQL WORM triggers, and cryptographic signature verification pass cleanly in containerized runs. 
+The codebase has reached high maturity from a local sandbox/engineering perspective: the core security middleware, SQL WORM triggers, and cryptographic signature verification pass cleanly in containerized runs.
 
 However, **the deployment is not yet verified or safe for a live production environment**. The current deployment assets are preflight-validated templates. Several key components (Route53 DNS zone publication, Vault HSM integration, GKE-level network policies, and schema rollback logic) remain untested or simulated. Moving this setup directly to production without addressing the operational gaps listed below introduces high risks of data drift, deployment deadlocks, and credential leakage.
 
@@ -15,6 +15,7 @@ However, **the deployment is not yet verified or safe for a live production envi
 ## 1. Subsystem Tear-down: Sandbox vs. Production Reality
 
 ### A. Database Persistence & WORM Guarantees
+
 * **Sandbox Verification**: The custom PostgreSQL triggers block `UPDATE` and `DELETE` queries on the audit tables when executed via standard application roles in the `cos-plus` container.
 * **Production Reality & Gaps**:
   * **Disk-Level Vulnerability**: The SQL-level WORM trigger only protects against database connections. It does not protect the underlying storage volumes (persistent disks) from snapshot rollbacks, volume deletions, or administrative tampering at the GCP console level.
@@ -22,12 +23,14 @@ However, **the deployment is not yet verified or safe for a live production envi
   * **Scale and Vacuum Overhead**: Under high transaction volume, WORM tables accumulate dead rows from aborted transactions or index page bloat. The autovacuum configuration for these high-write tables has not been tuned or tested under load.
 
 ### B. Cryptographic Verification & DNS Publication
+
 * **Sandbox Verification**: The triple-key check script validates that the verification key hash matches across the database, the local filesystem secret path, and a simulated DNS TXT record.
 * **Production Reality & Gaps**:
   * **Mocked DNS Resolution**: The DNS lookup verification was executed against a simulated local zone file. The AWS Route53 API interactions in `verify_merkle_root.py` have not been tested with real hosted zones or valid IAM Role Service Account (IRSA) bindings.
   * **AWS IAM Permissions Risk**: The deployment scripts assume the runtime node has the necessary AWS STS credentials to update DNS records. If the Kubernetes service account IAM annotation is misconfigured, the Merkle root publisher will fail silently or crash.
 
 ### C. Secrets Management (HashiCorp Vault)
+
 * **Sandbox Verification**: The Vault bootstrap script (`bootstrap_vault.sh`) mounts the KV engine and applies policies in a local Vault container.
 * **Production Reality & Gaps**:
   * **Auto-Unseal & HSM Gaps**: In the local sandbox, Vault is unsealed using mock developer keys. A production deployment requires Cloud KMS or HSM-based auto-unseal configuration, which is currently unconfigured.
@@ -35,12 +38,14 @@ However, **the deployment is not yet verified or safe for a live production envi
   * **TLS Termination**: Vault communication in the local sandbox occurs over unencrypted HTTP. Production requires TLS termination, meaning the Helm charts must be updated to inject TLS certificates for the Vault agent sidecars.
 
 ### D. Helm & CI/CD Pipelines
+
 * **Sandbox Verification**: The GitHub Action YAML files (`deploy-staging.yml`, `deploy-production.yml`) have correct syntax, and the Helm templates compile successfully when values are patched.
 * **Production Reality & Gaps**:
   * **Unfetched Dependencies**: Due to offline sandbox constraints, Helm dependencies (such as bitnami helper sub-charts) have not been fetched or validated against the `charts.bitnami.com` registry.
   * **GKE API Deprecations**: The Kubernetes manifests in the Helm chart are untested against target GKE/EKS clusters and may trigger API version deprecation warnings or rejection errors on modern cluster versions (v1.29+).
 
 ### E. Deployment Orchestration & Rollback Safe-Guards
+
 * **Sandbox Verification**: The `deploy_prod.sh` script enforces environment variable checks and prevents execution with default development keys.
 * **Production Reality & Gaps**:
   * **Flyway Migration Deadlocks**: If the Flyway migration job fails mid-execution or encounters a deadlock due to locking tables during rollouts, the deployment orchestrator's rollback mechanism (`helm rollback`) **cannot automatically revert database schema changes**.

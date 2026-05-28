@@ -200,7 +200,7 @@ kubectl exec -n ios-plus <pod-name> -c middleware-engine -- ls -l /vault/secrets
 kubectl exec -n ios-plus <pod-name> -c middleware-engine -- sh -c 'test -s /vault/secrets/ios-plus.env && echo OK'
 ```
 
-### Expected outcome
+### Expected secret projection outcome
 
 Operators should confirm:
 
@@ -294,7 +294,7 @@ kubectl get pods -n ios-plus
 kubectl rollout status deployment/middleware-engine -n ios-plus
 ```
 
-### Expected outcome
+### Expected deployment rollout outcome
 
 Operators should verify:
 
@@ -365,7 +365,7 @@ python3 scripts/ops/verify_merkle_root.py
 
 This computes and attempts to publish a Merkle root for evidence packages.
 
-### Expected outcome
+### Expected key consistency outcome
 
 Operators should confirm:
 
@@ -490,9 +490,9 @@ This section provides the verification checklist and commands required to valida
 
 Verify the status of the following workflows in the **Actions** tab on GitHub:
 
-* **Staging Pipeline (`deploy-staging.yml`)**: Triggered automatically on push to the `develop` branch.
-* **Release Pipeline (`release.yml`)**: Triggered automatically on pushes of version tags matching `v*` (e.g., `v1.0.0`).
-* **Production Pipeline (`deploy-production.yml`)**: Triggered automatically on pushes of version tags matching `v*`.
+- **Staging Pipeline (`deploy-staging.yml`)**: Triggered automatically on push to the `develop` branch.
+- **Release Pipeline (`release.yml`)**: Triggered automatically on pushes of version tags matching `v*` (e.g., `v1.0.0`).
+- **Production Pipeline (`deploy-production.yml`)**: Triggered automatically on pushes of version tags matching `v*`.
 
 > [!NOTE]
 > GitHub Actions uses glob-style matching for branch and tag triggers, not regular expressions.
@@ -501,24 +501,25 @@ Verify the status of the following workflows in the **Actions** tab on GitHub:
 
 Verify the deployment state under **Settings → Environments** in the repository:
 
-* **Staging Environment (`staging`)**: Recorded when `deploy-staging.yml` executes.
-* **Production Environment (`production`)**: Recorded when `deploy-production.yml` executes (subject to environment protection rules or manual reviewer approvals).
+- **Staging Environment (`staging`)**: Recorded when `deploy-staging.yml` executes.
+- **Production Environment (`production`)**: Recorded when `deploy-production.yml` executes (subject to environment protection rules or manual reviewer approvals).
 
 ### C. GitHub Container Registry (GHCR) Packages
 
 Verify that the following package images are published under the repository's organization container list:
 
-* `ios-plus-middleware-engine`
-* `ios-plus-gate-530`
-* `ios-plus-evidence-fabric`
-* `ios-plus-rag-vault`
-* `ios-plus-cos-plus`
-* `ios-plus-uco-resolver`
-* `ios-plus-ops`
+- `ios-plus-middleware-engine`
+- `ios-plus-gate-530`
+- `ios-plus-evidence-fabric`
+- `ios-plus-rag-vault`
+- `ios-plus-cos-plus`
+- `ios-plus-uco-resolver`
+- `ios-plus-ops`
 
 Each image should be correctly tagged:
-* **Staging**: Tagged with the Git commit SHA and `staging-latest`.
-* **Production/Release**: Tagged with the matching release tag (e.g., `v1.0.0`).
+
+- **Staging**: Tagged with the Git commit SHA and `staging-latest`.
+- **Production/Release**: Tagged with the matching release tag (e.g., `v1.0.0`).
 
 ### D. Active Cluster Rollout Verification
 
@@ -553,9 +554,9 @@ kubectl rollout status deployment/rag-vault -n ios-plus
 
 For workflows to execute successfully, the following credentials must be populated:
 
-* **Staging Environment Secrets**: `STAGING_KUBECONFIG` (and any associated cluster certificates).
-* **Production Environment Secrets**: `PRODUCTION_KUBECONFIG`.
-* **Repository-Level Secrets**: `TURBO_TOKEN`, `TURBO_TEAM`, and `GITLEAKS_LICENSE` (if running security scans).
+- **Staging Environment Secrets**: `STAGING_KUBECONFIG` (and any associated cluster certificates).
+- **Production Environment Secrets**: `PRODUCTION_KUBECONFIG`.
+- **Repository-Level Secrets**: `TURBO_TOKEN`, `TURBO_TEAM`, and `GITLEAKS_LICENSE` (if running security scans).
 
 ---
 

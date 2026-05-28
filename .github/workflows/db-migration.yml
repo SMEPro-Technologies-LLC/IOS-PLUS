@@ -12,7 +12,7 @@ on:
       dry_run:
         description: Dry run (validate only, do not apply)
         required: false
-        default: "true"
+        default: true
         type: boolean
 
 jobs:

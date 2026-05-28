@@ -14,5 +14,9 @@
     "PRODUCTION_KUBECONFIG",
     "TURBO_TOKEN",
     "TURBO_TEAM"
+  ],
+  "github-actions.workflows.exclude": [
+    "**/.github/workflows/*.yml",
+    "**/.github/workflows/*.yaml"
   ]
 }

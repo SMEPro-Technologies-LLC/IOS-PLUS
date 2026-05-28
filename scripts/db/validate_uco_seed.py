@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "psycopg2-binary",
+#   "openpyxl",
+#   "requests",
+# ]
+# ///
 """
 validate_uco_seed.py
 SMEPro Technologies — IOS+ Middleware Engine

@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "psycopg2-binary",
+#   "cryptography",
+# ]
+# ///
 """
 verify_evidence_package.py
 IOS+ Evidence Fabric — Evidence Package Signature Verification

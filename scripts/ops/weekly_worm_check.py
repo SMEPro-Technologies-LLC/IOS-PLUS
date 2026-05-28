@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# /// script
+# dependencies = [
+#   "psycopg2-binary",
+# ]
+# ///
 """
 weekly_worm_check.py
 IOS+ WORM Integrity Verification

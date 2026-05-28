@@ -3,7 +3,7 @@ name: CD — Production Deployment
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v*.*.*"
 
 permissions:
   contents: read
@@ -46,6 +46,7 @@ jobs:
             --values infra/helm/ios-plus/values.yaml \
             --values infra/helm/ios-plus/values.production.yaml \
             --set global.imageRegistry=${{ env.REGISTRY }}/${{ env.OWNER }} \
+            --set global.namespace=${{ env.NAMESPACE }} \
             --set middlewareEngine.image.tag=$TAG \
             --set gate530.image.tag=$TAG \
             --set evidenceFabric.image.tag=$TAG \

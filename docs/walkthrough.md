@@ -1,12 +1,12 @@
 # Engineering Walkthrough: Monorepo Maturation & Sandbox Verification
 
-We have resolved identified engineering and configuration blocks in the local sandbox setup, fixed the YAML/step validation issues in the GitHub Actions workflows, and stabilized the remote CI pipeline with multiple recent green runs.
+This walkthrough records engineering and configuration updates verified in the local sandbox setup, including workflow and deployment changes tracked in this repository.
 
 ---
 
 ## 1. Summary of Blockers Resolved
 
-We addressed the two main production stop-ship blockers in the monorepo:
+We addressed two high-priority engineering blockers in the monorepo sandbox:
 
 ### A. Control Plane Authentication
 
@@ -36,7 +36,7 @@ We addressed the two main production stop-ship blockers in the monorepo:
 
 ## 2. Remote CI/CD Pipeline Remediation
 
-We resolved multiple syntax and execution failures in the GitHub Actions workflows to enable a clean, green build on pushes to the default branch:
+We resolved syntax and execution issues in GitHub Actions workflows as part of this repository remediation:
 
 ### A. Triggering and YAML Parsing Fixes
 
@@ -63,7 +63,7 @@ We resolved multiple syntax and execution failures in the GitHub Actions workflo
 
 ## 3. Remote Verification Result
 
-Commit [21c61dce80a8c5c8f6835b849b323e7bd62fd4bf](https://github.com/SMEPro-Technologies-LLC/IOS-PLUS/commit/21c61dce80a8c5c8f6835b849b323e7bd62fd4bf) triggered and completed successfully on GitHub Actions:
+One representative verification run is shown below:
 
 * **Workflow Run**: [CI — Lint, Typecheck, Test #24](https://github.com/SMEPro-Technologies-LLC/IOS-PLUS/actions/runs/26536396319)
 * **Status**: `completed`
@@ -89,7 +89,7 @@ Executing the Vitest test suites locally confirms all 26 test cases (including t
 > vitest run
 
 
- RUN  v1.6.1 C:/Users/admin/IOS-PLUS
+ RUN  v1.6.1 <repo-root>
 
  ✓ packages/cos-plus/src/cos-plus.test.ts  (2 tests) 5ms
  ✓ packages/uco-resolver/src/uco-resolver.test.ts  (1 test) 5ms
@@ -105,9 +105,9 @@ Executing the Vitest test suites locally confirms all 26 test cases (including t
 
 ---
 
-## 5. Production-Ready Operational Hardening
+## 5. Operational Hardening Worklog (Sandbox Scope)
 
-We completed additional production hardening steps to transition the prototype into a robust enterprise solution:
+The following hardening work was implemented and validated in the sandbox environment:
 
 ### A. Dual-Mode HTTP/2 Transport Option
 
@@ -162,7 +162,7 @@ We addressed dynamic configuration and operational bring-up tasks to prepare the
 
 ## 7. Production Hardening Backlog Implementation
 
-We successfully implemented backlog items from the Production Hardening backlog across P0, P1, and P2 priorities for sandbox validation:
+This section tracks backlog items implemented for sandbox validation across P0, P1, and P2 priorities:
 
 ### A. Dependency-Aware Readiness & Startup Gating (P0.1 / P0.2)
 
@@ -195,7 +195,7 @@ We successfully implemented backlog items from the Production Hardening backlog 
 
 ## 8. GitHub-Native Release, GHCR Publication, & Deployment Tracking
 
-We have configured the GitHub-native release, packaging, and multi-environment tracking lifecycle for **IOS+**:
+This section documents the repository-side GitHub release, packaging, and environment-tracking setup for **IOS+**:
 
 ### A. Docker Path & Dependency Alignment
 

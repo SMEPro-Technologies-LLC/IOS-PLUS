@@ -15,6 +15,15 @@ NAMESPACE="ios-plus"
 VAULT_NAMESPACE="vault"
 TF_STATE_BUCKET="${TF_STATE_BUCKET:-ios-plus-tf-state}"
 
+require_non_empty() {
+  local var_name="$1"
+  local var_value="${!var_name:-}"
+  if [ -z "${var_value}" ]; then
+    echo "ERROR: Required value '${var_name}' is missing." >&2
+    exit 1
+  fi
+}
+
 echo "======================================================================"
 echo "Starting IOS+ Production Deployment and Closed-Loop Bring-up"
 echo "======================================================================"
@@ -64,9 +73,13 @@ terraform apply -auto-approve \
   -var="gcp_project=${GCP_PROJECT}"
 
 # Extract outputs from Terraform
-CLUSTER_NAME=$(terraform output -raw cluster_name 2>/dev/null || echo "ios-plus-cluster")
-GCP_REGION=$(terraform output -raw gcp_region 2>/dev/null || echo "us-central1")
-DB_HOST=$(terraform output -raw db_host 2>/dev/null || echo "10.128.0.3")
+CLUSTER_NAME=$(terraform output -raw cluster_name 2>/dev/null || true)
+GCP_REGION=$(terraform output -raw gcp_region 2>/dev/null || true)
+DB_HOST=$(terraform output -raw db_host 2>/dev/null || true)
+
+require_non_empty "CLUSTER_NAME"
+require_non_empty "GCP_REGION"
+require_non_empty "DB_HOST"
 
 # 3. Retrieve GKE Credentials
 echo "Wiring Kubernetes credentials for GKE cluster '${CLUSTER_NAME}' in region '${GCP_REGION}'..."

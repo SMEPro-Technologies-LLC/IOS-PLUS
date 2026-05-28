@@ -55,7 +55,8 @@ echo "--- Step 4: Upgrading Helm Release ---"
 HELM_UPGRADE_CMD="helm upgrade --install $RELEASE_NAME infra/helm/ios-plus \
   --namespace $NAMESPACE \
   --values infra/helm/ios-plus/values.yaml \
-  --values infra/helm/ios-plus/values.production.yaml"
+  --values infra/helm/ios-plus/values.production.yaml \
+  --set global.namespace=$NAMESPACE"
 
 echo "Executing: $HELM_UPGRADE_CMD"
 if ! eval "$HELM_UPGRADE_CMD"; then
@@ -90,7 +91,7 @@ echo "Verifying `/ready` endpoint inside pod $POD_NAME..."
 READY_RESPONSE=$(kubectl exec "$POD_NAME" -n "$NAMESPACE" -c middleware-engine -- curl -s http://localhost:3000/ready || echo '{"status":"failed"}')
 
 echo "Readiness payload: $READY_RESPONSE"
-if [[ "$READY_RESPONSE" == *"ready"* ]]; then
+if echo "$READY_RESPONSE" | grep -q '"status":"ready"'; then
   echo "SUCCESS: Post-deploy readiness verification checks passed."
   echo "Release completed successfully."
   exit 0

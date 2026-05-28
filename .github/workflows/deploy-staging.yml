@@ -80,6 +80,7 @@ jobs:
             --create-namespace \
             --values infra/helm/ios-plus/values.yaml \
             --set global.imageRegistry=${{ env.REGISTRY }}/${{ env.OWNER }} \
+            --set global.namespace=${{ env.NAMESPACE }} \
             --set middlewareEngine.image.tag=${{ needs.build-and-push.outputs.image_tag }} \
             --set gate530.image.tag=${{ needs.build-and-push.outputs.image_tag }} \
             --set evidenceFabric.image.tag=${{ needs.build-and-push.outputs.image_tag }} \

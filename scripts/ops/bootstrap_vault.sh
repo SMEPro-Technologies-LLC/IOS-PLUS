@@ -6,7 +6,10 @@
 set -euo pipefail
 
 # Configuration Defaults (can be overridden by environment variables)
-VAULT_ADDR="${VAULT_ADDR:-https://vault.internal.sme-plus.local:8200}"
+if [ -z "${VAULT_ADDR:-}" ]; then
+    echo "ERROR: VAULT_ADDR must be explicitly set." >&2
+    exit 1
+fi
 K8S_HOST="${K8S_HOST:-https://kubernetes.default.svc.cluster.local:443}"
 NAMESPACE="${NAMESPACE:-default}"
 SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-ios-plus-sa}"
@@ -95,17 +98,25 @@ fi
 # Note: Typically executed within the target Kubernetes cluster where token/certs are auto-mounted.
 # In localized validation, we read local serviceaccount secrets.
 echo "Configuring Kubernetes auth client..."
-SA_JWT_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token 2>/dev/null || echo "LOCAL_MOCK_TOKEN")
-SA_CA_CRT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt 2>/dev/null || echo "LOCAL_MOCK_CRT")
-
-if [ "$SA_JWT_TOKEN" = "LOCAL_MOCK_TOKEN" ]; then
-    echo "Notice: Standard cluster serviceaccount tokens not detected. Skipping native token write."
-else
-    vault write auth/kubernetes/config \
-        kubernetes_host="${K8S_HOST}" \
-        kubernetes_ca_cert="${SA_CA_CRT}" \
-        token_reviewer_jwt="${SA_JWT_TOKEN}"
+SA_JWT_TOKEN="${K8S_TOKEN_REVIEWER_JWT:-}"
+if [ -z "${SA_JWT_TOKEN}" ] && [ -r /var/run/secrets/kubernetes.io/serviceaccount/token ]; then
+    SA_JWT_TOKEN="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
 fi
+
+SA_CA_CRT="${K8S_CA_CERT:-}"
+if [ -z "${SA_CA_CRT}" ] && [ -r /var/run/secrets/kubernetes.io/serviceaccount/ca.crt ]; then
+    SA_CA_CRT="$(cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt)"
+fi
+
+if [ -z "${SA_JWT_TOKEN}" ] || [ -z "${SA_CA_CRT}" ]; then
+    echo "ERROR: Kubernetes auth configuration requires service account token and CA cert. Provide K8S_TOKEN_REVIEWER_JWT and K8S_CA_CERT, or run in-cluster." >&2
+    exit 1
+fi
+
+vault write auth/kubernetes/config \
+    kubernetes_host="${K8S_HOST}" \
+    kubernetes_ca_cert="${SA_CA_CRT}" \
+    token_reviewer_jwt="${SA_JWT_TOKEN}"
 
 # 8. Create role linking Kubernetes service account to policy
 echo "Binding policy '${POLICY_NAME}' to role '${ROLE_NAME}' for SA '${SERVICE_ACCOUNT}'..."

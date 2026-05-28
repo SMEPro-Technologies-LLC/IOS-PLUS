@@ -32,3 +32,11 @@ cosPlus:
 redis:
   replica:
     replicaCount: 3
+
+serviceAccount:
+  annotations:
+    # For GCP Workload Identity (uncomment and replace with your GCP service account):
+    # iam.gke.io/gcp-service-account: "ios-plus-sa@YOUR_GCP_PROJECT.iam.gserviceaccount.com"
+    # For AWS EKS IRSA (uncomment and replace with your AWS IAM Role ARN):
+    # eks.amazonaws.com/role-arn: "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:role/ios-plus-dns-publisher-role"
+

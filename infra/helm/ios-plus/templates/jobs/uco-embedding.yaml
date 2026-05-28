@@ -10,7 +10,7 @@ spec:
       containers:
         - name: uco-embedding
           image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.jobs.ucoEmbedding.image.repository }}:{{ .Values.jobs.ucoEmbedding.image.tag }}"
-          command: ["node", "dist/jobs/embed-uco-nodes.js"]
+          command: ["node", "packages/rag-vault/dist/jobs/embed-uco-nodes.js"]
           envFrom:
             - configMapRef:
                 name: ios-plus-config

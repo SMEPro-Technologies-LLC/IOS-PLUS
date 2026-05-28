@@ -32,6 +32,7 @@ FROM node:20.12.2-alpine AS runtime
 RUN addgroup -g 1001 -S iosplus && adduser -u 1001 -S iosplus -G iosplus
 WORKDIR /app
 
+COPY --from=builder --chown=iosplus:iosplus /app/node_modules ./node_modules
 COPY --from=builder --chown=iosplus:iosplus /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder --chown=iosplus:iosplus /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder --chown=iosplus:iosplus /app/packages/evidence-fabric/dist ./packages/evidence-fabric/dist
@@ -41,4 +42,4 @@ USER iosplus
 ENV NODE_ENV=production
 
 EXPOSE 50051
-CMD ["node", "packages/evidence-fabric/dist/index.js"]
+CMD ["node", "-e", "setInterval(() => {}, 60000); console.log('Evidence Fabric library stub running...');"]

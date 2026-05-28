@@ -13,26 +13,56 @@ redis:
 
 middlewareEngine:
   replicaCount: 1
+  hpa:
+    enabled: false
   image:
     tag: "1.0.0"
     pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
 
 gate530:
   image:
     tag: "1.0.0"
     pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
 
 evidenceFabric:
   replicaCount: 1
   image:
     tag: "1.0.0"
     pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
 
 ragVault:
   replicaCount: 1
   image:
     tag: "1.0.0"
     pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
 
 ops:
   image:

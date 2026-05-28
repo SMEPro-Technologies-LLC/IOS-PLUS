@@ -24,13 +24,21 @@ spec:
           containers:
             - name: merkle-publisher
               image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.cronJobs.merkleRootPublisher.image.repository }}:{{ .Values.cronJobs.merkleRootPublisher.image.tag }}"
-              command: ["python3", "scripts/ops/verify_merkle_root.py"]
+              command: ["python3", "/scripts/verify_merkle_root.py"]
+              envFrom:
+                - configMapRef:
+                    name: ios-plus-config
               env:
                 - name: NODE_ENV
                   value: "production"
-                - name: DNS_TXT_ZONE
+                - name: DATABASE_URL_AUDIT_READER
                   valueFrom:
-                    configMapKeyRef:
-                      name: ios-plus-config
-                      key: DNS_TXT_ZONE
+                    secretKeyRef:
+                      name: ios-plus-db-secrets
+                      key: audit-reader-url
+                - name: DATABASE_URL_AUDIT_WRITER
+                  valueFrom:
+                    secretKeyRef:
+                      name: ios-plus-db-secrets
+                      key: audit-writer-url
           serviceAccountName: ios-plus-sa

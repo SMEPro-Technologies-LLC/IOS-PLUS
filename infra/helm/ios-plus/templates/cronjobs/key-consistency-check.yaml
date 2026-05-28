@@ -24,15 +24,18 @@ spec:
           containers:
             - name: key-check
               image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.cronJobs.keyConsistencyCheck.image.repository }}:{{ .Values.cronJobs.keyConsistencyCheck.image.tag }}"
-              command: ["python3", "scripts/ops/verify_key_publication_consistency.py"]
+              command: ["python3", "/scripts/verify_key_publication_consistency.py"]
+              envFrom:
+                - configMapRef:
+                    name: ios-plus-config
               env:
                 - name: NODE_ENV
                   value: "production"
                 - name: KEY_FILESYSTEM_PATH
                   value: "/etc/ios-plus/keys/current.pub"
-                - name: DNS_TXT_ZONE
+                - name: DATABASE_URL_AUDIT_READER
                   valueFrom:
-                    configMapKeyRef:
-                      name: ios-plus-config
-                      key: DNS_TXT_ZONE
+                    secretKeyRef:
+                      name: ios-plus-db-secrets
+                      key: audit-reader-url
           serviceAccountName: ios-plus-sa

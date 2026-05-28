@@ -239,18 +239,11 @@ spec:
           volumeMounts:
             - name: tmp-dir
               mountPath: /tmp
-            - name: scripts
-              mountPath: /scripts
-              readOnly: true
 
       volumes:
         - name: tmp-dir
           emptyDir:
             sizeLimit: 100Mi
-        - name: scripts
-          configMap:
-            name: {{ include "ios-plus.fullname" . }}-ops-scripts
-            defaultMode: 0755
 
       imagePullSecrets:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}

@@ -8,5 +8,11 @@
   "actionlint.ignoreErrors": [
     "Context access might be invalid: STAGING_KUBECONFIG",
     "Context access might be invalid: PRODUCTION_KUBECONFIG"
+  ],
+  "github-actions.workflows.pinnedSecrets": [
+    "STAGING_KUBECONFIG",
+    "PRODUCTION_KUBECONFIG",
+    "TURBO_TOKEN",
+    "TURBO_TEAM"
   ]
 }

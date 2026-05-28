@@ -5,17 +5,26 @@ WORKDIR /app
 # Install dependencies for all workspaces
 COPY package.json package-lock.json turbo.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/middleware-engine/package.json packages/middleware-engine/
+COPY packages/gate-530/package.json packages/gate-530/
+COPY packages/cos-plus/package.json packages/cos-plus/
 COPY packages/evidence-fabric/package.json packages/evidence-fabric/
-RUN npm ci --workspace=@ios-plus/shared --workspace=@ios-plus/evidence-fabric
+COPY packages/rag-vault/package.json packages/rag-vault/
+COPY packages/uco-resolver/package.json packages/uco-resolver/
+RUN npm install --no-audit
+
 
 # Copy source
 COPY packages/shared/src packages/shared/src
-COPY packages/evidence-fabric/src packages/evidence-fabric/src
 COPY packages/shared/tsconfig.json packages/shared/
+COPY packages/cos-plus/src packages/cos-plus/src
+COPY packages/cos-plus/tsconfig.json packages/cos-plus/
+COPY packages/evidence-fabric/src packages/evidence-fabric/src
 COPY packages/evidence-fabric/tsconfig.json packages/evidence-fabric/
 
 # Build
 RUN npm run build --workspace=@ios-plus/shared
+RUN npm run build --workspace=@ios-plus/cos-plus
 RUN npm run build --workspace=@ios-plus/evidence-fabric
 
 # ── Stage 2: Runtime ─────────────────────────────────────────

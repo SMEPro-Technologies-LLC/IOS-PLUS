@@ -1,0 +1,65 @@
+# ============================================================
+# IOS+ Helm Chart — Local Staging Values
+# Override values for local staging deployment in Kind/Docker Desktop
+# ============================================================
+
+global:
+  imageRegistry: ""
+  namespace: ios-plus-staging
+
+# Disable redis subchart dependency, connect to external host redis
+redis:
+  enabled: false
+
+middlewareEngine:
+  replicaCount: 1
+  image:
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+
+gate530:
+  image:
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+
+evidenceFabric:
+  replicaCount: 1
+  image:
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+
+ragVault:
+  replicaCount: 1
+  image:
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+
+ops:
+  image:
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+
+extraConfig:
+  COS_HOST: "host.docker.internal"
+  COS_PORT: "5432"
+  COS_DATABASE: "ios_plus"
+  COS_SSL: "false"
+  COS_PASSWORD_IOS_APP: "iosplus_dev_app"
+  COS_PASSWORD_AUDIT_WRITER: "iosplus_dev_audit_writer"
+  COS_PASSWORD_AUDIT_READER: "iosplus_dev_audit_reader"
+  COS_PASSWORD_RAG_READER: "iosplus_dev_rag_reader"
+  COS_PASSWORD_RAG_WRITER: "iosplus_dev_rag_writer"
+  COS_PASSWORD_COS_ADMIN: "iosplus_dev_admin"
+  COS_URL_RAG_READER: "postgresql://rag_reader:iosplus_dev_rag_reader@host.docker.internal:5432/ios_plus"
+  REDIS_URL: "redis://:iosplus_dev_redis@host.docker.internal:6379"
+  VAULT_ADDR: "http://host.docker.internal:8200"
+  VAULT_TOKEN: "iosplus-dev-root-token"
+  VAULT_TRANSIT_KEY_PATH: "transit/keys/ios-evidence-signing"
+  SIGNING_KEY_PRIVATE_BASE64: "jDMLSct7eUkZiUP5v+OL9tP6Hj0/4hHbDjcwPYm45/E="
+  SIGNING_KEY_DNS_ZONE: "_ios-signing-key.smeprotech.com"
+  SIGNING_KEY_ACTIVE_ID: "e5187eea-77fd-443f-8417-3d0bb6e4a8f0"
+  OPENAI_API_KEY: "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"
+  COS_ADMIN_API_KEY: "iosplus_dev_admin_key"
+  TENANT_ID: "0be7a2cd-43c7-42c4-a439-8307577255ac"
+  TENANT_NAICS_CODES: "5415"
+  TENANT_NAICS_EFFECTIVE_DATE: "2026-01-01"

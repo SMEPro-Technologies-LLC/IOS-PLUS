@@ -34,7 +34,7 @@ Usage:
 
 Environment variables (required):
   COS_PLUS_DSN       — PostgreSQL DSN for audit_reader role
-                       e.g. postgresql://audit_reader:pass@cos-plus:5432/ios_plus
+                       e.g. postgresql://audit_reader:<password>@cos-plus:5432/ios_plus
 
 Optional:
   UCO_EXCEL_PATH     — Path to UDM Excel file for cross-check (overrides --excel)
@@ -210,10 +210,10 @@ class UCOSeedValidator:
             admin_pwd = os.environ.get("COS_PASSWORD_COS_ADMIN")
             if admin_pwd:
                 admin_dsn = f"postgresql://cos_admin:{admin_pwd}@{host}:{port}/{db_name}"
-            else:
-                # Fallback to local dev default
-                admin_dsn = "postgresql://cos_admin:iosplus_dev_admin@localhost:5432/ios_plus"
-                
+        if not admin_dsn:
+            print("[WARN] Sandbox auxiliary seed skipped: DATABASE_URL_COS_ADMIN or COS_PASSWORD_COS_ADMIN not set.")
+            return
+
         try:
             write_conn = psycopg2.connect(admin_dsn)
             write_conn.set_session(autocommit=True)
@@ -765,7 +765,7 @@ def main() -> None:
     if not dsn:
         print(
             "FATAL: COS_PLUS_DSN environment variable not set.\n"
-            "  Example: postgresql://audit_reader:pass@cos-plus:5432/ios_plus",
+            "  Example: postgresql://audit_reader:<password>@cos-plus:5432/ios_plus",
             file=sys.stderr,
         )
         sys.exit(2)

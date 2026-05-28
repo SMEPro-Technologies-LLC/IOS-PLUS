@@ -70,7 +70,7 @@ jobs:
         uses: azure/k8s-set-context@v3
         with:
           method: kubeconfig
-          kubeconfig: ${{ secrets.STAGING_KUBECONFIG }}
+          kubeconfig: ${{ secrets['STAGING_KUBECONFIG'] }}
 
       - name: Helm upgrade staging
         run: |

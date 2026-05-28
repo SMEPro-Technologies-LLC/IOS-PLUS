@@ -1,0 +1,6 @@
+# Actionlint Configuration File
+# Declares repository-level secrets to suppress false positive validation warnings.
+
+secrets:
+  - STAGING_KUBECONFIG
+  - PRODUCTION_KUBECONFIG

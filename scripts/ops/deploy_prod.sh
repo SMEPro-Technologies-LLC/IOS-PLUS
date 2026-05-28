@@ -19,7 +19,7 @@ echo "======================================================================"
 echo "Starting IOS+ Production Deployment and Closed-Loop Bring-up"
 echo "======================================================================"
 
-# 1. Verify Prerequisites
+# 1. Verify Prerequisites and Credentials
 echo "Checking local CLI dependencies..."
 for cmd in terraform gcloud helm kubectl vault curl; do
     if ! command -v "$cmd" &> /dev/null; then
@@ -29,13 +29,39 @@ for cmd in terraform gcloud helm kubectl vault curl; do
 done
 echo "All CLI dependencies verified."
 
+# Enforce environment configuration safety checks
+if [ -z "${GCP_PROJECT:-}" ]; then
+    echo "ERROR: GCP_PROJECT environment variable must be explicitly defined." >&2
+    exit 1
+fi
+
+if [ -z "${OPENAI_API_KEY:-}" ] || [ "${OPENAI_API_KEY}" = "mock-api-key" ]; then
+    echo "ERROR: A valid, non-mock OPENAI_API_KEY must be supplied." >&2
+    exit 1
+fi
+
+REQUIRED_DB_KEYS=(
+  "COS_PASSWORD_IOS_APP"
+  "COS_PASSWORD_AUDIT_WRITER"
+  "COS_PASSWORD_AUDIT_READER"
+  "COS_PASSWORD_RAG_READER"
+  "COS_PASSWORD_RAG_WRITER"
+  "COS_PASSWORD_COS_ADMIN"
+)
+for key in "${REQUIRED_DB_KEYS[@]}"; do
+    if [ -z "${!key:-}" ] || [ "${!key}" = "iosplus_prod_${key#COS_PASSWORD_}_key" ] || [ "${!key}" = "iosplus_dev_${key#COS_PASSWORD_}_key" ]; then
+        echo "ERROR: Valid database credential environment variable '$key' is not set." >&2
+        exit 1
+    fi
+done
+
 # 2. Provision Infrastructure via Terraform
 echo "Initializing and applying Terraform resources..."
 cd "${TF_DIR}"
 terraform init -backend-config="bucket=${TF_STATE_BUCKET}"
 terraform apply -auto-approve \
   -var="environment=${ENV}" \
-  -var="gcp_project=$(gcloud config get-value project 2>/dev/null || echo 'smepro-prod')"
+  -var="gcp_project=${GCP_PROJECT}"
 
 # Extract outputs from Terraform
 CLUSTER_NAME=$(terraform output -raw cluster_name 2>/dev/null || echo "ios-plus-cluster")
@@ -61,18 +87,18 @@ bash "${PROJECT_DIR}/scripts/ops/bootstrap_vault.sh"
 
 # 5. Populate Vault Secrets Engine for Workload Ingestion
 echo "Populating secure connection credentials to Vault KV store..."
-# In prod, credentials are populated from secure out-of-band KMS
+# Credentials are populated securely from the caller's environment
 vault kv put secret/ios-plus/config \
   COS_HOST="${DB_HOST}" \
   COS_PORT="5432" \
   COS_DATABASE="ios_plus" \
-  COS_PASSWORD_IOS_APP="iosplus_prod_app_key" \
-  COS_PASSWORD_AUDIT_WRITER="iosplus_prod_audit_writer_key" \
-  COS_PASSWORD_AUDIT_READER="iosplus_prod_audit_reader_key" \
-  COS_PASSWORD_RAG_READER="iosplus_prod_rag_reader_key" \
-  COS_PASSWORD_RAG_WRITER="iosplus_prod_rag_writer_key" \
-  COS_PASSWORD_COS_ADMIN="iosplus_prod_cos_admin_key" \
-  OPENAI_API_KEY="${OPENAI_API_KEY:-mock-api-key}" \
+  COS_PASSWORD_IOS_APP="${COS_PASSWORD_IOS_APP}" \
+  COS_PASSWORD_AUDIT_WRITER="${COS_PASSWORD_AUDIT_WRITER}" \
+  COS_PASSWORD_AUDIT_READER="${COS_PASSWORD_AUDIT_READER}" \
+  COS_PASSWORD_RAG_READER="${COS_PASSWORD_RAG_READER}" \
+  COS_PASSWORD_RAG_WRITER="${COS_PASSWORD_RAG_WRITER}" \
+  COS_PASSWORD_COS_ADMIN="${COS_PASSWORD_COS_ADMIN}" \
+  OPENAI_API_KEY="${OPENAI_API_KEY}" \
   REDIS_URL="redis://ios-plus-redis-master.${NAMESPACE}.svc.cluster.local:6379"
 
 # 6. Apply Database Migrations (WORM Triggers and Roles)

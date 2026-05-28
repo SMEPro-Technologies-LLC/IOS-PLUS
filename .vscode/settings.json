@@ -4,5 +4,9 @@
       "**/.github/workflows/*.yml",
       "**/.github/workflows/*.yaml"
     ]
-  }
+  },
+  "actionlint.ignoreErrors": [
+    "Context access might be invalid: STAGING_KUBECONFIG",
+    "Context access might be invalid: PRODUCTION_KUBECONFIG"
+  ]
 }

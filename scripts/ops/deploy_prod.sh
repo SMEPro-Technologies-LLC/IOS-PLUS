@@ -17,9 +17,10 @@ TF_STATE_BUCKET="${TF_STATE_BUCKET:-ios-plus-tf-state}"
 
 require_non_empty() {
   local var_name="$1"
+  local value_source="${2:-environment}"
   local var_value="${!var_name:-}"
   if [ -z "${var_value}" ]; then
-    echo "ERROR: Required value '${var_name}' is missing." >&2
+    echo "ERROR: Required value '${var_name}' is missing (source: ${value_source})." >&2
     exit 1
   fi
 }
@@ -77,9 +78,9 @@ CLUSTER_NAME=$(terraform output -raw cluster_name 2>/dev/null || true)
 GCP_REGION=$(terraform output -raw gcp_region 2>/dev/null || true)
 DB_HOST=$(terraform output -raw db_host 2>/dev/null || true)
 
-require_non_empty "CLUSTER_NAME"
-require_non_empty "GCP_REGION"
-require_non_empty "DB_HOST"
+require_non_empty "CLUSTER_NAME" "terraform output cluster_name"
+require_non_empty "GCP_REGION" "terraform output gcp_region"
+require_non_empty "DB_HOST" "terraform output db_host"
 
 # 3. Retrieve GKE Credentials
 echo "Wiring Kubernetes credentials for GKE cluster '${CLUSTER_NAME}' in region '${GCP_REGION}'..."

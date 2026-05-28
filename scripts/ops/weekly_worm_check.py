@@ -86,11 +86,13 @@ AUDIT_TABLES = [
 
 def check_triggers(cur):
     cur.execute("""
-        SELECT event_object_table, COUNT(*) AS trigger_count
-        FROM information_schema.triggers
-        WHERE trigger_schema = 'public'
-          AND trigger_name LIKE 'worm_%'
-        GROUP BY event_object_table
+        SELECT c.relname AS table_name, COUNT(*) AS trigger_count
+        FROM pg_trigger t
+        JOIN pg_class c ON t.tgrelid = c.oid
+        JOIN pg_namespace n ON c.relnamespace = n.oid
+        WHERE n.nspname = 'public'
+          AND t.tgname LIKE 'worm_%'
+        GROUP BY c.relname
     """)
     return {row[0]: row[1] for row in cur.fetchall()}
 

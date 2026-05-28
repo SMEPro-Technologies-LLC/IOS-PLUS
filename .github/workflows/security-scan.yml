@@ -390,7 +390,7 @@ jobs:
             fi
             python3 scripts/db/validate_uco_seed.py \
               --output-dir "$OUTPUT_DIR" \
-              "${EXTRA_ARGS[@]}"
+              ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
             EXIT_CODE=$?
           fi
           set -e

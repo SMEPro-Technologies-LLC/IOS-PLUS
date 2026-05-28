@@ -10,6 +10,7 @@ This playbook outlines procedures for performing database schema rollbacks and r
 > Schema rollbacks on active databases can cause irreversible data loss if not properly planned. Always take an out-of-band persistent storage snapshot or full pg_dump copy of the database before proceeding.
 
 ### Pre-Rollback Checklist
+
 1. **Scale Down Services**: Scale down all active application pods (`middleware-engine`, `evidence-fabric`, `rag-vault`) to `0` replicas to prevent write concurrency.
 2. **Retrieve Admin Credentials**: Connect to the database using the database superuser or database owner role (`cos_admin` or equivalent). Standard application roles (`ios_app`, `audit_writer`) do not have permissions to modify schemas or toggle triggers.
 3. **Set Up Session Variable locks**: Some triggers depend on session contexts. Always run manual rollbacks inside a transactional block (`BEGIN; ... COMMIT;`).
@@ -45,6 +46,7 @@ ALTER TABLE merkle_roots ENABLE TRIGGER ALL;
 To manually roll back migrations, run the following SQL commands sequentially starting from the target version down.
 
 ### Reverting V6 (Vault Partitioning & RAG Schema)
+
 Reverts partitions, indexes, and pgvector schemas.
 
 ```sql
@@ -63,6 +65,7 @@ COMMIT;
 ```
 
 ### Reverting V5 (RBAC Roles and App Privileges)
+
 Drops roles and revokes privileges.
 
 ```sql
@@ -83,6 +86,7 @@ COMMIT;
 ```
 
 ### Reverting V4 (NAICS Decoders & Lookup Data)
+
 Drops the code crosswalk and naics lookup structures.
 
 ```sql
@@ -96,6 +100,7 @@ COMMIT;
 ```
 
 ### Reverting V3 (UCO Seeds & Matrix)
+
 Drops the Universal Compliance Decoding Matrix schemas.
 
 ```sql
@@ -109,6 +114,7 @@ COMMIT;
 ```
 
 ### Reverting V2 (WORM triggers)
+
 Reverts triggers and trigger functions.
 
 ```sql
@@ -127,6 +133,7 @@ COMMIT;
 ```
 
 ### Reverting V1 (Initial Persistent Schema)
+
 Drops the core persistence tables. **DANGER: Destroys all data.**
 
 ```sql
@@ -156,16 +163,22 @@ After manually dropping or altering tables, Flyway's internal schema history tab
 
 1. **Delete Schema History Entries**:
    If you rolled back the schema to version `Vx`, remove all records above version `Vx` from the history table:
+
    ```sql
    DELETE FROM flyway_schema_history WHERE version_rank > x;
    ```
+
 2. **Execute Flyway Repair**:
    Run the repair job to align the checksums of existing migrations:
+
    ```bash
    flyway repair -url=jdbc:postgresql://<db_host>:5432/ios_plus -user=cos_admin -password=<password>
    ```
+
 3. **Verify DB Invariants**:
    Run the preflight verification script to ensure the schema has successfully settled at the targeted version:
+
    ```bash
    python scripts/db/verify_db_invariants.py
    ```
+

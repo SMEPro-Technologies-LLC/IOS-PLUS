@@ -17,7 +17,7 @@ All verification probes were executed against the active database clusters (`cos
 ### Key Audit Metrics
 
 | Check ID | Verification Category | Test Procedure | Status | Outcome / Metrics |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | **AUD-001** | Database Invariants | Verify required tables, roles, and triggers | **PASS** | 20/20 tables verified; 5/5 application roles verified; 4/4 WORM triggers active |
 | **AUD-002** | WORM trigger block | Attempt manual UPDATE/DELETE on audit tables | **PASS** | Blocked with PostgreSQL exception code `RaiseException` (WORM violation) |
 | **AUD-003** | UCO Seed Integrity | Run 11-point seed validator on live database | **PASS** | 11/11 checks passed; sandbox profile validated (15/15 nodes); 85 agencies registered |

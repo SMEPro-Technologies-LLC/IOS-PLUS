@@ -255,4 +255,9 @@ We performed the attestation-readiness review against the live local Docker envi
 * Run [weekly_worm_check.py](scripts/ops/weekly_worm_check.py) using the `audit_reader` role.
 * **Result**: **PASS** (all WORM trigger counts, row indices, spot checked signatures, and sector scopes parsed successfully).
 
+### F. Sandbox Validation Constraints & Handoff Notes
+
+* **Helm Chart Dependency Fetching**: Due to local sandbox network and DNS restrictions, remote Helm dependencies (e.g., from `charts.bitnami.com`) could not be resolved during local linting. These must be fetched in an internet-enabled pipeline context before deployment.
+* **External Deployment Verification**: Live validation in staging and production relies on provisioning target-specific environments and supplying real credentials (`STAGING_KUBECONFIG`, `PRODUCTION_KUBECONFIG`, Vault access tokens, and valid OpenAI API keys) in the execution context.
+
 *Compiled Artifact Report*: [big_4_attestation_report.md](docs/big_4_attestation_report.md)

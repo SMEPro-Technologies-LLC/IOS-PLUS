@@ -244,11 +244,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install Gitleaks CLI
+        run: |
+          GITLEAKS_VERSION="8.24.2"
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz gitleaks
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        run: |
+          gitleaks git \
+            --no-banner \
+            --redact \
+            --exit-code 1 \
+            --source .
 
       - name: Run TruffleHog (diff scan on PR)
         if: github.event_name == 'pull_request'
@@ -350,14 +359,40 @@ jobs:
       # ----------------------------------------------------------------
       - name: Run UCO Seed Validator
         env:
-          COS_PLUS_DSN: ${{ secrets.COS_PLUS_AUDIT_READER_DSN }}
+          COS_PLUS_DSN: ${{ secrets.COS_PLUS_AUDIT_READER_DSN || secrets.COS_PLUS_DSN || vars.COS_PLUS_AUDIT_READER_DSN || vars.COS_PLUS_DSN }}
         run: |
           mkdir -p "$OUTPUT_DIR"
           set +e
-          python3 scripts/db/validate_uco_seed.py \
-            --output-dir "$OUTPUT_DIR" \
-            ${{ env.UCO_EXCEL_PATH && '--excel $UCO_EXCEL_PATH' || '' }}
-          EXIT_CODE=$?
+
+          if [ -z "${COS_PLUS_DSN:-}" ]; then
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              # PR run without DSN: emit skip artifact and allow workflow to continue
+              cat > "$OUTPUT_DIR/uco-seed-validation-pr-skip.md" <<'EOF'
+          # UCO Seed Validation Report
+
+          **Overall:** SKIPPED (PR context)
+
+          COS_PLUS_DSN was not configured for this pull request run, so live DB validation was skipped.
+          Scheduled and manual runs still enforce full UCO seed validation against the configured DSN.
+          EOF
+              cat > "$OUTPUT_DIR/uco-seed-validation-pr-skip.json" <<'EOF'
+          {"overall":"SKIPPED","reason":"COS_PLUS_DSN not configured for pull_request run"}
+          EOF
+              EXIT_CODE=0
+            else
+              echo "FATAL: COS_PLUS_DSN is not configured for this scheduled/manual run." >&2
+              EXIT_CODE=2
+            fi
+          else
+            EXTRA_ARGS=()
+            if [ -n "${UCO_EXCEL_PATH:-}" ]; then
+              EXTRA_ARGS+=(--excel "$UCO_EXCEL_PATH")
+            fi
+            python3 scripts/db/validate_uco_seed.py \
+              --output-dir "$OUTPUT_DIR" \
+              "${EXTRA_ARGS[@]}"
+            EXIT_CODE=$?
+          fi
           set -e
 
           # Surface the summary line for the CI log

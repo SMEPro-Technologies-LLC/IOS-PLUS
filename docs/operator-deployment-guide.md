@@ -482,6 +482,83 @@ Before promoting a staging environment toward production, confirm:
 
 ---
 
+## 13. Release Verification Runbook (CI/CD & Live Deployment)
+
+This section provides the verification checklist and commands required to validate the remote repository state, automated pipelines, package publication, and live cluster rollout.
+
+### A. GitHub Actions Workflows
+
+Verify the status of the following workflows in the **Actions** tab on GitHub:
+
+* **Staging Pipeline (`deploy-staging.yml`)**: Triggered automatically on push to the `develop` branch.
+* **Release Pipeline (`release.yml`)**: Triggered automatically on pushes of version tags matching `v*` (e.g., `v1.0.0`).
+* **Production Pipeline (`deploy-production.yml`)**: Triggered automatically on pushes of version tags matching `v*`.
+
+> [!NOTE]
+> GitHub Actions uses glob-style matching for branch and tag triggers, not regular expressions.
+
+### B. GitHub Environment Deployments
+
+Verify the deployment state under **Settings → Environments** in the repository:
+
+* **Staging Environment (`staging`)**: Recorded when `deploy-staging.yml` executes.
+* **Production Environment (`production`)**: Recorded when `deploy-production.yml` executes (subject to environment protection rules or manual reviewer approvals).
+
+### C. GitHub Container Registry (GHCR) Packages
+
+Verify that the following package images are published under the repository's organization container list:
+
+* `ios-plus-middleware-engine`
+* `ios-plus-gate-530`
+* `ios-plus-evidence-fabric`
+* `ios-plus-rag-vault`
+* `ios-plus-cos-plus`
+* `ios-plus-uco-resolver`
+* `ios-plus-ops`
+
+Each image should be correctly tagged:
+* **Staging**: Tagged with the Git commit SHA and `staging-latest`.
+* **Production/Release**: Tagged with the matching release tag (e.g., `v1.0.0`).
+
+### D. Active Cluster Rollout Verification
+
+After a successful workflow execution, log into the target cluster context and verify the workloads.
+
+#### Staging Environment
+
+```bash
+kubectl get pods -n ios-plus-staging
+kubectl get deploy -n ios-plus-staging
+kubectl get jobs,cronjobs -n ios-plus-staging
+kubectl rollout status deployment/middleware-engine -n ios-plus-staging
+kubectl rollout status deployment/evidence-fabric -n ios-plus-staging
+kubectl rollout status deployment/rag-vault -n ios-plus-staging
+```
+
+#### Production Environment
+
+```bash
+kubectl get pods -n ios-plus
+kubectl get deploy -n ios-plus
+kubectl get jobs,cronjobs -n ios-plus
+kubectl rollout status deployment/middleware-engine -n ios-plus
+kubectl rollout status deployment/evidence-fabric -n ios-plus
+kubectl rollout status deployment/rag-vault -n ios-plus
+```
+
+> [!IMPORTANT]
+> Rollouts must reach a fully `Available`/`Ready` state with no `CrashLoopBackOff` or `ImagePullBackOff` errors.
+
+### E. Environment Constraints & Required Secrets
+
+For workflows to execute successfully, the following credentials must be populated:
+
+* **Staging Environment Secrets**: `STAGING_KUBECONFIG` (and any associated cluster certificates).
+* **Production Environment Secrets**: `PRODUCTION_KUBECONFIG`.
+* **Repository-Level Secrets**: `TURBO_TOKEN`, `TURBO_TEAM`, and `GITLEAKS_LICENSE` (if running security scans).
+
+---
+
 ## Notes
 
 This repository includes substantial deployment and operations scaffolding, but production activation still depends on correct target-environment provisioning, secret population, DNS configuration, and live verification.

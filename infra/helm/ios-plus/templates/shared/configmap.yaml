@@ -14,3 +14,7 @@ data:
   VAULT_ADDR:          {{ .Values.evidenceFabric.vault.addr | quote }}
   VAULT_KEY_PATH:      {{ .Values.evidenceFabric.vault.keyPath | quote }}
   DNS_TXT_ZONE:        {{ .Values.secrets.dnsTxtZone | quote }}
+  {{- if .Values.extraConfig }}
+  {{- toYaml .Values.extraConfig | nindent 2 }}
+  {{- end }}
+

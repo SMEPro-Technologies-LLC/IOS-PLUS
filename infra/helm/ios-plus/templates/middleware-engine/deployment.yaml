@@ -88,6 +88,9 @@ spec:
                 - ALL
           image: "{{ if .Values.global.imageRegistry }}{{ .Values.global.imageRegistry }}/{{ end }}{{ .Values.gate530.image.repository }}:{{ .Values.gate530.image.tag }}"
           imagePullPolicy: {{ .Values.gate530.image.pullPolicy }}
+          envFrom:
+            - configMapRef:
+                name: ios-plus-config
           env:
             - name: GATE530_IPC_SOCKET
               value: {{ .Values.gate530.config.ipcSocketPath | quote }}

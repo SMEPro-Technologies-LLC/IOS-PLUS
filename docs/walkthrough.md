@@ -1,3 +1,5 @@
+# Engineering Walkthrough: Monorepo Maturation & Sandbox Verification
+
 We have resolved identified engineering and configuration blocks in the local sandbox setup, fixed the YAML/step validation issues in the GitHub Actions workflows, and stabilized the remote CI pipeline with multiple recent green runs.
 
 ---
@@ -196,20 +198,24 @@ We successfully implemented backlog items from the Production Hardening backlog 
 We have configured the GitHub-native release, packaging, and multi-environment tracking lifecycle for **IOS+**:
 
 ### A. Docker Path & Dependency Alignment
+
 * **OPS Build Correction**: Fixed path mapping errors in [Dockerfile.ops](docker/Dockerfile.ops) where python scripts were copied from the wrong source path.
 * **Requirements Stabilization**: Created [requirements.txt](scripts/requirements.txt) to capture precise runtime requirements for python ops scripts, allowing the container build to succeed.
 * **Local Validation**: Successfully built `ios-plus-ops` image locally, verifying that all system and python dependencies compile correctly.
 
 ### B. Helm Chart Prepending Registry Configuration
+
 * **Global Registry Variable**: Configured `global.imageRegistry` in [values.yaml](infra/helm/ios-plus/values.yaml) and [values.production.yaml](infra/helm/ios-plus/values.production.yaml) to target the newly established GitHub Package Namespace `ghcr.io/smepro-technologies-llc`.
 * **Clean Sub-Package Naming**: Simplified component repositories from `smepro/ios-plus-<component>` to `ios-plus-<component>` to match target GHCR image naming and tagging guidelines (`ghcr.io/smepro-technologies-llc/ios-plus-<component>`).
 * **Helm Template Integration**: Updated all Helm templates and CronJobs (middleware-engine, gate-530, evidence-fabric, rag-vault, ops, and seed validation jobs) to dynamically prepend `.Values.global.imageRegistry` if configured, enabling seamless toggle between local dev and remote registries.
 
 ### C. Release & Tag Orchestration
+
 * **Baseline Artifact**: Created a baseline [CHANGELOG.md](CHANGELOG.md) documenting release history starting at version `v0.1.0`.
 * **Automated Tag Workflow**: Implemented [release.yml](.github/workflows/release.yml) to automatically compile, build, tag, and publish all 7 runtime container images to GHCR on tag pushes matching `v*`, and draft a matching GitHub Release.
 
 ### D. Multi-Environment Status Tracking
+
 * **Staging Deployment**: Added [deploy-staging.yml](.github/workflows/deploy-staging.yml) building and publishing staging images tagged with commit SHA and `staging-latest` to GHCR, triggering deployment to a designated GKE staging namespace, and tracking deployment history natively in GitHub Environment `staging`. Deleted the obsolete `cd-staging.yml`.
 * **Production Promotion**: Added [deploy-production.yml](.github/workflows/deploy-production.yml) ensuring production deployments target the `production` Environment tracking block (enabling manual reviewer gates) and upgrade the Helm release using tag versioned images from GHCR. Deleted the obsolete `cd-production.yml`.
 
@@ -220,26 +226,32 @@ We have configured the GitHub-native release, packaging, and multi-environment t
 We performed the attestation-readiness review against the live local Docker environment, obtaining successful preflight verification checks:
 
 ### A. Database Invariants Check (AUD-001)
+
 * Standalone script [verify_db_invariants.py](scripts/db/verify_db_invariants.py) executed inside the `ios-plus-ops` container.
 * **Result**: **PASS** (all 20 tables verified, 4 WORM triggers active, 5 standard roles present).
 
 ### B. WORM Trigger Immutability Verification (AUD-002)
+
 * Attempted manual `UPDATE` and `DELETE` queries on the `evidence_packages` table as `cos_admin`.
 * **Result**: **PASS** (queries intercepted and blocked at the DB SQL layer, raising `WORM VIOLATION` Postgres exceptions).
 
 ### C. UCO Seed Validation (AUD-003)
+
 * Run updated [validate_uco_seed.py](scripts/db/validate_uco_seed.py) in the container.
 * **Result**: **PASS** (11/11 validation points passed, dynamically self-seeded naics_decoder, agency_registry, and code_crosswalk for sandbox matching, checking all 30 schema columns).
 
 ### D. Cryptographic Key Consistency Check (AUD-004)
+
 * Run updated [verify_key_publication_consistency.py](scripts/ops/verify_key_publication_consistency.py) in the container.
 * **Result**: **PASS** (active key matches across DB, DNS over HTTPS, and filesystem with synchronized hash `9ad26314007ec444`).
 
 ### E. Evidence Signature Verification (AUD-005)
+
 * Triggered a live pipeline inference request to create a real-world signed transaction and verified using [verify_evidence_package.py](scripts/ops/verify_evidence_package.py).
 * **Result**: **PASS** (cryptographic signature successfully canonicalized via JCS/RFC8785 and verified as **VALID** under the active key).
 
 ### F. Weekly WORM Integrity Check (AUD-007)
+
 * Run [weekly_worm_check.py](scripts/ops/weekly_worm_check.py) using the `audit_reader` role.
 * **Result**: **PASS** (all WORM trigger counts, row indices, spot checked signatures, and sector scopes parsed successfully).
 

@@ -124,6 +124,9 @@ Migrations live in `db/migrations/`. Flyway runs automatically on `docker compos
 | V3 | `V3__rag_vault.sql` | RAG chunks (19 sector partitions + xsc) |
 | V4 | `V4__uco_amendment.sql` | UCO nodes + evaluation results |
 | V5 | `V5__rbac_app_roles.sql` | RBAC roles + GRANTs |
+| V6 | `V6__seed_crosswalk.sql` | Code crosswalk seed data |
+| V7 | `V7__uco_vector_embedding.sql` | UCO node vector embeddings (pgvector HNSW) |
+| V8 | `V8__uco_obligation_metadata.sql` | UCO obligation provenance + trust metadata |
 
 **To run migrations manually:**
 ```powershell
@@ -134,7 +137,7 @@ docker compose run --rm flyway `
   migrate
 ```
 
-**To add a new migration:** create `db/migrations/V6__description.sql` — Flyway picks it up on next run.
+**To add a new migration:** create `db/migrations/V9__description.sql` — Flyway picks it up on next run.
 
 ---
 
@@ -192,3 +195,145 @@ docker exec vault-dev sh -c "VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=iosplu
 | Vault `http: server gave HTTP response to HTTPS client` | CLI defaulted to HTTPS | Always pass `VAULT_ADDR=http://127.0.0.1:8200` inside `docker exec` |
 | `flyway` exits non-zero | Migration SQL error or checksum mismatch | Check `docker compose logs flyway`; never edit applied migrations — add a new version |
 | `middleware-engine` exits immediately | Unhealthy dependency | Confirm `cos-plus`, `redis`, `vault-dev` all show `Healthy` before engine starts |
+
+---
+
+## 9. UCO Workbook Ingestion Pipeline
+
+The workbook ingestion pipeline transforms the UCO compliance workbook into
+production-ready seed CSVs, normalizes constrained values, and loads them into
+the COS+ database including the new `uco_obligation_metadata` provenance table.
+
+### 9.1 Prerequisites
+
+- Python 3.10+
+- `openpyxl>=3.1.0` and `psycopg2-binary>=2.9.0` (see `scripts/requirements.txt`)
+- V8 migration applied (`V8__uco_obligation_metadata.sql`)
+
+```bash
+pip install -r scripts/requirements.txt
+```
+
+### 9.2 Step 1 — Preprocess the workbook
+
+The preprocessing script validates and normalizes the workbook, then emits seed CSVs
+and a structured transformation report.
+
+```bash
+python3 scripts/db/preprocess_workbook.py \
+    --xlsx SMEPro_COS_Universal_Compliance_Decoding_Matrix.xlsx \
+    --output-dir db/seeds/
+```
+
+**Output (in `db/seeds/`):**
+
+| File | Description |
+|---|---|
+| `uco_nodes.csv` | 350 normalized UCO matrix rows |
+| `agency_registry.csv` | Agency provenance data |
+| `naics_decoder.csv` | NAICS code descriptions |
+| `code_crosswalk.csv` | Code system crosswalk mappings |
+| `obligation_metadata.csv` | Per-node provenance and trust metadata |
+| `transform_report.json` | Structured transformation report (row counts, warnings, errors) |
+
+**Normalization applied:**
+
+| Field | Raw example | Normalized DB value |
+|---|---|---|
+| `ybr_gate` | `Gate 530: Compliance Check` | `L5` |
+| `ybr_gate` | `L3: Ontological Mapping` | `L3` |
+| `ontology_level` | `L2: Regulations & Rules` | `subsector` |
+| `ontology_level` | `functional` | `activity` |
+| `jurisdiction_level` | `State – TX` | `State` (detail preserved in metadata) |
+| `jurisdiction_level` | `Federal / State` | `Federal` |
+
+**Strict mode** — fail loudly on any normalization error (useful in CI):
+
+```bash
+python3 scripts/db/preprocess_workbook.py \
+    --xlsx ... --output-dir db/seeds/ --strict
+```
+
+**Exit codes:**
+
+| Code | Meaning |
+|---|---|
+| 0 | Success |
+| 1 | Invalid arguments or file not found |
+| 2 | Workbook structure validation failure |
+| 3 | Normalization produced zero valid rows |
+
+### 9.3 Step 2 — Load seed CSVs into COS+
+
+```bash
+python3 scripts/db/load_uco_seeds.py \
+    --csv-dir db/seeds/ \
+    --db-url $DATABASE_URL_COS_ADMIN
+```
+
+This loads all seed tables in dependency order:
+
+1. `agency_registry`
+2. `naics_decoder`
+3. `uco_nodes`
+4. `code_crosswalk`
+5. `uco_obligation_metadata` (requires V8 migration)
+
+**Skip obligation metadata** (if V8 migration is not yet applied):
+
+```bash
+python3 scripts/db/load_uco_seeds.py \
+    --csv-dir db/seeds/ \
+    --db-url $DATABASE_URL_COS_ADMIN \
+    --skip-metadata
+```
+
+**Legacy XLSX mode** (uco_nodes only, positional columns):
+
+```bash
+python3 scripts/db/load_uco_seeds.py \
+    --xlsx SMEPro_COS_Universal_Compliance_Decoding_Matrix.xlsx \
+    --db-url $DATABASE_URL_COS_ADMIN
+```
+
+### 9.4 Full pipeline (preprocess + load)
+
+```bash
+# 1. Preprocess
+python3 scripts/db/preprocess_workbook.py \
+    --xlsx SMEPro_COS_Universal_Compliance_Decoding_Matrix.xlsx \
+    --output-dir db/seeds/
+
+# 2. Review transform report
+cat db/seeds/transform_report.json | python3 -m json.tool
+
+# 3. Load into COS+
+python3 scripts/db/load_uco_seeds.py \
+    --csv-dir db/seeds/ \
+    --db-url ******localhost:5432/ios_plus
+```
+
+### 9.5 Running normalizer tests
+
+```bash
+python3 -m pytest scripts/db/tests/test_workbook_normalizer.py -v
+```
+
+Tests cover:
+- `ontology_level` normalization (all known variants)
+- `ybr_gate` normalization (including `Gate 530: Compliance Check` → `L5`)
+- `jurisdiction_level` normalization (`State – TX`, `Federal / State`, etc.)
+- Stale/corrected verification metadata handling
+- Multi-sheet workbook processing behavior
+- Row deduplication
+
+### 9.6 Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `Required column 'uco_node_id' not found` | Sheet uses different header names | Check workbook headers; update `SHEET_ALIASES` in `preprocess_workbook.py` |
+| `Cannot map ybr_gate to valid DB value` | Unknown gate label in workbook | Add mapping to `YBR_GATE_MAP` in `preprocess_workbook.py` |
+| `Cannot map ontology_level to valid DB value` | Unknown ontology label | Add mapping to `ONTOLOGY_LEVEL_MAP` |
+| `Cannot map jurisdiction to valid DB value` | Unknown jurisdiction format | Extend `_parse_jurisdiction()` with new pattern |
+| `uco_obligation_metadata table not found` | V8 migration not applied | Run `docker compose run --rm flyway migrate` or use `--skip-metadata` |
+| `uco_nodes produced 0 valid rows` | Sheet name or header mismatch | Check `transform_report.json` errors; verify sheet aliases |

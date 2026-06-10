@@ -41,7 +41,7 @@ except ImportError:
 # Target schema mapping — EDIT to match V4/V6 DDL column names.
 # key = canonical field used in this script; value = DB column name.
 SCHEMA_MAP = {
-    "table": "uco_node",
+    "table": "uco_nodes",
     "conflict_key": "uco_node_id",
     "columns": {
         "uco_node_id": "uco_node_id",
@@ -322,6 +322,7 @@ def emit_monitors(nodes, path: Path, report):
             "tool": "firecrawl_monitor_create",
             "arguments": {
                 "page": url,
+                "metadata": {"uco_node_id": n["uco_node_id"]},
                 "name": f"{n['uco_node_id']} — {(n.get('regulation_name') or '')[:60]}",
                 "goal": (
                     f"Alert when the regulatory text, penalty amounts, filing "

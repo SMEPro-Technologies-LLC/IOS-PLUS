@@ -4,6 +4,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-30/part-250",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1001"
+      },
       "name": "UCO-ENR-1001 \u2014 Outer Continental Shelf Lands Act Regulations",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 30 CFR 250 (Outer Continental Shelf Lands Act Regulations) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -14,6 +17,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-112",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1003"
+      },
       "name": "UCO-ENR-1003 \u2014 Clean Water Act \u00a7311; Oil Pollution Act 1990",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR 112 (Clean Water Act \u00a7311; Oil Pollution Act 1990) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -24,6 +30,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-30/part-250",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1004"
+      },
       "name": "UCO-ENR-1004 \u2014 30 CFR 250 Subpart F",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 30 CFR 250.440\u2013250.460 (30 CFR 250 Subpart F) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -34,6 +43,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-98",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1005"
+      },
       "name": "UCO-ENR-1005 \u2014 Clean Air Act \u00a7114; Mandatory GHG Reporting Rule",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 98, Subpart W (Clean Air Act \u00a7114; Mandatory GHG Reporting Rule) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -44,6 +56,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-29/part-1910",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1006"
+      },
       "name": "UCO-ENR-1006 \u2014 OSH Act; 29 CFR 1910.119",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 29 CFR 1910.119 (OSH Act; 29 CFR 1910.119) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -54,6 +69,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-435",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1007"
+      },
       "name": "UCO-ENR-1007 \u2014 Clean Water Act; NPDES",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR 435 (Clean Water Act; NPDES) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -64,6 +82,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-60",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1013"
+      },
       "name": "UCO-ENR-1013 \u2014 Clean Air Act \u00a7111(b)(1)(B)",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR 60 Subparts OOOOb/OOOOc (Clean Air Act \u00a7111(b)(1)(B)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -74,6 +95,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-33/part-151",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1014"
+      },
       "name": "UCO-ENR-1014 \u2014 Oil Pollution Act 1990",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 33 CFR 151; 30 CFR 254 (Oil Pollution Act 1990) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -84,6 +108,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-29/part-1910",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1017"
+      },
       "name": "UCO-ENR-1017 \u2014 29 CFR 1910.1000; 30 CFR 250.490",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 29 CFR 1910.1000 Table Z-1 (29 CFR 1910.1000; 30 CFR 250.490) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -94,6 +121,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-144",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1018"
+      },
       "name": "UCO-ENR-1018 \u2014 Safe Drinking Water Act; UIC Program",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 144\u2013147 (Safe Drinking Water Act; UIC Program) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -104,6 +134,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-370",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1019"
+      },
       "name": "UCO-ENR-1019 \u2014 Emergency Planning & Community Right-to-Know Act",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 42 U.S.C. \u00a711022; 40 CFR Part 370 (Emergency Planning & Community Right-to-Know Act) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -114,6 +147,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-63",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1020"
+      },
       "name": "UCO-ENR-1020 \u2014 Clean Air Act \u00a7112",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 63 Subpart CC (Refinery MACT I) & UUU (MACT II) (Clean Air Act \u00a7112) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -124,6 +160,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-261",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1021"
+      },
       "name": "UCO-ENR-1021 \u2014 Resource Conservation & Recovery Act",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Parts 261\u2013268 (Resource Conservation & Recovery Act) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -134,6 +173,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-29/part-1910",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1024"
+      },
       "name": "UCO-ENR-1024 \u2014 OSH Act",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 29 CFR 1910.119 (OSH Act) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -144,6 +186,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-75",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1025"
+      },
       "name": "UCO-ENR-1025 \u2014 CAA Title IV & V",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 75 (CAA Title IV & V) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -154,6 +199,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-60",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1026"
+      },
       "name": "UCO-ENR-1026 \u2014 Clean Air Act \u00a7111",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR 60 Subpart OOOO/OOOOa/OOOOb (Clean Air Act \u00a7111) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -164,6 +212,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-18/part-260",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1029"
+      },
       "name": "UCO-ENR-1029 \u2014 Natural Gas Act",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 18 CFR 260.2 (Natural Gas Act) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -174,6 +225,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-257",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1036"
+      },
       "name": "UCO-ENR-1036 \u2014 Resource Conservation & Recovery Act",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 257 Subpart D (Resource Conservation & Recovery Act) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -184,6 +238,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-10/part-50",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1039"
+      },
       "name": "UCO-ENR-1039 \u2014 Atomic Energy Act \u00a7103; 10 CFR Part 54",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 10 CFR Part 50; Part 54 (Atomic Energy Act \u00a7103; 10 CFR Part 54) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -194,6 +251,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-10/part-50",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1040"
+      },
       "name": "UCO-ENR-1040 \u2014 Atomic Energy Act",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 10 CFR 50.72 (Atomic Energy Act) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -204,6 +264,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-10/part-50",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1041"
+      },
       "name": "UCO-ENR-1041 \u2014 10 CFR 50.73",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 10 CFR 50.73 (10 CFR 50.73) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -214,6 +277,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-10/part-50",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1044"
+      },
       "name": "UCO-ENR-1044 \u2014 10 CFR Part 50 Appendix I; 40 CFR 190",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 10 CFR 50 App. I; 40 CFR 190 (10 CFR Part 50 Appendix I; 40 CFR 190) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -224,6 +290,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-50/part-22",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1050"
+      },
       "name": "UCO-ENR-1050 \u2014 BGEPA; Migratory Bird Treaty Act",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 50 CFR Part 22 (BGEPA; Migratory Bird Treaty Act) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -234,6 +303,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-49/part-192",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1052"
+      },
       "name": "UCO-ENR-1052 \u2014 Pipeline Safety Act; 49 USC \u00a760109",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 49 CFR 192 Subpart O (gas); 49 CFR 195 Subpart F (liquid) (Pipeline Safety Act; 49 USC \u00a760109) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -244,6 +316,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-49/part-192",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1053"
+      },
       "name": "UCO-ENR-1053 \u2014 49 CFR 192.631 (gas); 195.446 (liquid)",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 49 CFR 192.631 (49 CFR 192.631 (gas); 195.446 (liquid)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -254,6 +329,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-49/part-191",
+      "metadata": {
+        "uco_node_id": "UCO-ENR-1054"
+      },
       "name": "UCO-ENR-1054 \u2014 49 CFR 191.5 (gas); 195.52 (liquid)",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 49 CFR 191.5 (49 CFR 191.5 (gas); 195.52 (liquid)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -264,6 +342,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-42/part-482",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1055"
+      },
       "name": "UCO-HCR-1055 \u2014 Social Security Act \u00a71861; 42 CFR Part 482",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 42 CFR Part 482 (Social Security Act \u00a71861; 42 CFR Part 482) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -274,6 +355,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-45/part-164",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1057"
+      },
       "name": "UCO-HCR-1057 \u2014 HIPAA/HITECH; 45 CFR 164.308",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 45 CFR 164.308(a)(1) (HIPAA/HITECH; 45 CFR 164.308) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -284,6 +368,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-45/part-164",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1058"
+      },
       "name": "UCO-HCR-1058 \u2014 HITECH Act \u00a713402; 45 CFR 164.400",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 45 CFR 164.400\u2013414 (HITECH Act \u00a713402; 45 CFR 164.400) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -294,6 +381,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-42/part-489",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1061"
+      },
       "name": "UCO-HCR-1061 \u2014 Emergency Medical Treatment & Labor Act 42 USC \u00a71395dd",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 42 CFR 489.24 (Emergency Medical Treatment & Labor Act 42 USC \u00a71395dd) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -304,6 +394,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-1301",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1062"
+      },
       "name": "UCO-HCR-1062 \u2014 Controlled Substances Act",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR Part 1301 (Controlled Substances Act) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -314,6 +407,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-42/part-411",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1066"
+      },
       "name": "UCO-HCR-1066 \u2014 42 USC \u00a71395nn; 42 CFR Part 411",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 42 CFR 411.350\u2013389 (42 USC \u00a71395nn; 42 CFR Part 411) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -324,6 +420,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-210",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1068"
+      },
       "name": "UCO-HCR-1068 \u2014 FD&C Act \u00a7501(a)(2)(B)",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR Parts 210\u2013211 (FD&C Act \u00a7501(a)(2)(B)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -334,6 +433,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-1301",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1069"
+      },
       "name": "UCO-HCR-1069 \u2014 Controlled Substances Act 21 USC \u00a7823",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR 1301 (Controlled Substances Act 21 USC \u00a7823) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -344,6 +446,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-312",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1070"
+      },
       "name": "UCO-HCR-1070 \u2014 21 CFR Part 312",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR 312.32 (21 CFR Part 312) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -354,6 +459,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-814",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1076"
+      },
       "name": "UCO-HCR-1076 \u2014 FD&C Act \u00a7515",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR Part 814 (FD&C Act \u00a7515) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -364,6 +472,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-820",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1077"
+      },
       "name": "UCO-HCR-1077 \u2014 FD&C Act \u00a7520(f)",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR Part 820 (transitioning to ISO 13485 / QMSR) (FD&C Act \u00a7520(f)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -374,6 +485,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-42/part-8",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1081"
+      },
       "name": "UCO-HCR-1081 \u2014 42 CFR Part 8",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 42 CFR Part 8 (42 CFR Part 8) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -384,6 +498,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-42/part-2",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1082"
+      },
       "name": "UCO-HCR-1082 \u2014 42 USC \u00a7290dd-2; 42 CFR Part 2",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 42 CFR Part 2 (42 USC \u00a7290dd-2; 42 CFR Part 2) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -394,6 +511,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-42/part-483",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1084"
+      },
       "name": "UCO-HCR-1084 \u2014 42 CFR Part 483 Subpart B",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 42 CFR 483.1\u2013483.95 (42 CFR Part 483 Subpart B) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -404,6 +524,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-42/part-493",
+      "metadata": {
+        "uco_node_id": "UCO-HCR-1088"
+      },
       "name": "UCO-HCR-1088 \u2014 Clinical Laboratory Improvement Amendments 1988",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 42 CFR Part 493 (Clinical Laboratory Improvement Amendments 1988) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -414,6 +537,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-31/part-1020",
+      "metadata": {
+        "uco_node_id": "UCO-FIN-1093"
+      },
       "name": "UCO-FIN-1093 \u2014 Bank Secrecy Act 31 USC \u00a75318; 31 CFR 1020.320",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 31 CFR 1020.320 (Bank Secrecy Act 31 USC \u00a75318; 31 CFR 1020.320) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -424,6 +550,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-31/part-1010",
+      "metadata": {
+        "uco_node_id": "UCO-FIN-1094"
+      },
       "name": "UCO-FIN-1094 \u2014 Bank Secrecy Act 31 USC \u00a75313; 31 CFR 1010.311",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 31 CFR 1010.311 (Bank Secrecy Act 31 USC \u00a75313; 31 CFR 1010.311) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -434,6 +563,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-31/part-500",
+      "metadata": {
+        "uco_node_id": "UCO-FIN-1095"
+      },
       "name": "UCO-FIN-1095 \u2014 IEEPA; Trading with Enemy Act; Foreign Narcotics Kingpin Act",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 31 CFR Parts 500\u2013599 (IEEPA; Trading with Enemy Act; Foreign Narcotics Kingpin Act) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -444,6 +576,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-12/part-1003",
+      "metadata": {
+        "uco_node_id": "UCO-FIN-1098"
+      },
       "name": "UCO-FIN-1098 \u2014 12 USC \u00a72801; 12 CFR Part 1003",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 12 CFR Part 1003 (Reg C) (12 USC \u00a72801; 12 CFR Part 1003) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -454,6 +589,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-12/part-1024",
+      "metadata": {
+        "uco_node_id": "UCO-FIN-1100"
+      },
       "name": "UCO-FIN-1100 \u2014 12 USC \u00a72601; 12 CFR Part 1024",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 12 CFR Part 1024 (Reg X) (12 USC \u00a72601; 12 CFR Part 1024) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -464,6 +602,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-31/part-1020",
+      "metadata": {
+        "uco_node_id": "UCO-FIN-1101"
+      },
       "name": "UCO-FIN-1101 \u2014 BSA 31 USC \u00a75318(h); 12 CFR Part 21",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 31 CFR 1020.210 (BSA 31 USC \u00a75318(h); 12 CFR Part 21) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -474,6 +615,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-17/part-279",
+      "metadata": {
+        "uco_node_id": "UCO-FIN-1103"
+      },
       "name": "UCO-FIN-1103 \u2014 Investment Advisers Act 1940 \u00a7203; 15 USC \u00a780b-3",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 17 CFR Part 279 (Form ADV) (Investment Advisers Act 1940 \u00a7203; 15 USC \u00a780b-3) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -484,6 +628,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-17/part-279",
+      "metadata": {
+        "uco_node_id": "UCO-FIN-1104"
+      },
       "name": "UCO-FIN-1104 \u2014 Dodd-Frank Act \u00a7204(b); 17 CFR Part 279.9",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 17 CFR Part 279.9 (Form PF) (Dodd-Frank Act \u00a7204(b); 17 CFR Part 279.9) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -494,6 +641,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-17/part-240",
+      "metadata": {
+        "uco_node_id": "UCO-FIN-1105"
+      },
       "name": "UCO-FIN-1105 \u2014 Exchange Act \u00a715(c); 17 CFR 240.15c3-1",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 17 CFR 240.15c3-1 (Exchange Act \u00a715(c); 17 CFR 240.15c3-1) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -504,6 +654,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-17/part-240",
+      "metadata": {
+        "uco_node_id": "UCO-FIN-1106"
+      },
       "name": "UCO-FIN-1106 \u2014 Exchange Act \u00a717(a); FINRA Rule 4511",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under FINRA Rule 4511; 17 CFR 240.17a-4 (Exchange Act \u00a717(a); FINRA Rule 4511) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -514,6 +667,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-31/part-1022",
+      "metadata": {
+        "uco_node_id": "UCO-FIN-1116"
+      },
       "name": "UCO-FIN-1116 \u2014 Bank Secrecy Act; 31 CFR 1022.380",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 31 CFR 1022.380 (Bank Secrecy Act; 31 CFR 1022.380) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -524,6 +680,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-17/part-240",
+      "metadata": {
+        "uco_node_id": "UCO-FIN-1119"
+      },
       "name": "UCO-FIN-1119 \u2014 Exchange Act \u00a76; Commodity Exchange Act",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 17 CFR Part 240 (Exchange Act \u00a76; Commodity Exchange Act) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -534,6 +693,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-31/part-1022",
+      "metadata": {
+        "uco_node_id": "UCO-FIN-1120"
+      },
       "name": "UCO-FIN-1120 \u2014 Bank Secrecy Act 31 USC \u00a75318",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 31 CFR Part 1022; 1010 (Bank Secrecy Act 31 USC \u00a75318) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -544,6 +706,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-117",
+      "metadata": {
+        "uco_node_id": "UCO-FDR-1121"
+      },
       "name": "UCO-FDR-1121 \u2014 Food Safety Modernization Act 2011; 21 CFR Part 117",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR Part 117 (Food Safety Modernization Act 2011; 21 CFR Part 117) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -554,6 +719,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-101",
+      "metadata": {
+        "uco_node_id": "UCO-FDR-1124"
+      },
       "name": "UCO-FDR-1124 \u2014 FD&C Act \u00a7403; 21 CFR Part 101",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR Part 101.9 (FD&C Act \u00a7403; 21 CFR Part 101) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -564,6 +732,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-7",
+      "metadata": {
+        "uco_node_id": "UCO-FDR-1125"
+      },
       "name": "UCO-FDR-1125 \u2014 21 CFR Parts 7.40\u20137.59",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR 7.40 (21 CFR Parts 7.40\u20137.59) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -574,6 +745,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-27/part-25",
+      "metadata": {
+        "uco_node_id": "UCO-FDR-1127"
+      },
       "name": "UCO-FDR-1127 \u2014 26 USC \u00a75051; 27 CFR Part 25",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 27 CFR Part 25 (Brewers); Part 19 (Distillers) (26 USC \u00a75051; 27 CFR Part 25) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -584,6 +758,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-14/part-21",
+      "metadata": {
+        "uco_node_id": "UCO-MFG-1137"
+      },
       "name": "UCO-MFG-1137 \u2014 Federal Aviation Act; 14 CFR Part 21",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 14 CFR Part 21 Subpart G (Federal Aviation Act; 14 CFR Part 21) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -594,6 +771,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-22/part-120",
+      "metadata": {
+        "uco_node_id": "UCO-MFG-1138"
+      },
       "name": "UCO-MFG-1138 \u2014 Arms Export Control Act; 22 USC \u00a72778",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 22 CFR Parts 120\u2013130 (ITAR) (Arms Export Control Act; 22 USC \u00a72778) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -604,6 +784,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-68",
+      "metadata": {
+        "uco_node_id": "UCO-MFG-1144"
+      },
       "name": "UCO-MFG-1144 \u2014 Clean Air Act \u00a7112(r); 40 CFR Part 68",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 68 (Clean Air Act \u00a7112(r); 40 CFR Part 68) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -614,6 +797,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-29/part-1910",
+      "metadata": {
+        "uco_node_id": "UCO-MFG-1145"
+      },
       "name": "UCO-MFG-1145 \u2014 OSH Act; 29 CFR 1910.119",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 29 CFR 1910.119 (OSH Act; 29 CFR 1910.119) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -624,6 +810,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-49/part-365",
+      "metadata": {
+        "uco_node_id": "UCO-TRN-1149"
+      },
       "name": "UCO-TRN-1149 \u2014 49 USC \u00a713901; 49 CFR Part 365",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 49 CFR Part 365 (49 USC \u00a713901; 49 CFR Part 365) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -634,6 +823,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-49/part-172",
+      "metadata": {
+        "uco_node_id": "UCO-TRN-1152"
+      },
       "name": "UCO-TRN-1152 \u2014 49 USC \u00a75103; 49 CFR Parts 171\u2013173",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 49 CFR Part 172 (49 USC \u00a75103; 49 CFR Parts 171\u2013173) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -644,6 +836,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-14/part-121",
+      "metadata": {
+        "uco_node_id": "UCO-TRN-1154"
+      },
       "name": "UCO-TRN-1154 \u2014 Federal Aviation Act; 14 CFR Part 121",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 14 CFR Part 121 (Federal Aviation Act; 14 CFR Part 121) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -654,6 +849,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-46/part-515",
+      "metadata": {
+        "uco_node_id": "UCO-TRN-1161"
+      },
       "name": "UCO-TRN-1161 \u2014 Shipping Act 1984; 46 USC \u00a740301",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 46 CFR Part 515 (Shipping Act 1984; 46 USC \u00a740301) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -664,6 +862,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-122",
+      "metadata": {
+        "uco_node_id": "UCO-TRN-1162"
+      },
       "name": "UCO-TRN-1162 \u2014 Clean Water Act \u00a7402; 33 USC \u00a71251",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 122 (Clean Water Act \u00a7402; 33 USC \u00a71251) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -674,6 +875,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-47/part-27",
+      "metadata": {
+        "uco_node_id": "UCO-TEL-1164"
+      },
       "name": "UCO-TEL-1164 \u2014 Communications Act \u00a7301,303; 47 CFR Part 27",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 47 CFR Part 27 (Communications Act \u00a7301,303; 47 CFR Part 27) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -684,6 +888,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-47/part-64",
+      "metadata": {
+        "uco_node_id": "UCO-TEL-1165"
+      },
       "name": "UCO-TEL-1165 \u2014 47 USC \u00a7222; 47 CFR Part 64",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 47 CFR Part 64 Subpart U (47 USC \u00a7222; 47 CFR Part 64) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -694,6 +901,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-47/part-1",
+      "metadata": {
+        "uco_node_id": "UCO-TEL-1166"
+      },
       "name": "UCO-TEL-1166 \u2014 Infrastructure Investment & Jobs Act 2021; 47 CFR Part 1",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 47 CFR Part 1 Subpart V (Infrastructure Investment & Jobs Act 2021; 47 CFR Part 1) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -704,6 +914,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-47/part-73",
+      "metadata": {
+        "uco_node_id": "UCO-TEL-1167"
+      },
       "name": "UCO-TEL-1167 \u2014 Communications Act \u00a7307,309; 47 CFR Part 73",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 47 CFR Part 73 (Communications Act \u00a7307,309; 47 CFR Part 73) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -714,6 +927,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-47/part-73",
+      "metadata": {
+        "uco_node_id": "UCO-TEL-1168"
+      },
       "name": "UCO-TEL-1168 \u2014 47 CFR Part 73 Subpart H",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 47 CFR 73.2080 (47 CFR Part 73 Subpart H) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -724,6 +940,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-16/part-314",
+      "metadata": {
+        "uco_node_id": "UCO-TEL-1169"
+      },
       "name": "UCO-TEL-1169 \u2014 FTC Act \u00a75; Gramm-Leach-Bliley Act \u00a7501 (for financial data)",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 16 CFR Part 314 (GLB Safeguards) (FTC Act \u00a75; Gramm-Leach-Bliley Act \u00a7501 (for financial data)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -734,6 +953,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-47/part-54",
+      "metadata": {
+        "uco_node_id": "UCO-TEL-1170"
+      },
       "name": "UCO-TEL-1170 \u2014 47 USC \u00a7254; 47 CFR Part 54",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 47 CFR Part 54 (47 USC \u00a7254; 47 CFR Part 54) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -744,6 +966,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-141",
+      "metadata": {
+        "uco_node_id": "UCO-ENV-1171"
+      },
       "name": "UCO-ENV-1171 \u2014 Safe Drinking Water Act; 42 USC \u00a7300g",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 141 (NPDWR) (Safe Drinking Water Act; 42 USC \u00a7300g) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -754,6 +979,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-122",
+      "metadata": {
+        "uco_node_id": "UCO-ENV-1172"
+      },
       "name": "UCO-ENV-1172 \u2014 Clean Water Act \u00a7402; 33 USC \u00a71342",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Parts 122\u2013125 (Clean Water Act \u00a7402; 33 USC \u00a71342) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -764,6 +992,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-262",
+      "metadata": {
+        "uco_node_id": "UCO-ENV-1173"
+      },
       "name": "UCO-ENV-1173 \u2014 Resource Conservation & Recovery Act; 40 CFR Part 262",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 262 (Resource Conservation & Recovery Act; 40 CFR Part 262) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -774,6 +1005,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-262",
+      "metadata": {
+        "uco_node_id": "UCO-ENV-1174"
+      },
       "name": "UCO-ENV-1174 \u2014 RCRA; 40 CFR Part 262 Subpart B",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 262.20 (RCRA; 40 CFR Part 262 Subpart B) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -784,6 +1018,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-70",
+      "metadata": {
+        "uco_node_id": "UCO-ENV-1175"
+      },
       "name": "UCO-ENV-1175 \u2014 Clean Air Act Title V; 42 USC \u00a77661",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 70 (state) / 71 (federal) (Clean Air Act Title V; 42 USC \u00a77661) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -794,6 +1031,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-302",
+      "metadata": {
+        "uco_node_id": "UCO-ENV-1176"
+      },
       "name": "UCO-ENV-1176 \u2014 CERCLA 42 USC \u00a79603; EPCRA \u00a7304",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 302; 40 CFR Part 355 (CERCLA 42 USC \u00a79603; EPCRA \u00a7304) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -804,6 +1044,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-33/part-320",
+      "metadata": {
+        "uco_node_id": "UCO-ENV-1177"
+      },
       "name": "UCO-ENV-1177 \u2014 Clean Water Act \u00a7404; 33 USC \u00a71344",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 33 CFR Parts 320\u2013330 (Clean Water Act \u00a7404; 33 USC \u00a71344) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -814,6 +1057,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-22/part-120",
+      "metadata": {
+        "uco_node_id": "UCO-DEF-1180"
+      },
       "name": "UCO-DEF-1180 \u2014 Arms Export Control Act 22 USC \u00a72778",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 22 CFR Parts 120\u2013130 (Arms Export Control Act 22 USC \u00a72778) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -824,6 +1070,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-45/part-164",
+      "metadata": {
+        "uco_node_id": "UCO-INS-1197"
+      },
       "name": "UCO-INS-1197 \u2014 HIPAA Privacy Rule (45 CFR Part 164 Subpart E); Security Rul",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 45 CFR 164.500\u2013552; 164.302\u2013318 (HIPAA Privacy Rule (45 CFR Part 164 Subpart E); Security Rule (45 CFR Part 164 Subpart C)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -834,6 +1083,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-31/part-103",
+      "metadata": {
+        "uco_node_id": "UCO-INS-1217"
+      },
       "name": "UCO-INS-1217 \u2014 Bank Secrecy Act (BSA) 31 USC \u00a75318; FinCEN Final Rule \u2013 Ins",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 31 CFR Part 103 (BSA); proposed FinCEN rule (life/annuity) (Bank Secrecy Act (BSA) 31 USC \u00a75318; FinCEN Final Rule \u2013 Insurance (proposed 2024)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -844,6 +1096,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-12/part-1024",
+      "metadata": {
+        "uco_node_id": "UCO-RES-1219"
+      },
       "name": "UCO-RES-1219 \u2014 Real Estate Settlement Procedures Act (RESPA)",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 12 CFR Part 1024 (Reg X) (Real Estate Settlement Procedures Act (RESPA)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -854,6 +1109,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-29/part-1926",
+      "metadata": {
+        "uco_node_id": "UCO-RES-1222"
+      },
       "name": "UCO-RES-1222 \u2014 OSH Act 1970; 29 CFR Part 1926",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 29 CFR Part 1926 (OSH Act 1970; 29 CFR Part 1926) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -864,6 +1122,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-745",
+      "metadata": {
+        "uco_node_id": "UCO-RES-1223"
+      },
       "name": "UCO-RES-1223 \u2014 Toxic Substances Control Act \u00a7402(c); 40 CFR Part 745",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 745 Subpart E (Toxic Substances Control Act \u00a7402(c); 40 CFR Part 745) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -874,6 +1135,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-24/part-982",
+      "metadata": {
+        "uco_node_id": "UCO-RES-1224"
+      },
       "name": "UCO-RES-1224 \u2014 Housing Act 1937; 24 CFR Part 982",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 24 CFR Part 982 (Housing Act 1937; 24 CFR Part 982) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -884,6 +1148,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-33/part-323",
+      "metadata": {
+        "uco_node_id": "UCO-RES-1227"
+      },
       "name": "UCO-RES-1227 \u2014 Clean Water Act \u00a7404; 33 USC \u00a71344",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 33 CFR Part 323-332 (Clean Water Act \u00a7404; 33 USC \u00a71344) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -894,6 +1161,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-170",
+      "metadata": {
+        "uco_node_id": "UCO-AGR-1230"
+      },
       "name": "UCO-AGR-1230 \u2014 FIFRA \u00a73,12,25; 40 CFR Part 170",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 170 (FIFRA \u00a73,12,25; 40 CFR Part 170) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -904,6 +1174,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-9/part-71",
+      "metadata": {
+        "uco_node_id": "UCO-AGR-1231"
+      },
       "name": "UCO-AGR-1231 \u2014 Animal Health Protection Act; 9 CFR Parts 71-80",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 9 CFR Parts 71-80 (Animal Health Protection Act; 9 CFR Parts 71-80) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -914,6 +1187,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-9/part-201",
+      "metadata": {
+        "uco_node_id": "UCO-AGR-1232"
+      },
       "name": "UCO-AGR-1232 \u2014 Packers & Stockyards Act 1921; 9 CFR Part 201",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 9 CFR Part 201 (Packers & Stockyards Act 1921; 9 CFR Part 201) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -924,6 +1200,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-7/part-205",
+      "metadata": {
+        "uco_node_id": "UCO-AGR-1233"
+      },
       "name": "UCO-AGR-1233 \u2014 Organic Foods Production Act 1990; 7 CFR Part 205",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 7 CFR Part 205 (Organic Foods Production Act 1990; 7 CFR Part 205) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -934,6 +1213,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-152",
+      "metadata": {
+        "uco_node_id": "UCO-AGR-1234"
+      },
       "name": "UCO-AGR-1234 \u2014 Federal Insecticide, Fungicide, and Rodenticide Act (FIFRA)",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Parts 152-180 (Federal Insecticide, Fungicide, and Rodenticide Act (FIFRA)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -944,6 +1226,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-117",
+      "metadata": {
+        "uco_node_id": "UCO-AGR-1235"
+      },
       "name": "UCO-AGR-1235 \u2014 FSMA 2011; PMO (Pasteurized Milk Ordinance)",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR Part 117; PMO (FSMA 2011; PMO (Pasteurized Milk Ordinance)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -954,6 +1239,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-29/part-1910",
+      "metadata": {
+        "uco_node_id": "UCO-AGR-1236"
+      },
       "name": "UCO-AGR-1236 \u2014 OSH Act; 29 CFR 1910.272",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 29 CFR 1910.272 (OSH Act; 29 CFR 1910.272) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -964,6 +1252,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-30/part-75",
+      "metadata": {
+        "uco_node_id": "UCO-MIN-1237"
+      },
       "name": "UCO-MIN-1237 \u2014 Federal Mine Safety & Health Act 1977; 30 CFR Part 75",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 30 CFR Part 75 (Federal Mine Safety & Health Act 1977; 30 CFR Part 75) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -974,6 +1265,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-30/part-700",
+      "metadata": {
+        "uco_node_id": "UCO-MIN-1238"
+      },
       "name": "UCO-MIN-1238 \u2014 SMCRA 1977; 30 CFR Parts 700-899",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 30 CFR Parts 700-899 (SMCRA 1977; 30 CFR Parts 700-899) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -984,6 +1278,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-30/part-56",
+      "metadata": {
+        "uco_node_id": "UCO-MIN-1239"
+      },
       "name": "UCO-MIN-1239 \u2014 Federal Mine Safety & Health Act; 30 CFR Parts 56 & 57",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 30 CFR Parts 56 (surface) & 57 (underground) (Federal Mine Safety & Health Act; 30 CFR Parts 56 & 57) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -994,6 +1291,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-122",
+      "metadata": {
+        "uco_node_id": "UCO-MIN-1240"
+      },
       "name": "UCO-MIN-1240 \u2014 Clean Water Act \u00a7402; 40 CFR Part 122",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 122 (Clean Water Act \u00a7402; 40 CFR Part 122) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1004,6 +1304,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-280",
+      "metadata": {
+        "uco_node_id": "UCO-TRD-2001"
+      },
       "name": "UCO-TRD-2001 \u2014 RCRA Subtitle I; 40 CFR Part 280",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 280 (RCRA Subtitle I; 40 CFR Part 280) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -1014,6 +1317,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-1301",
+      "metadata": {
+        "uco_node_id": "UCO-TRD-2002"
+      },
       "name": "UCO-TRD-2002 \u2014 Controlled Substances Act; 21 CFR Parts 1301-1321",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR Parts 1301-1321 (Controlled Substances Act; 21 CFR Parts 1301-1321) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1024,6 +1330,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-49/part-107",
+      "metadata": {
+        "uco_node_id": "UCO-TRD-2003"
+      },
       "name": "UCO-TRD-2003 \u2014 Hazardous Materials Transportation Act; 49 CFR Part 107",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 49 CFR Part 107 Subpart G (Hazardous Materials Transportation Act; 49 CFR Part 107) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -1034,6 +1343,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-27/part-1",
+      "metadata": {
+        "uco_node_id": "UCO-TRD-2005"
+      },
       "name": "UCO-TRD-2005 \u2014 Federal Alcohol Administration Act; 27 CFR Part 1",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 27 CFR Part 1 (Federal Alcohol Administration Act; 27 CFR Part 1) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1044,6 +1356,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-1301",
+      "metadata": {
+        "uco_node_id": "UCO-TRD-2007"
+      },
       "name": "UCO-TRD-2007 \u2014 Controlled Substances Act; 21 CFR Part 1301",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR Part 1301 (Controlled Substances Act; 21 CFR Part 1301) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1054,6 +1369,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-280",
+      "metadata": {
+        "uco_node_id": "UCO-TRD-2008"
+      },
       "name": "UCO-TRD-2008 \u2014 RCRA Subtitle I; 40 CFR Part 280-281",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 280 (RCRA Subtitle I; 40 CFR Part 280-281) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -1064,6 +1382,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-16/part-455",
+      "metadata": {
+        "uco_node_id": "UCO-TRD-2009"
+      },
       "name": "UCO-TRD-2009 \u2014 FTC Act \u00a75; 16 CFR Part 455",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 16 CFR Part 455 (FTC Act \u00a75; 16 CFR Part 455) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -1074,6 +1395,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-16/part-255",
+      "metadata": {
+        "uco_node_id": "UCO-TRD-2011"
+      },
       "name": "UCO-TRD-2011 \u2014 FTC Act \u00a75; 16 CFR Part 255",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 16 CFR Part 255 (FTC Act \u00a75; 16 CFR Part 255) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -1084,6 +1408,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-27/part-478",
+      "metadata": {
+        "uco_node_id": "UCO-TRD-2014"
+      },
       "name": "UCO-TRD-2014 \u2014 Gun Control Act 1968; 18 USC \u00a7923; 27 CFR Part 478",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 27 CFR Part 478 (Gun Control Act 1968; 18 USC \u00a7923; 27 CFR Part 478) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1094,6 +1421,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-31/part-1010",
+      "metadata": {
+        "uco_node_id": "UCO-PRO-2017"
+      },
       "name": "UCO-PRO-2017 \u2014 Bank Secrecy Act (proposed extension to gatekeepers); ABA gu",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 31 CFR Part 1010 (proposed) (Bank Secrecy Act (proposed extension to gatekeepers); ABA guidance) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1104,6 +1434,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-16/part-314",
+      "metadata": {
+        "uco_node_id": "UCO-PRO-2022"
+      },
       "name": "UCO-PRO-2022 \u2014 Gramm-Leach-Bliley Act \u00a7501(b); 16 CFR Part 314",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 16 CFR Part 314 (Gramm-Leach-Bliley Act \u00a7501(b); 16 CFR Part 314) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -1114,6 +1447,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-16/part-316",
+      "metadata": {
+        "uco_node_id": "UCO-PRO-2026"
+      },
       "name": "UCO-PRO-2026 \u2014 CAN-SPAM Act 2003; 16 CFR Part 316",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 16 CFR Part 316 (CAN-SPAM Act 2003; 16 CFR Part 316) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1124,6 +1460,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-312",
+      "metadata": {
+        "uco_node_id": "UCO-PRO-2027"
+      },
       "name": "UCO-PRO-2027 \u2014 Federal Food Drug & Cosmetic Act \u00a7505(i); 21 CFR Part 312",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR Part 312 (Federal Food Drug & Cosmetic Act \u00a7505(i); 21 CFR Part 312) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1134,6 +1473,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-763",
+      "metadata": {
+        "uco_node_id": "UCO-EDU-2034"
+      },
       "name": "UCO-EDU-2034 \u2014 TSCA Title II \u2013 AHERA; 40 CFR Part 763 Subpart E",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 763 Subpart E (TSCA Title II \u2013 AHERA; 40 CFR Part 763 Subpart E) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -1144,6 +1486,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-31/part-1021",
+      "metadata": {
+        "uco_node_id": "UCO-ART-2040"
+      },
       "name": "UCO-ART-2040 \u2014 Bank Secrecy Act; 31 CFR Part 1021",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 31 CFR Part 1021 (Bank Secrecy Act; 31 CFR Part 1021) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1154,6 +1499,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-26/part-1",
+      "metadata": {
+        "uco_node_id": "UCO-ART-2047"
+      },
       "name": "UCO-ART-2047 \u2014 IRC \u00a7501(c)(3); 26 CFR Part 1.501(c)(3)",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 26 CFR Part 1.501(c)(3) (IRC \u00a7501(c)(3); 26 CFR Part 1.501(c)(3)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1164,6 +1512,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-29/part-531",
+      "metadata": {
+        "uco_node_id": "UCO-ACF-2054"
+      },
       "name": "UCO-ACF-2054 \u2014 Fair Labor Standards Act; 29 CFR Part 531",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 29 CFR Part 531 (Fair Labor Standards Act; 29 CFR Part 531) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1174,6 +1525,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-21/part-117",
+      "metadata": {
+        "uco_node_id": "UCO-ACF-2057"
+      },
       "name": "UCO-ACF-2057 \u2014 FSMA 2011; 21 CFR Part 117",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 21 CFR Part 117 (FSMA 2011; 21 CFR Part 117) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -1184,6 +1538,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-29/part-1910",
+      "metadata": {
+        "uco_node_id": "UCO-ADM-2061"
+      },
       "name": "UCO-ADM-2061 \u2014 OSH Act; 29 CFR 1910.1030",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 29 CFR 1910.1030 (OSH Act; 29 CFR 1910.1030) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -1194,6 +1551,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-171",
+      "metadata": {
+        "uco_node_id": "UCO-ADM-2062"
+      },
       "name": "UCO-ADM-2062 \u2014 FIFRA \u00a711; 40 CFR Part 171",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 171 (FIFRA \u00a711; 40 CFR Part 171) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1204,6 +1564,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-270",
+      "metadata": {
+        "uco_node_id": "UCO-ADM-2063"
+      },
       "name": "UCO-ADM-2063 \u2014 RCRA \u00a73005; 40 CFR Parts 264-265, 270",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 270 (RCRA \u00a73005; 40 CFR Parts 264-265, 270) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1214,6 +1577,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-82",
+      "metadata": {
+        "uco_node_id": "UCO-OTH-2068"
+      },
       "name": "UCO-OTH-2068 \u2014 Clean Air Act \u00a7608-609; 40 CFR Part 82",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 82 Subpart F (Clean Air Act \u00a7608-609; 40 CFR Part 82) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1224,6 +1590,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-29/part-1910",
+      "metadata": {
+        "uco_node_id": "UCO-OTH-2070"
+      },
       "name": "UCO-OTH-2070 \u2014 OSH Act; 29 CFR 1910.1000 (Air Contaminants)",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 29 CFR 1910.1000 (OSH Act; 29 CFR 1910.1000 (Air Contaminants)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -1234,6 +1603,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-63",
+      "metadata": {
+        "uco_node_id": "UCO-OTH-2075"
+      },
       "name": "UCO-OTH-2075 \u2014 Clean Air Act \u00a7112; 40 CFR Part 63 Subpart M",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 63 Subpart M (Clean Air Act \u00a7112; 40 CFR Part 63 Subpart M) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -1244,6 +1616,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-141",
+      "metadata": {
+        "uco_node_id": "UCO-PUB-2084"
+      },
       "name": "UCO-PUB-2084 \u2014 SDWA; 40 CFR Parts 141-143",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 141 (SDWA; 40 CFR Parts 141-143) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1254,6 +1629,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-17/part-275",
+      "metadata": {
+        "uco_node_id": "UCO-MGT-2087"
+      },
       "name": "UCO-MGT-2087 \u2014 Investment Advisers Act 1940; 17 CFR Part 275",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 17 CFR Part 275 (Investment Advisers Act 1940; 17 CFR Part 275) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1264,6 +1642,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-17/part-240",
+      "metadata": {
+        "uco_node_id": "UCO-MGT-2089"
+      },
       "name": "UCO-MGT-2089 \u2014 Sarbanes-Oxley Act \u00a7302, \u00a7404; 17 CFR Part 240",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 17 CFR Part 240.13a-15 (Sarbanes-Oxley Act \u00a7302, \u00a7404; 17 CFR Part 240) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1274,6 +1655,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-31/part-1010",
+      "metadata": {
+        "uco_node_id": "UCO-MGT-2090"
+      },
       "name": "UCO-MGT-2090 \u2014 Corporate Transparency Act 2021; 31 CFR Part 1010",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 31 CFR Part 1010.380 (Corporate Transparency Act 2021; 31 CFR Part 1010) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1284,6 +1668,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-29/part-1600",
+      "metadata": {
+        "uco_node_id": "UCO-XSC-5001"
+      },
       "name": "UCO-XSC-5001 \u2014 Title VII Civil Rights Act; ADA; ADEA; GINA; Pregnancy Worke",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 29 CFR Part 1600+; 42 USC \u00a72000e (Title VII Civil Rights Act; ADA; ADEA; GINA; Pregnancy Workers Fairness Act) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -1294,6 +1681,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-29/part-510",
+      "metadata": {
+        "uco_node_id": "UCO-XSC-5002"
+      },
       "name": "UCO-XSC-5002 \u2014 Fair Labor Standards Act; 29 CFR Parts 510-899",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 29 CFR Parts 510-899 (Fair Labor Standards Act; 29 CFR Parts 510-899) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1304,6 +1694,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-29/part-1904",
+      "metadata": {
+        "uco_node_id": "UCO-XSC-5004"
+      },
       "name": "UCO-XSC-5004 \u2014 OSH Act \u00a75(a)(1); 29 CFR 1904",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 29 CFR Part 1904 (OSH Act \u00a75(a)(1); 29 CFR 1904) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 24 hours"
@@ -1314,6 +1707,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-41/part-60",
+      "metadata": {
+        "uco_node_id": "UCO-XSC-5005"
+      },
       "name": "UCO-XSC-5005 \u2014 EO 11246; Section 503 Rehab Act; VEVRAA; 41 CFR Part 60",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 41 CFR Part 60 (EO 11246; Section 503 Rehab Act; VEVRAA; 41 CFR Part 60) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 3 days"
@@ -1324,6 +1720,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-70",
+      "metadata": {
+        "uco_node_id": "UCO-XSC-5011"
+      },
       "name": "UCO-XSC-5011 \u2014 Clean Air Act \u00a7502; 40 CFR Part 70",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 70 (Clean Air Act \u00a7502; 40 CFR Part 70) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1334,6 +1733,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-40/part-372",
+      "metadata": {
+        "uco_node_id": "UCO-XSC-5012"
+      },
       "name": "UCO-XSC-5012 \u2014 EPCRA \u00a7\u00a7302-313; 40 CFR Parts 350-372",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 40 CFR Part 372 (EPCRA \u00a7\u00a7302-313; 40 CFR Parts 350-372) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1344,6 +1746,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-15/part-730",
+      "metadata": {
+        "uco_node_id": "UCO-XSC-5014"
+      },
       "name": "UCO-XSC-5014 \u2014 Export Control Reform Act 2018; 15 CFR Parts 730-774 (EAR)",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 15 CFR Parts 730-774 (Export Control Reform Act 2018; 15 CFR Parts 730-774 (EAR)) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1354,6 +1759,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-31/part-1010",
+      "metadata": {
+        "uco_node_id": "UCO-XSC-5017"
+      },
       "name": "UCO-XSC-5017 \u2014 Corporate Transparency Act 2021; 31 CFR Part 1010.380",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 31 CFR Part 1010.380 (Corporate Transparency Act 2021; 31 CFR Part 1010.380) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"
@@ -1364,6 +1772,9 @@
     "tool": "firecrawl_monitor_create",
     "arguments": {
       "page": "https://www.ecfr.gov/current/title-8/part-274",
+      "metadata": {
+        "uco_node_id": "UCO-XSC-5019"
+      },
       "name": "UCO-XSC-5019 \u2014 Immigration & Nationality Act \u00a7274A; 8 CFR Part 274a",
       "goal": "Alert when the regulatory text, penalty amounts, filing deadlines, reporting thresholds, or form requirements under 8 CFR Part 274a (Immigration & Nationality Act \u00a7274A; 8 CFR Part 274a) change. Ignore formatting, navigation, or styling changes.",
       "schedule": "every 12 hours"

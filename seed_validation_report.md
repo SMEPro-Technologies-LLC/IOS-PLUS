@@ -69,6 +69,10 @@ Source workbook: `SMEPro_COS_Universal_Compliance_Decoding_Matrix.xlsx`
 
 - none
 
+## Frozen nodes (0) — excluded from SQL regeneration
+
+- none
+
 ## Firecrawl monitors
 
 - 137 payloads emitted (risk_weight>=8, Federal, CFR-citable); 10 high-risk federal nodes skipped (no parseable CFR citation — USC/state citations need manual page selection).

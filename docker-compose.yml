@@ -122,6 +122,9 @@ services:
       SIGNING_KEY_PUBKEY_PATH: /run/secrets/signing-pubkey.pem
       SIGNING_KEY_DNS_ZONE: ${SIGNING_KEY_DNS_ZONE}
       SIGNING_KEY_ACTIVE_ID: ${SIGNING_KEY_ACTIVE_ID}
+      COS_ADMIN_API_KEY: ${COS_ADMIN_API_KEY:-iosplus_dev_admin_key}
+      COS_ADMIN_PRINCIPAL: ${COS_ADMIN_PRINCIPAL:-iosplus_dev_admin}
+      FIRECRAWL_WEBHOOK_SECRET: ${FIRECRAWL_WEBHOOK_SECRET:-iosplus_dev_firecrawl_secret}
       # OpenAI — RAG Vault embeddings
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       RAG_EMBEDDING_MODEL: text-embedding-3-large

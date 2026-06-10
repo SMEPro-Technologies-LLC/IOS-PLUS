@@ -92,6 +92,14 @@ export class MetricsRegistry {
       }
     }
 
+    out += '# HELP ios_amendment_webhook_total Total number of Firecrawl amendment webhook outcomes.\n';
+    out += '# TYPE ios_amendment_webhook_total counter\n';
+    for (const [key, val] of this.counters.entries()) {
+      if (key.startsWith('ios_amendment_webhook_total')) {
+        out += `${key} ${val}\n`;
+      }
+    }
+
     out += '# HELP ios_vault_signing_errors_total Total number of failed HashiCorp Vault cryptographic signing requests.\n';
     out += '# TYPE ios_vault_signing_errors_total counter\n';
     for (const [key, val] of this.counters.entries()) {

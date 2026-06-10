@@ -14,9 +14,101 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import { MetricsRegistry } from "./metrics.js";
 
+type AmendmentStatus = "pending_review" | "acknowledged" | "approved" | "rejected" | "superseded";
+type NodePolicyAction = "BLOCK" | "APPROVE" | "ESCALATE";
+
+interface FirecrawlWebhookPayload {
+  type?: string;
+  id?: string;
+  monitorId?: string;
+  timestamp?: string;
+  metadata?: {
+    uco_node_id?: string;
+  };
+  data?: {
+    url?: string;
+    name?: string;
+    summary?: string;
+  };
+}
+
+function firstString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function resolveNodeId(payload: FirecrawlWebhookPayload): string | null {
+  const fromMetadata = firstString(payload.metadata?.uco_node_id);
+  if (fromMetadata) {
+    return fromMetadata;
+  }
+
+  const fallback = firstString(payload.data?.name);
+  if (!fallback) {
+    return null;
+  }
+  const match = fallback.match(/\bUCO-[A-Z]+-\d+\b/);
+  return match?.[0] ?? null;
+}
+
+function deriveReviewPolicy(policyAction: NodePolicyAction, riskWeight: number) {
+  const reviewRequired = policyAction === "BLOCK" || policyAction === "ESCALATE";
+  if (!reviewRequired) {
+    return {
+      reviewRequired,
+      reviewPriority: "P3",
+      reviewSlaHours: 0,
+      initialStatus: "acknowledged" as AmendmentStatus,
+    };
+  }
+
+  if (policyAction === "BLOCK") {
+    return {
+      reviewRequired,
+      reviewPriority: riskWeight >= 9 ? "P0" : "P1",
+      reviewSlaHours: riskWeight >= 9 ? 24 : 48,
+      initialStatus: "pending_review" as AmendmentStatus,
+    };
+  }
+
+  return {
+    reviewRequired,
+    reviewPriority: riskWeight >= 8 ? "P1" : "P2",
+    reviewSlaHours: riskWeight >= 8 ? 48 : 72,
+    initialStatus: "pending_review" as AmendmentStatus,
+  };
+}
+
+function verifyWebhookSignature(rawBody: Buffer, secret: string, signatureHeader: string): boolean {
+  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const candidates = signatureHeader
+    .split(",")
+    .map((part) => part.trim())
+    .map((part) => part.includes("=") ? part.split("=").slice(1).join("=") : part)
+    .map((part) => part.replace(/^sha256=/, "").trim())
+    .filter(Boolean);
+
+  return candidates.some((candidate) => {
+    try {
+      const left = Buffer.from(candidate, "hex");
+      const right = Buffer.from(expected, "hex");
+      if (left.length !== right.length || left.length === 0) {
+        return false;
+      }
+      return crypto.timingSafeEqual(left, right);
+    } catch {
+      return false;
+    }
+  });
+}
+
 export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSProfile) {
   const app = express();
-  app.use(express.json({ limit: "1mb" }));
+  app.use(express.json({
+    limit: "1mb",
+    verify: (req, _res, buf) => {
+      (req as express.Request & { rawBody?: Buffer }).rawBody = Buffer.from(buf);
+    }
+  }));
   app.use(express.static(process.cwd()));
 
   // Middleware to track HTTP requests
@@ -376,6 +468,7 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
 
   // API Key Authentication Middleware for admin control plane
   let adminApiKey = process.env["COS_ADMIN_API_KEY"];
+  const adminPrincipal = process.env["COS_ADMIN_PRINCIPAL"] ?? "iosplus_dev_admin";
   if (!adminApiKey) {
     if (process.env["NODE_ENV"] === "production") {
       throw new Error("CRITICAL SECURITY ERROR: COS_ADMIN_API_KEY environment variable is not configured in production mode.");
@@ -397,8 +490,186 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     if (!token || token !== adminApiKey) {
       return res.status(401).json({ error: "Unauthorized: Missing or invalid administrative API key" });
     }
+    (req as express.Request & { adminPrincipal?: string }).adminPrincipal = adminPrincipal;
     next();
   };
+
+  app.post("/v1/webhooks/firecrawl/amendments", async (req, res) => {
+    const webhookSecret = process.env["FIRECRAWL_WEBHOOK_SECRET"];
+    const rawBody = (req as express.Request & { rawBody?: Buffer }).rawBody ?? Buffer.from(JSON.stringify(req.body ?? {}));
+    const signatureHeaderValue = firstString(req.get("x-firecrawl-signature"))
+      ?? firstString(req.get("firecrawl-signature"))
+      ?? firstString(req.get("x-webhook-signature"))
+      ?? firstString(req.get("x-signature"));
+
+    if (!webhookSecret || !signatureHeaderValue || !verifyWebhookSignature(rawBody, webhookSecret, signatureHeaderValue)) {
+      MetricsRegistry.inc("ios_amendment_webhook_total", { result: "error" });
+      return res.status(401).json({ error: "invalid webhook signature" });
+    }
+
+    const payload = req.body as FirecrawlWebhookPayload;
+    if (!payload || payload.type !== "monitor.page") {
+      MetricsRegistry.inc("ios_amendment_webhook_total", { result: "error" });
+      return res.status(400).json({ error: "unsupported webhook payload" });
+    }
+
+    const ucoNodeId = resolveNodeId(payload);
+    if (!ucoNodeId) {
+      MetricsRegistry.inc("ios_amendment_webhook_total", { result: "unresolved" });
+      return res.status(422).json({ error: "unable to resolve uco_node_id from payload" });
+    }
+
+    const sourceUrl = firstString(payload.data?.url);
+    if (!sourceUrl) {
+      MetricsRegistry.inc("ios_amendment_webhook_total", { result: "error" });
+      return res.status(400).json({ error: "payload missing data.url" });
+    }
+
+    const payloadSha256 = crypto.createHash("sha256").update(rawBody).digest("hex");
+    const pool = deps.cosRegistry.pool("ios_app");
+
+    try {
+      const duplicateCheck = await pool.query(
+        "SELECT amendment_id FROM uco_amendments WHERE payload_sha256 = $1",
+        [payloadSha256]
+      );
+      if (duplicateCheck.rows[0]) {
+        MetricsRegistry.inc("ios_amendment_webhook_total", { result: "duplicate" });
+        return res.status(200).json({ status: "duplicate", payload_sha256: payloadSha256 });
+      }
+
+      const nodeSnapshot = await pool.query(
+        "SELECT policy_action, risk_weight FROM uco_nodes WHERE uco_node_id = $1",
+        [ucoNodeId]
+      );
+      const node = nodeSnapshot.rows[0] as { policy_action?: NodePolicyAction; risk_weight?: number } | undefined;
+      if (!node?.policy_action || typeof node.risk_weight !== "number") {
+        MetricsRegistry.inc("ios_amendment_webhook_total", { result: "unresolved" });
+        return res.status(422).json({ error: `No matching uco_nodes row for ${ucoNodeId}` });
+      }
+
+      const derived = deriveReviewPolicy(node.policy_action, node.risk_weight);
+      const client = await pool.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        let supersededCount = 0;
+        if (derived.initialStatus === "pending_review") {
+          const supersede = await client.query(
+            `UPDATE uco_amendments SET status = 'superseded'
+              WHERE uco_node_id = $1 AND status = 'pending_review'`,
+            [ucoNodeId]
+          );
+          supersededCount = supersede.rowCount ?? 0;
+        }
+
+        const insertResult = await client.query(
+          `INSERT INTO uco_amendments (
+            uco_node_id, monitor_id, event_id, source_url, change_detected_at,
+            payload, payload_sha256, diff_summary,
+            node_policy_action, node_risk_weight,
+            review_required, review_priority, review_sla_hours, status
+          ) VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14)
+          ON CONFLICT (payload_sha256) DO NOTHING
+          RETURNING amendment_id`,
+          [
+            ucoNodeId,
+            firstString(payload.monitorId),
+            firstString(payload.id),
+            sourceUrl,
+            firstString(payload.timestamp) ?? new Date().toISOString(),
+            JSON.stringify(payload),
+            payloadSha256,
+            firstString(payload.data?.summary),
+            node.policy_action,
+            node.risk_weight,
+            derived.reviewRequired,
+            derived.reviewPriority,
+            derived.reviewSlaHours,
+            derived.initialStatus
+          ]
+        );
+
+        if (!insertResult.rows[0]?.amendment_id) {
+          await client.query("COMMIT");
+          MetricsRegistry.inc("ios_amendment_webhook_total", { result: "duplicate" });
+          return res.status(200).json({ status: "duplicate", payload_sha256: payloadSha256 });
+        }
+
+        await client.query("COMMIT");
+        MetricsRegistry.inc("ios_amendment_webhook_total", { result: "inserted" });
+        return res.status(201).json({
+          status: "inserted",
+          amendment_id: insertResult.rows[0].amendment_id as string,
+          superseded: supersededCount,
+          payload_sha256: payloadSha256
+        });
+      } catch (err) {
+        await client.query("ROLLBACK").catch(() => undefined);
+        const pgErr = err as { code?: string; detail?: string; message?: string };
+        if (pgErr.code === "23505") {
+          MetricsRegistry.inc("ios_amendment_webhook_total", { result: "error" });
+          return res.status(500).json({
+            error: "amendment insert conflict; retry expected",
+            code: pgErr.code,
+            detail: pgErr.detail ?? pgErr.message ?? "unique violation"
+          });
+        }
+
+        MetricsRegistry.inc("ios_amendment_webhook_total", { result: "error" });
+        return res.status(500).json({ error: "failed to ingest amendment webhook" });
+      } finally {
+        client.release();
+      }
+    } catch {
+      MetricsRegistry.inc("ios_amendment_webhook_total", { result: "error" });
+      return res.status(500).json({ error: "failed to process amendment webhook" });
+    }
+  });
+
+  app.post("/v1/amendments/:id/review", requireAdminAuth, async (req, res) => {
+    const principal = firstString((req as express.Request & { adminPrincipal?: string }).adminPrincipal);
+    if (!principal) {
+      return res.status(500).json({ error: "auth principal unavailable — cannot attribute review" });
+    }
+
+    const requestedStatus = firstString(req.body?.status);
+    if (requestedStatus !== "approved" && requestedStatus !== "rejected") {
+      return res.status(400).json({ error: "status must be 'approved' or 'rejected'" });
+    }
+
+    const assertedReviewer = firstString(req.body?.reviewed_by);
+    const rawNotes = firstString(req.body?.notes);
+    const notes = [rawNotes, assertedReviewer && assertedReviewer !== principal
+      ? `(asserted reviewer: ${assertedReviewer})`
+      : null]
+      .filter((value): value is string => Boolean(value))
+      .join(" ") || null;
+
+    try {
+      const pool = deps.cosRegistry.pool("ios_app");
+      const updated = await pool.query(
+        `UPDATE uco_amendments
+          SET status = $2, reviewed_by = $3, reviewed_at = now(), review_notes = $4
+          WHERE amendment_id = $1
+          RETURNING amendment_id, status, reviewed_by, reviewed_at, review_notes`,
+        [req.params["id"], requestedStatus, principal, notes]
+      );
+
+      if (!updated.rows[0]) {
+        return res.status(404).json({ error: "amendment not found" });
+      }
+
+      return res.status(200).json(updated.rows[0]);
+    } catch (err) {
+      const pgErr = err as { code?: string; message?: string };
+      if (pgErr.code === "P0001" || pgErr.code === "23514") {
+        return res.status(409).json({ error: pgErr.message ?? "invalid amendment status transition" });
+      }
+      return res.status(500).json({ error: "failed to apply review verdict" });
+    }
+  });
 
   app.get("/v1/compliance/rules", requireAdminAuth, async (req, res) => {
     try {

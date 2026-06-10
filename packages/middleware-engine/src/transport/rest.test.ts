@@ -5,6 +5,7 @@ import type { NAICSProfile } from "@ios-plus/shared";
 import type { Server } from "node:http";
 import fs from "node:fs";
 import { EventEmitter } from "node:events";
+import crypto from "node:crypto";
 
 // Mock ioredis to allow dynamic health check
 vi.mock("ioredis", () => {
@@ -86,6 +87,7 @@ describe("REST App Transport Routes Unit Tests", () => {
   let vaultHealthy = true;
   let openaiHealthy = true;
   let originalFetch: any;
+  const amendmentRows = new Map<string, any>();
 
   const mockDeps: any = {
     ucoResolver: {},
@@ -100,30 +102,105 @@ describe("REST App Transport Routes Unit Tests", () => {
     gateDecisionRepository: {},
     cosRegistry: {
       pool: (role: string) => {
-        return {
-          query: async (queryText: string, params: any[]) => {
-            if (queryText === "SELECT 1") {
-              if (!dbHealthy) throw new Error("Database down");
-              return { rows: [{ 1: 1 }] };
-            }
-            if (queryText.includes("SELECT * FROM uco_nodes")) {
-              return {
-                rows: [
-                  { uco_node_id: "UCO-TEST-001", governing_agency: "SEC", policy_action: "BLOCK" }
-                ]
-              };
-            }
-            if (queryText.includes("INSERT INTO uco_nodes")) {
-              return { rows: [] };
-            }
-            if (queryText.includes("SELECT 1 FROM uco_nodes")) {
-              return { rows: [{ '1': 1 }] };
-            }
-            if (queryText.includes("UPDATE uco_nodes") || queryText.includes("DELETE FROM uco_nodes")) {
-              return { rows: [] };
+        const runQuery = async (queryText: string, params: any[]) => {
+          if (queryText === "SELECT 1") {
+            if (!dbHealthy) throw new Error("Database down");
+            return { rows: [{ 1: 1 }] };
+          }
+          if (queryText.includes("SELECT * FROM uco_nodes")) {
+            return {
+              rows: [
+                { uco_node_id: "UCO-TEST-001", governing_agency: "SEC", policy_action: "BLOCK" }
+              ]
+            };
+          }
+          if (queryText.includes("INSERT INTO uco_nodes")) {
+            return { rows: [] };
+          }
+          if (queryText.includes("SELECT 1 FROM uco_nodes")) {
+            return { rows: [{ '1': 1 }] };
+          }
+          if (queryText.includes("SELECT policy_action, risk_weight FROM uco_nodes")) {
+            if (params[0] === "UCO-ENR-1029") {
+              return { rows: [{ policy_action: "BLOCK", risk_weight: 9 }] };
             }
             return { rows: [] };
           }
+          if (queryText.includes("SELECT amendment_id FROM uco_amendments WHERE payload_sha256 = $1")) {
+            const hit = Array.from(amendmentRows.values()).find((row) => row.payload_sha256 === params[0]);
+            return { rows: hit ? [{ amendment_id: hit.amendment_id }] : [] };
+          }
+          if (queryText.includes("UPDATE uco_amendments SET status = 'superseded'")) {
+            let rowCount = 0;
+            for (const row of amendmentRows.values()) {
+              if (row.uco_node_id === params[0] && row.status === "pending_review") {
+                row.status = "superseded";
+                rowCount += 1;
+              }
+            }
+            return { rows: [], rowCount };
+          }
+          if (queryText.includes("INSERT INTO uco_amendments")) {
+            const payloadSha = params[6];
+            const eventId = params[2];
+            if (Array.from(amendmentRows.values()).some((row) => row.payload_sha256 === payloadSha)) {
+              return { rows: [] };
+            }
+            if (eventId && Array.from(amendmentRows.values()).some((row) => row.event_id === eventId)) {
+              const err: any = new Error("duplicate key value violates unique constraint idx_amend_event_id");
+              err.code = "23505";
+              throw err;
+            }
+
+            const amendment_id = `amend-${amendmentRows.size + 1}`;
+            amendmentRows.set(amendment_id, {
+              amendment_id,
+              uco_node_id: params[0],
+              event_id: eventId,
+              payload_sha256: payloadSha,
+              status: params[13],
+            });
+            return { rows: [{ amendment_id }] };
+          }
+          if (queryText.includes("UPDATE uco_amendments") && queryText.includes("reviewed_by")) {
+            const row = amendmentRows.get(params[0]);
+            if (!row) {
+              return { rows: [] };
+            }
+            if (row.status !== "pending_review") {
+              const err: any = new Error("uco_amendments: illegal transition");
+              err.code = "P0001";
+              throw err;
+            }
+            row.status = params[1];
+            row.reviewed_by = params[2];
+            row.review_notes = params[3];
+            row.reviewed_at = new Date().toISOString();
+            return {
+              rows: [{
+                amendment_id: row.amendment_id,
+                status: row.status,
+                reviewed_by: row.reviewed_by,
+                reviewed_at: row.reviewed_at,
+                review_notes: row.review_notes,
+              }]
+            };
+          }
+          if (queryText.includes("UPDATE uco_nodes") || queryText.includes("DELETE FROM uco_nodes")) {
+            return { rows: [] };
+          }
+          if (queryText === "BEGIN" || queryText === "COMMIT" || queryText === "ROLLBACK") {
+            return { rows: [] };
+          }
+          return { rows: [] };
+        };
+
+        return {
+          query: async (queryText: string, params: any[] = []) => runQuery(queryText, params),
+          connect: async () => ({
+            query: async (queryText: string, params: any[] = []) => runQuery(queryText, params),
+            release: () => undefined
+          })
         };
       }
     }
@@ -182,6 +259,8 @@ describe("REST App Transport Routes Unit Tests", () => {
     process.env["VAULT_ADDR"] = "http://localhost:8200";
     process.env["OPENAI_API_KEY"] = "sk-test-key";
     process.env["COS_ADMIN_API_KEY"] = "iosplus_dev_admin_key";
+    process.env["COS_ADMIN_PRINCIPAL"] = "admin_tester";
+    process.env["FIRECRAWL_WEBHOOK_SECRET"] = "test_firecrawl_secret";
     process.env["NODE_ENV"] = "production";
 
     app = createRestApp(mockDeps, mockProfile);
@@ -425,5 +504,44 @@ describe("REST App Transport Routes Unit Tests", () => {
       method: "DELETE"
     });
     expect(res.status).toBe(401);
+  });
+
+  it("POST /v1/webhooks/firecrawl/amendments handles insert and duplicate redelivery", async () => {
+    const payload = '{"type":"monitor.page","id":"evt_test1","monitorId":"mon_test","timestamp":"2026-06-10T12:00:00Z","data":{"url":"https://www.ecfr.gov/current/title-18/part-260","name":"UCO-ENR-1029 eCFR update","summary":"First revision detected."}}';
+    const sig = crypto.createHmac("sha256", process.env["FIRECRAWL_WEBHOOK_SECRET"]!).update(payload).digest("hex");
+
+    const first = await fetch(`http://localhost:${port}/v1/webhooks/firecrawl/amendments`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-firecrawl-signature": `sha256=${sig}` },
+      body: payload,
+    });
+    expect(first.status).toBe(201);
+
+    const second = await fetch(`http://localhost:${port}/v1/webhooks/firecrawl/amendments`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-firecrawl-signature": `sha256=${sig}` },
+      body: payload,
+    });
+    expect(second.status).toBe(200);
+    const dupBody = await second.json() as any;
+    expect(dupBody.status).toBe("duplicate");
+  });
+
+  it("POST /v1/amendments/:id/review binds reviewed_by to authenticated principal", async () => {
+    const row = Array.from(amendmentRows.values()).find((entry) => entry.event_id === "evt_test1");
+    expect(row).toBeTruthy();
+
+    const review = await fetch(`http://localhost:${port}/v1/amendments/${row.amendment_id}/review`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-admin-api-key": process.env["COS_ADMIN_API_KEY"]!
+      },
+      body: JSON.stringify({ status: "approved", reviewed_by: "spoofed_user", notes: "looks good" }),
+    });
+    expect(review.status).toBe(200);
+    const body = await review.json() as any;
+    expect(body.reviewed_by).toBe("admin_tester");
+    expect(body.review_notes).toContain("(asserted reviewer: spoofed_user)");
   });
 });

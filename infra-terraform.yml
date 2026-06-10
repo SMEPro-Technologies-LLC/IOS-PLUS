@@ -1,0 +1,228 @@
+# .github/workflows/infra-terraform.yml
+#
+# IOS-PLUS infrastructure pipeline (the missing organ).
+# - PRs touching infra/terraform/** get fmt/validate/plan, with the plan
+#   posted as a PR comment (staging project).
+# - Merge to main applies to STAGING automatically (behind the
+#   `staging-infra` GitHub environment).
+# - PRODUCTION applies only via manual workflow_dispatch, behind the
+#   `production-infra` environment with required reviewers.
+#
+# Prerequisites (created by bootstrap_gcp.sh, configured once per env in
+# GitHub > Settings > Environments):
+#   Environment variables (vars.*):
+#     GCP_PROJECT        e.g. smepro-gc-r1-staging / smepro-gc-r1-prod
+#     GCP_WIF_PROVIDER   projects/NNN/locations/global/workloadIdentityPools/github/providers/ios-plus
+#     GCP_TF_SA          tf-deployer@<project>.iam.gserviceaccount.com
+#   No JSON keys. No kubeconfig secrets. Auth is WIF/OIDC only.
+#
+# State layout: one bucket, one prefix per environment:
+#   gs://ios-plus-tf-state/ios-plus/terraform/state/<environment>
+
+name: Infra — Terraform
+
+on:
+  pull_request:
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/infra-terraform.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/terraform/**"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        options: [staging, production]
+        required: true
+      confirm:
+        description: 'Type "apply" to confirm a manual apply'
+        required: true
+
+permissions:
+  contents: read
+  id-token: write        # required for WIF
+  pull-requests: write   # plan comments
+
+env:
+  TF_DIR: infra/terraform
+  TF_VERSION: "1.9.8"
+  STATE_BUCKET: ios-plus-tf-state
+  STATE_PREFIX_BASE: ios-plus/terraform/state
+
+concurrency:
+  # Never run two Terraform operations for the same environment at once.
+  group: terraform-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------- plan (PRs)
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    environment: staging-infra   # read-only plan against staging project
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_TF_SA }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform fmt
+        run: terraform -chdir=${{ env.TF_DIR }} fmt -check -recursive
+
+      - name: Terraform init (staging state)
+        run: |
+          terraform -chdir=${{ env.TF_DIR }} init -input=false \
+            -backend-config="bucket=${{ env.STATE_BUCKET }}" \
+            -backend-config="prefix=${{ env.STATE_PREFIX_BASE }}/staging"
+
+      - name: Terraform validate
+        run: terraform -chdir=${{ env.TF_DIR }} validate
+
+      - name: Terraform plan
+        id: plan
+        env:
+          TF_VAR_gcp_project: ${{ vars.GCP_PROJECT }}
+          TF_VAR_environment: staging
+        run: |
+          terraform -chdir=${{ env.TF_DIR }} plan -input=false -no-color \
+            -out=tfplan.bin | tee plan.txt
+          # Keep the binary plan as an artifact for audit (NOT for apply —
+          # apply re-plans in its own job to avoid stale-plan drift).
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-pr-${{ github.event.pull_request.number }}
+          path: |
+            plan.txt
+            ${{ env.TF_DIR }}/tfplan.bin
+          retention-days: 30
+
+      - name: Comment plan on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let plan = fs.readFileSync('plan.txt', 'utf8');
+            const MAX = 60000;
+            if (plan.length > MAX) {
+              plan = plan.slice(0, MAX) + '\n... (truncated — full plan in workflow artifact)';
+            }
+            const body = [
+              '### Terraform plan (staging)',
+              '<details><summary>Show plan</summary>',
+              '',
+              '```hcl',
+              plan,
+              '```',
+              '</details>',
+              '',
+              `*Workflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}*`
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
+
+  # ------------------------------------------------- apply: staging (on merge)
+  apply-staging:
+    if: github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' &&
+         github.event.inputs.environment == 'staging' &&
+         github.event.inputs.confirm == 'apply')
+    runs-on: ubuntu-latest
+    environment: staging-infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_TF_SA }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        run: |
+          terraform -chdir=${{ env.TF_DIR }} init -input=false \
+            -backend-config="bucket=${{ env.STATE_BUCKET }}" \
+            -backend-config="prefix=${{ env.STATE_PREFIX_BASE }}/staging"
+
+      - name: Terraform plan
+        env:
+          TF_VAR_gcp_project: ${{ vars.GCP_PROJECT }}
+          TF_VAR_environment: staging
+        run: |
+          terraform -chdir=${{ env.TF_DIR }} plan -input=false \
+            -out=tfplan.bin
+
+      - name: Terraform apply
+        env:
+          TF_VAR_gcp_project: ${{ vars.GCP_PROJECT }}
+          TF_VAR_environment: staging
+        run: terraform -chdir=${{ env.TF_DIR }} apply -input=false tfplan.bin
+
+      - name: Output summary
+        run: |
+          terraform -chdir=${{ env.TF_DIR }} output -no-color \
+            >> "$GITHUB_STEP_SUMMARY" || true
+
+  # ---------------------------------------- apply: production (dispatch only)
+  apply-production:
+    if: github.event_name == 'workflow_dispatch' &&
+        github.event.inputs.environment == 'production' &&
+        github.event.inputs.confirm == 'apply'
+    runs-on: ubuntu-latest
+    # Configure required reviewers + wait timer on this environment in
+    # GitHub > Settings > Environments > production-infra.
+    environment: production-infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_TF_SA }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        run: |
+          terraform -chdir=${{ env.TF_DIR }} init -input=false \
+            -backend-config="bucket=${{ env.STATE_BUCKET }}" \
+            -backend-config="prefix=${{ env.STATE_PREFIX_BASE }}/production"
+
+      - name: Terraform plan
+        env:
+          TF_VAR_gcp_project: ${{ vars.GCP_PROJECT }}
+          TF_VAR_environment: production
+        run: |
+          terraform -chdir=${{ env.TF_DIR }} plan -input=false \
+            -out=tfplan.bin -no-color | tee plan.txt
+          {
+            echo '### Production plan'
+            echo '```'
+            tail -c 60000 plan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Terraform apply
+        env:
+          TF_VAR_gcp_project: ${{ vars.GCP_PROJECT }}
+          TF_VAR_environment: production
+        run: terraform -chdir=${{ env.TF_DIR }} apply -input=false tfplan.bin

@@ -1,0 +1,72 @@
+# infra/kubernetes/db-verify-job.yaml
+#
+# In-VPC verification gate. Runs INSIDE the cluster because Cloud SQL is
+# private-IP only (ipv4_enabled = false) — GitHub-hosted runners cannot
+# reach the database, so all schema verification must execute in-VPC.
+#
+# Runs, in order:
+#   1. scripts/db/verify_db_invariants.py   (20 required tables)
+#   2. scripts/db/validate_uco_seed.py      (UCO seed integrity)
+#   3. scripts/ops/weekly_worm_check.py     (WORM triggers block UPDATE/DELETE)
+#
+# Assumptions to adjust:
+#   - image: an ops/app image that contains the scripts/ tree. Point this at
+#     whatever image your CI publishes (the app image works if scripts/ is
+#     COPYed in; otherwise build a slim ops image).
+#   - secret cos-plus-db-credentials with key audit_reader_dsn, ideally
+#     synced from GCP Secret Manager (External Secrets Operator) rather than
+#     created by hand. Uses the audit_reader RBAC role — verification needs
+#     read access only; never run this as cos_admin.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cos-plus-db-verify
+  labels:
+    app.kubernetes.io/name: cos-plus
+    app.kubernetes.io/component: db-verify
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 540
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cos-plus
+        app.kubernetes.io/component: db-verify
+    spec:
+      restartPolicy: Never
+      serviceAccountName: ios-plus-sa   # WIF-annotated SA from the Helm chart
+      containers:
+        - name: verify
+          # CHANGE ME: image containing the repo's scripts/ tree
+          image: us-central1-docker.pkg.dev/PROJECT_ID/ios-plus/ops:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              echo "== 1/3 schema invariants =="
+              python scripts/db/verify_db_invariants.py
+              echo "== 2/3 UCO seed validation =="
+              python scripts/db/validate_uco_seed.py
+              echo "== 3/3 WORM trigger check =="
+              python scripts/ops/weekly_worm_check.py
+              echo "VERIFICATION GATE: PASS"
+          env:
+            - name: COS_PLUS_AUDIT_READER_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: cos-plus-db-credentials
+                  key: audit_reader_dsn
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]

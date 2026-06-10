@@ -1,0 +1,137 @@
+# .github/workflows/cd-deploy.yml
+#
+# IOS-PLUS application deployment — replaces the kubeconfig-secret approach
+# that failed run #7. No PRODUCTION_KUBECONFIG / STAGING_KUBECONFIG secrets:
+# cluster credentials are generated in-workflow via WIF + get-gke-credentials,
+# so they can never be stale, placeholder, or hand-mangled.
+#
+# Order of operations per deploy:
+#   1. Auth (WIF) and fetch GKE credentials
+#   2. Preflight: cluster reachable, namespace exists
+#   3. Flyway migration Job (infra/kubernetes/db-migrate-job.yaml)
+#   4. In-VPC verification Job gate (verify_db_invariants + WORM check)
+#      — this runs INSIDE the cluster because Cloud SQL is private-IP only;
+#        GitHub-hosted runners have no network path to the database.
+#   5. Helm upgrade --install
+#   6. Rollout status check
+#
+# Per-environment GitHub Environment variables (vars.*):
+#   GCP_PROJECT        target project id
+#   GCP_WIF_PROVIDER   workload identity provider resource name
+#   GCP_DEPLOY_SA      deployer@<project>.iam.gserviceaccount.com
+#   GKE_CLUSTER        e.g. ios-plus-staging / ios-plus-production
+#   GKE_LOCATION       e.g. us-central1
+#   APP_NAMESPACE      e.g. ios-plus
+#   IMAGE_TAG_POLICY   (optional) pin strategy notes
+
+name: CD — Deploy
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "infra/terraform/**"
+      - "docs/**"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        options: [staging, production]
+        required: true
+      image_tag:
+        description: "Image tag to deploy (default: short SHA)"
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # push to main -> staging; production only via dispatch + env approval
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    env:
+      ENVIRONMENT: ${{ github.event.inputs.environment || 'staging' }}
+      IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------------------------------------------------------- 1. Auth
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: gke-gcloud-auth-plugin
+
+      - name: Get GKE credentials (no stored kubeconfig)
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ vars.GKE_CLUSTER }}
+          location: ${{ vars.GKE_LOCATION }}
+          project_id: ${{ vars.GCP_PROJECT }}
+
+      # ------------------------------------------------------ 2. Preflight
+      - name: Preflight — cluster reachable & namespace present
+        run: |
+          kubectl version
+          kubectl get nodes -o name | head -5
+          kubectl get namespace "${{ vars.APP_NAMESPACE }}" \
+            || kubectl create namespace "${{ vars.APP_NAMESPACE }}"
+
+      # ------------------------------------------------ 3. Flyway migration
+      - name: Run Flyway migration Job
+        run: |
+          NS="${{ vars.APP_NAMESPACE }}"
+          # Jobs are immutable; delete any prior instance before re-applying.
+          kubectl -n "$NS" delete job cos-plus-db-migrate --ignore-not-found
+          kubectl -n "$NS" apply -f infra/kubernetes/db-migrate-job.yaml
+          if ! kubectl -n "$NS" wait --for=condition=complete \
+               job/cos-plus-db-migrate --timeout=900s; then
+            echo "::error::Flyway migration job failed — dumping logs"
+            kubectl -n "$NS" logs job/cos-plus-db-migrate --all-containers --tail=300
+            exit 1
+          fi
+          kubectl -n "$NS" logs job/cos-plus-db-migrate --all-containers --tail=50
+
+      # -------------------------------------- 4. In-VPC verification gate
+      - name: Run DB verification Job (invariants + WORM)
+        run: |
+          NS="${{ vars.APP_NAMESPACE }}"
+          kubectl -n "$NS" delete job cos-plus-db-verify --ignore-not-found
+          kubectl -n "$NS" apply -f infra/kubernetes/db-verify-job.yaml
+          if ! kubectl -n "$NS" wait --for=condition=complete \
+               job/cos-plus-db-verify --timeout=600s; then
+            echo "::error::DB verification gate FAILED — schema not in a known-good state. Halting deploy."
+            kubectl -n "$NS" logs job/cos-plus-db-verify --all-containers --tail=300
+            exit 1
+          fi
+          kubectl -n "$NS" logs job/cos-plus-db-verify --all-containers --tail=100
+
+      # --------------------------------------------------------- 5. Helm
+      - name: Helm upgrade --install
+        run: |
+          helm upgrade --install ios-plus ./infra/helm/ios-plus \
+            --namespace "${{ vars.APP_NAMESPACE }}" \
+            --values "./infra/helm/ios-plus/values-${ENVIRONMENT}.yaml" \
+            --set gcpProject="${{ vars.GCP_PROJECT }}" \
+            --set image.tag="${IMAGE_TAG}" \
+            --atomic \
+            --timeout 10m
+
+      # ------------------------------------------------------ 6. Rollout
+      - name: Verify rollout
+        run: |
+          NS="${{ vars.APP_NAMESPACE }}"
+          kubectl -n "$NS" rollout status deployment/ios-plus --timeout=300s
+          echo "## Deployed ${ENVIRONMENT}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- image tag: \`${IMAGE_TAG}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- cluster: \`${{ vars.GKE_CLUSTER }}\` (${{ vars.GKE_LOCATION }})" >> "$GITHUB_STEP_SUMMARY"

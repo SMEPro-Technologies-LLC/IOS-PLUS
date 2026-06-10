@@ -5,6 +5,7 @@
  * GET  /ready         — readiness probe
  */
 import express from "express";
+import rateLimit from "express-rate-limit";
 import { v4 as uuidv7 } from "uuid";
 import type { InferenceRequest, NAICSProfile } from "@ios-plus/shared";
 import type { PipelineDependencies } from "../orchestrator/pipeline.js";
@@ -18,6 +19,7 @@ type RequestWithContext = express.Request & {
   rawBody?: Buffer;
   adminPrincipal?: string;
 };
+const UCO_NODE_ID_REGEX = /\b(UCO-[A-Za-z0-9-]+)\b/;
 
 function firstString(input: unknown): string | null {
   return typeof input === "string" && input.trim().length > 0 ? input.trim() : null;
@@ -39,13 +41,25 @@ function verifyHmacSignature(rawBody: Buffer, secret: string, signatureHeader: s
 
 function extractNodeIdFromName(name: string | null): string | null {
   if (!name) return null;
-  const match = name.match(/\b(UCO-[A-Za-z0-9-]+)\b/);
+  const match = name.match(UCO_NODE_ID_REGEX);
   const nodeId = match?.[1];
   return nodeId ? nodeId.toUpperCase() : null;
 }
 
 export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSProfile) {
   const app = express();
+  const webhookRateLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  const reviewRateLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
   app.use(express.json({
     limit: "1mb",
     verify: (req, _res, buf) => {
@@ -252,13 +266,14 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     res.send(MetricsRegistry.render());
   });
 
-  app.post("/v1/webhooks/firecrawl/monitor.page", async (req, res) => {
+  app.post("/v1/webhooks/firecrawl/monitor.page", webhookRateLimiter, async (req, res) => {
     const firecrawlSecret = process.env["FIRECRAWL_WEBHOOK_SECRET"];
     if (!firecrawlSecret) {
       return res.status(500).json({ error: "FIRECRAWL_WEBHOOK_SECRET is not configured" });
     }
 
     const requestWithContext = req as RequestWithContext;
+    // Accept current and legacy header names used by Firecrawl integrations.
     const signatureHeader = firstString(req.headers["x-firecrawl-signature"])
       ?? firstString(req.headers["firecrawl-signature"])
       ?? firstString(req.headers["x-webhook-signature"]);
@@ -318,7 +333,12 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
       const nodePolicyAction = String(nodeSnapshot.rows[0]["policy_action"] ?? "");
       const nodeRiskWeight = Number(nodeSnapshot.rows[0]["risk_weight"] ?? 0);
       const reviewRequired = nodePolicyAction === "BLOCK" || nodePolicyAction === "ESCALATE";
-      const reviewPriority = nodePolicyAction === "BLOCK" ? "P0" : nodePolicyAction === "ESCALATE" ? "P1" : "P3";
+      let reviewPriority = "P3";
+      if (nodePolicyAction === "BLOCK") {
+        reviewPriority = "P0";
+      } else if (nodePolicyAction === "ESCALATE") {
+        reviewPriority = "P1";
+      }
       const reviewSlaHours = reviewRequired ? (nodePolicyAction === "BLOCK" ? 4 : 24) : 0;
       const initialStatus = reviewRequired ? "pending_review" : "acknowledged";
       const monitorId = firstString(payload["monitorId"]);
@@ -346,6 +366,8 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
              node_policy_action, node_risk_weight,
              review_required, review_priority, review_sla_hours, status
            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+           -- Scope conflict handling to sha-dedup only. uq_amend_open_per_node
+           -- collisions must raise 23505 so Firecrawl can redeliver and retry.
            ON CONFLICT (payload_sha256) DO NOTHING
            RETURNING amendment_id`,
           [
@@ -577,7 +599,7 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     next();
   };
 
-  app.post("/v1/amendments/:amendmentId/review", requireAdminAuth, async (req, res) => {
+  app.post("/v1/amendments/:amendmentId/review", requireAdminAuth, reviewRateLimiter, async (req, res) => {
     const principal = (req as RequestWithContext).adminPrincipal ?? null;
     if (!principal) {
       return res.status(500).json({ error: "auth principal unavailable — cannot attribute review" });

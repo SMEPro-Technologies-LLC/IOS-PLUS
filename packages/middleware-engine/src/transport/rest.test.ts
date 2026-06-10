@@ -481,7 +481,7 @@ describe("REST App Transport Routes Unit Tests", () => {
       timestamp: "2026-06-10T12:00:00Z",
       data: {
         url: "https://www.ecfr.gov/current/title-18/part-260",
-        name: "UCO-ENR-1029 First revision detected.",
+        name: "UCO-ENR-1029 - First revision detected.",
         summary: "First revision detected."
       }
     };

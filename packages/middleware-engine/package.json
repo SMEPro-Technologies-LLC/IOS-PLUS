@@ -5,7 +5,12 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" } },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "typecheck": "tsc --noEmit",
@@ -15,16 +20,17 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@ios-plus/cos-plus": "*",
+    "@ios-plus/evidence-fabric": "*",
+    "@ios-plus/gate-530": "*",
+    "@ios-plus/rag-vault": "*",
     "@ios-plus/shared": "*",
     "@ios-plus/uco-resolver": "*",
-    "@ios-plus/gate-530": "*",
-    "@ios-plus/evidence-fabric": "*",
-    "@ios-plus/rag-vault": "*",
-    "@ios-plus/cos-plus": "*",
     "express": "^4.19.0",
-    "uuid": "^9.0.0",
+    "express-rate-limit": "^8.5.2",
+    "openai": "^4.28.0",
     "pino": "^8.19.0",
-    "openai": "^4.28.0"
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

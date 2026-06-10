@@ -14,9 +14,44 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import { MetricsRegistry } from "./metrics.js";
 
+type RequestWithContext = express.Request & {
+  rawBody?: Buffer;
+  adminPrincipal?: string;
+};
+
+function firstString(input: unknown): string | null {
+  return typeof input === "string" && input.trim().length > 0 ? input.trim() : null;
+}
+
+function parseSignatureValue(signatureHeader: string): string {
+  const sig = signatureHeader.includes("=") ? signatureHeader.split("=", 2)[1] : signatureHeader;
+  return sig?.trim() ?? "";
+}
+
+function verifyHmacSignature(rawBody: Buffer, secret: string, signatureHeader: string): boolean {
+  const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+  const provided = parseSignatureValue(signatureHeader);
+  if (!/^[a-fA-F0-9]+$/.test(provided) || expected.length !== provided.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(provided, "hex"));
+}
+
+function extractNodeIdFromName(name: string | null): string | null {
+  if (!name) return null;
+  const match = name.match(/\b(UCO-[A-Za-z0-9-]+)\b/);
+  const nodeId = match?.[1];
+  return nodeId ? nodeId.toUpperCase() : null;
+}
+
 export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSProfile) {
   const app = express();
-  app.use(express.json({ limit: "1mb" }));
+  app.use(express.json({
+    limit: "1mb",
+    verify: (req, _res, buf) => {
+      (req as RequestWithContext).rawBody = Buffer.from(buf);
+    }
+  }));
   app.use(express.static(process.cwd()));
 
   // Middleware to track HTTP requests
@@ -217,6 +252,146 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     res.send(MetricsRegistry.render());
   });
 
+  app.post("/v1/webhooks/firecrawl/monitor.page", async (req, res) => {
+    const firecrawlSecret = process.env["FIRECRAWL_WEBHOOK_SECRET"];
+    if (!firecrawlSecret) {
+      return res.status(500).json({ error: "FIRECRAWL_WEBHOOK_SECRET is not configured" });
+    }
+
+    const requestWithContext = req as RequestWithContext;
+    const signatureHeader = firstString(req.headers["x-firecrawl-signature"])
+      ?? firstString(req.headers["firecrawl-signature"])
+      ?? firstString(req.headers["x-webhook-signature"]);
+    const rawBody = requestWithContext.rawBody;
+    if (!signatureHeader || !rawBody || !verifyHmacSignature(rawBody, firecrawlSecret, signatureHeader)) {
+      MetricsRegistry.inc("ios_amendment_webhook_total", { result: "error" });
+      return res.status(401).json({ error: "invalid webhook signature" });
+    }
+
+    const payload = req.body && typeof req.body === "object"
+      ? req.body as Record<string, unknown>
+      : {};
+    if (payload["type"] !== "monitor.page") {
+      MetricsRegistry.inc("ios_amendment_webhook_total", { result: "error" });
+      return res.status(400).json({ error: "unsupported webhook type" });
+    }
+    const payloadSha256 = crypto.createHash("sha256").update(rawBody).digest("hex");
+    const metadata = payload["metadata"] as Record<string, unknown> | undefined;
+    const data = payload["data"] as Record<string, unknown> | undefined;
+    const ucoNodeId = firstString(metadata?.["uco_node_id"]) ?? extractNodeIdFromName(firstString(data?.["name"]));
+    if (!ucoNodeId) {
+      MetricsRegistry.inc("ios_amendment_webhook_total", { result: "unresolved" });
+      return res.status(422).json({ error: "unable to resolve uco_node_id from webhook payload" });
+    }
+
+    const sourceUrl = firstString(data?.["url"]);
+    if (!sourceUrl) {
+      MetricsRegistry.inc("ios_amendment_webhook_total", { result: "unresolved" });
+      return res.status(422).json({ error: "missing source URL in webhook payload" });
+    }
+
+    const timestamp = firstString(payload["timestamp"]);
+    const changeDetectedAt = timestamp && !Number.isNaN(Date.parse(timestamp))
+      ? new Date(timestamp).toISOString()
+      : new Date().toISOString();
+
+    const pool = deps.cosRegistry.pool("ios_app");
+    try {
+      const dup = await pool.query(
+        "SELECT amendment_id FROM uco_amendments WHERE payload_sha256 = $1",
+        [payloadSha256]
+      );
+      if (dup.rows[0]) {
+        MetricsRegistry.inc("ios_amendment_webhook_total", { result: "duplicate" });
+        return res.status(200).json({ status: "duplicate", payload_sha256: payloadSha256 });
+      }
+
+      const nodeSnapshot = await pool.query(
+        "SELECT policy_action, risk_weight FROM uco_nodes WHERE uco_node_id = $1",
+        [ucoNodeId]
+      );
+      if (!nodeSnapshot.rows[0]) {
+        MetricsRegistry.inc("ios_amendment_webhook_total", { result: "unresolved" });
+        return res.status(422).json({ error: `UCO node not found: ${ucoNodeId}` });
+      }
+
+      const nodePolicyAction = String(nodeSnapshot.rows[0]["policy_action"] ?? "");
+      const nodeRiskWeight = Number(nodeSnapshot.rows[0]["risk_weight"] ?? 0);
+      const reviewRequired = nodePolicyAction === "BLOCK" || nodePolicyAction === "ESCALATE";
+      const reviewPriority = nodePolicyAction === "BLOCK" ? "P0" : nodePolicyAction === "ESCALATE" ? "P1" : "P3";
+      const reviewSlaHours = reviewRequired ? (nodePolicyAction === "BLOCK" ? 4 : 24) : 0;
+      const initialStatus = reviewRequired ? "pending_review" : "acknowledged";
+      const monitorId = firstString(payload["monitorId"]);
+      const eventId = firstString(payload["id"]);
+      const diffSummary = firstString(data?.["summary"]);
+
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+
+        let supersededCount = 0;
+        if (initialStatus === "pending_review") {
+          const sup = await client.query(
+            `UPDATE uco_amendments SET status = 'superseded'
+              WHERE uco_node_id = $1 AND status = 'pending_review'`,
+            [ucoNodeId]
+          );
+          supersededCount = sup.rowCount ?? 0;
+        }
+
+        const ins = await client.query(
+          `INSERT INTO uco_amendments (
+             uco_node_id, monitor_id, event_id, source_url, change_detected_at,
+             payload, payload_sha256, diff_summary,
+             node_policy_action, node_risk_weight,
+             review_required, review_priority, review_sla_hours, status
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+           ON CONFLICT (payload_sha256) DO NOTHING
+           RETURNING amendment_id`,
+          [
+            ucoNodeId,
+            monitorId,
+            eventId,
+            sourceUrl,
+            changeDetectedAt,
+            payload,
+            payloadSha256,
+            diffSummary,
+            nodePolicyAction,
+            nodeRiskWeight,
+            reviewRequired,
+            reviewPriority,
+            reviewSlaHours,
+            initialStatus
+          ]
+        );
+
+        await client.query("COMMIT");
+
+        if (!ins.rows[0]) {
+          MetricsRegistry.inc("ios_amendment_webhook_total", { result: "duplicate" });
+          return res.status(200).json({ status: "duplicate", payload_sha256: payloadSha256 });
+        }
+
+        MetricsRegistry.inc("ios_amendment_webhook_total", { result: "inserted" });
+        return res.status(201).json({
+          status: "inserted",
+          amendment_id: ins.rows[0]["amendment_id"],
+          payload_sha256: payloadSha256,
+          superseded: supersededCount
+        });
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
+    } catch (err) {
+      MetricsRegistry.inc("ios_amendment_webhook_total", { result: "error" });
+      return res.status(500).json({ error: String(err) });
+    }
+  });
+
 
   app.post("/v1/inference", async (req, res) => {
     const requestId = uuidv7();
@@ -382,6 +557,7 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     }
     adminApiKey = "iosplus_dev_admin_key";
   }
+  const adminPrincipal = process.env["COS_ADMIN_PRINCIPAL"] ?? "admin_api_key";
   
   const requireAdminAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const authHeader = req.headers["authorization"] || req.headers["x-admin-api-key"];
@@ -397,8 +573,63 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     if (!token || token !== adminApiKey) {
       return res.status(401).json({ error: "Unauthorized: Missing or invalid administrative API key" });
     }
+    (req as RequestWithContext).adminPrincipal = adminPrincipal;
     next();
   };
+
+  app.post("/v1/amendments/:amendmentId/review", requireAdminAuth, async (req, res) => {
+    const principal = (req as RequestWithContext).adminPrincipal ?? null;
+    if (!principal) {
+      return res.status(500).json({ error: "auth principal unavailable — cannot attribute review" });
+    }
+
+    const verdict = firstString(req.body?.verdict) ?? firstString(req.body?.status);
+    const normalizedVerdict = verdict?.toLowerCase();
+    const nextStatus = normalizedVerdict === "approve" || normalizedVerdict === "approved"
+      ? "approved"
+      : normalizedVerdict === "reject" || normalizedVerdict === "rejected"
+        ? "rejected"
+        : null;
+    if (!nextStatus) {
+      return res.status(400).json({ error: "verdict must be approve|approved|reject|rejected" });
+    }
+
+    const assertedReviewer = firstString(req.body?.reviewed_by);
+    const reviewNote = firstString(req.body?.notes);
+    const notes = [reviewNote, assertedReviewer && assertedReviewer !== principal
+      ? `(asserted reviewer: ${assertedReviewer})`
+      : null
+    ].filter((value): value is string => value !== null).join(" ") || null;
+
+    try {
+      const pool = deps.cosRegistry.pool("ios_app");
+      const update = await pool.query(
+        `UPDATE uco_amendments
+           SET status = $2,
+               reviewed_by = $3,
+               reviewed_at = now(),
+               review_notes = $4
+         WHERE amendment_id = $1 AND status = 'pending_review'
+         RETURNING amendment_id, status, reviewed_by, reviewed_at, review_notes`,
+        [req.params["amendmentId"], nextStatus, principal, notes]
+      );
+
+      if (update.rows[0]) {
+        return res.status(200).json({ status: "reviewed", amendment: update.rows[0] });
+      }
+
+      const current = await pool.query(
+        "SELECT status FROM uco_amendments WHERE amendment_id = $1",
+        [req.params["amendmentId"]]
+      );
+      if (!current.rows[0]) {
+        return res.status(404).json({ error: "amendment not found" });
+      }
+      return res.status(409).json({ error: `amendment is not reviewable from status ${String(current.rows[0]["status"])}` });
+    } catch (err) {
+      return res.status(500).json({ error: String(err) });
+    }
+  });
 
   app.get("/v1/compliance/rules", requireAdminAuth, async (req, res) => {
     try {

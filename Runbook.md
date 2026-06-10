@@ -124,6 +124,7 @@ Migrations live in `db/migrations/`. Flyway runs automatically on `docker compos
 | V3 | `V3__rag_vault.sql` | RAG chunks (19 sector partitions + xsc) |
 | V4 | `V4__uco_amendment.sql` | UCO nodes + evaluation results |
 | V5 | `V5__rbac_app_roles.sql` | RBAC roles + GRANTs |
+| V9 | `V9__uco_amendments.sql` | UCO amendments — regulatory change intake (Firecrawl monitor.page → review gate) |
 
 **To run migrations manually:**
 ```powershell

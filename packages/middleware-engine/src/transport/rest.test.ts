@@ -5,6 +5,7 @@ import type { NAICSProfile } from "@ios-plus/shared";
 import type { Server } from "node:http";
 import fs from "node:fs";
 import { EventEmitter } from "node:events";
+import crypto from "node:crypto";
 
 // Mock ioredis to allow dynamic health check
 vi.mock("ioredis", () => {
@@ -86,6 +87,8 @@ describe("REST App Transport Routes Unit Tests", () => {
   let vaultHealthy = true;
   let openaiHealthy = true;
   let originalFetch: any;
+  const duplicatePayloadHashes = new Set<string>();
+  let capturedReviewUpdateParams: any[] | null = null;
 
   const mockDeps: any = {
     ucoResolver: {},
@@ -113,6 +116,32 @@ describe("REST App Transport Routes Unit Tests", () => {
                 ]
               };
             }
+            if (queryText.includes("SELECT policy_action, risk_weight FROM uco_nodes")) {
+              if (params[0] === "UCO-ENR-1029") {
+                return { rows: [{ policy_action: "BLOCK", risk_weight: 9 }] };
+              }
+              return { rows: [] };
+            }
+            if (queryText.includes("SELECT amendment_id FROM uco_amendments WHERE payload_sha256")) {
+              return duplicatePayloadHashes.has(params[0])
+                ? { rows: [{ amendment_id: "amend-dup" }] }
+                : { rows: [] };
+            }
+            if (queryText.includes("UPDATE uco_amendments") && queryText.includes("reviewed_by")) {
+              capturedReviewUpdateParams = params;
+              return {
+                rows: [{
+                  amendment_id: params[0],
+                  status: params[1],
+                  reviewed_by: params[2],
+                  reviewed_at: new Date().toISOString(),
+                  review_notes: params[3]
+                }]
+              };
+            }
+            if (queryText.includes("SELECT status FROM uco_amendments")) {
+              return { rows: [] };
+            }
             if (queryText.includes("INSERT INTO uco_nodes")) {
               return { rows: [] };
             }
@@ -123,7 +152,22 @@ describe("REST App Transport Routes Unit Tests", () => {
               return { rows: [] };
             }
             return { rows: [] };
-          }
+          },
+          connect: async () => ({
+            query: async (queryText: string, params: any[]) => {
+              if (queryText === "BEGIN" || queryText === "COMMIT" || queryText === "ROLLBACK") {
+                return { rows: [] };
+              }
+              if (queryText.includes("UPDATE uco_amendments SET status = 'superseded'")) {
+                return { rowCount: 0, rows: [] };
+              }
+              if (queryText.includes("INSERT INTO uco_amendments")) {
+                return { rows: [{ amendment_id: "amend-new-1" }] };
+              }
+              return { rows: [] };
+            },
+            release: () => {}
+          })
         };
       }
     }
@@ -182,6 +226,8 @@ describe("REST App Transport Routes Unit Tests", () => {
     process.env["VAULT_ADDR"] = "http://localhost:8200";
     process.env["OPENAI_API_KEY"] = "sk-test-key";
     process.env["COS_ADMIN_API_KEY"] = "iosplus_dev_admin_key";
+    process.env["COS_ADMIN_PRINCIPAL"] = "qa-admin";
+    process.env["FIRECRAWL_WEBHOOK_SECRET"] = "firecrawl-test-secret";
     process.env["NODE_ENV"] = "production";
 
     app = createRestApp(mockDeps, mockProfile);
@@ -425,5 +471,61 @@ describe("REST App Transport Routes Unit Tests", () => {
       method: "DELETE"
     });
     expect(res.status).toBe(401);
+  });
+
+  it("POST /v1/webhooks/firecrawl/monitor.page returns duplicate for pre-flight payload hash hit", async () => {
+    const payload = {
+      type: "monitor.page",
+      id: "evt_test1",
+      monitorId: "mon_test",
+      timestamp: "2026-06-10T12:00:00Z",
+      data: {
+        url: "https://www.ecfr.gov/current/title-18/part-260",
+        name: "UCO-ENR-1029 First revision detected.",
+        summary: "First revision detected."
+      }
+    };
+    const body = JSON.stringify(payload);
+    const payloadSha = crypto.createHash("sha256").update(body).digest("hex");
+    duplicatePayloadHashes.add(payloadSha);
+    const signature = crypto
+      .createHmac("sha256", process.env["FIRECRAWL_WEBHOOK_SECRET"] as string)
+      .update(body)
+      .digest("hex");
+
+    const res = await fetch(`http://localhost:${port}/v1/webhooks/firecrawl/monitor.page`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-firecrawl-signature": signature
+      },
+      body
+    });
+    expect(res.status).toBe(200);
+    const response = await res.json() as any;
+    expect(response.status).toBe("duplicate");
+    expect(response.payload_sha256).toBe(payloadSha);
+    duplicatePayloadHashes.clear();
+  });
+
+  it("POST /v1/amendments/:id/review binds reviewed_by to authenticated principal", async () => {
+    capturedReviewUpdateParams = null;
+    const res = await fetch(`http://localhost:${port}/v1/amendments/amend-123/review`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-api-key": "iosplus_dev_admin_key"
+      },
+      body: JSON.stringify({
+        verdict: "approve",
+        reviewed_by: "asserted-other-user",
+        notes: "Looks good"
+      })
+    });
+
+    expect(res.status).toBe(200);
+    expect(capturedReviewUpdateParams).not.toBeNull();
+    expect(capturedReviewUpdateParams?.[2]).toBe("qa-admin");
+    expect(capturedReviewUpdateParams?.[3]).toContain("(asserted reviewer: asserted-other-user)");
   });
 });

@@ -95,11 +95,11 @@ fi
 # Note: Typically executed within the target Kubernetes cluster where token/certs are auto-mounted.
 # In localized validation, we read local serviceaccount secrets.
 echo "Configuring Kubernetes auth client..."
-SA_JWT_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token 2>/dev/null || echo "LOCAL_MOCK_TOKEN")
-SA_CA_CRT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt 2>/dev/null || echo "LOCAL_MOCK_CRT")
+SA_JWT_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token 2>/dev/null || true)
+SA_CA_CRT=$(cat /var/run/secrets/kubernetes.io/serviceaccount/ca.crt 2>/dev/null || true)
 
-if [ "$SA_JWT_TOKEN" = "LOCAL_MOCK_TOKEN" ]; then
-    echo "Notice: Standard cluster serviceaccount tokens not detected. Skipping native token write."
+if [ -z "${SA_JWT_TOKEN:-}" ] || [ -z "${SA_CA_CRT:-}" ]; then
+    echo "WARNING: Kubernetes serviceaccount token/certificate not detected. Skipping Kubernetes auth config."
 else
     vault write auth/kubernetes/config \
         kubernetes_host="${K8S_HOST}" \

@@ -8,7 +8,7 @@ on:
     branches: [main, develop]
 
 env:
-  NODE_VERSION: "20.12.2"
+  NODE_VERSION: "20.19.0"
   TURBO_TOKEN: ${{ secrets['TURBO_TOKEN'] }}
   TURBO_TEAM: ${{ secrets['TURBO_TEAM'] }}
 
@@ -34,16 +34,24 @@ jobs:
         run: npm ci
 
       - name: Typecheck (all packages)
-        run: npx turbo run typecheck
+        run: npm run typecheck
 
       - name: Lint
-        run: npx turbo run lint
+        run: npm run lint
 
       - name: Build
-        run: npx turbo run build
+        run: npm run build
 
-      - name: Test
-        run: npx turbo run test
+      - name: Test with coverage gate
+        run: npm run test:coverage
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.run_id }}
+          path: coverage/
+          retention-days: 30
 
       - name: Validate SQL migrations (syntax check)
         run: |

@@ -171,14 +171,14 @@ ios-plus/
 ### Prerequisites
 
 - Docker
-- Node.js 20+
+- Node.js 20.19+
 - PostgreSQL client tools
 
 ### Quick Start
 
 ```bash
 cp .env.example .env
-docker-compose up -d
+docker compose up -d
 npm install
 npm run build
 npm run db:migrate
@@ -190,11 +190,50 @@ npm run dev
 
 ```bash
 npm run test
+npm run test:coverage
 npm run typecheck
 npm run lint
 npm run build
 helm lint infra/helm/ios-plus
 ```
+
+---
+
+## Audit Readiness / Acquirer Validation
+
+### Primary prerequisite
+
+- Docker
+
+### One-command clean-room audit run
+
+```bash
+docker compose -f docker-compose.test.yml up --build --exit-code-from test-runner
+```
+
+### What the audit command does
+
+- builds a deterministic Node 20.19.0 audit image from `Dockerfile.test`,
+- installs dependencies with `npm ci`,
+- starts a production-realistic PostgreSQL test dependency for the live WORM database integration test,
+- builds the TypeScript monorepo with the root `build` pipeline,
+- runs the full Vitest suite,
+- enforces an 80%+ coverage gate on the currently audit-scoped middleware orchestration modules,
+- and exits non-zero if the build, tests, or coverage gate fail.
+
+### Artifacts and logs
+
+- coverage artifacts are written to `coverage/` (`lcov.info`, `cobertura-coverage.xml`, and summary files),
+- audit harness logs are written to `.audit-artifacts/audit-test.log`,
+- and CI uploads `coverage/` as a workflow artifact on every run.
+
+### Test architecture and isolation boundaries
+
+- TypeScript tests live adjacent to source files inside each package to mirror production boundaries.
+- Middleware orchestration contract tests explicitly verify dependency injection and parameter passing between the orchestration pipeline and downstream middleware services.
+- Gate 530, COS+ repository access, and transport routes are tested in isolation with mocked external dependencies so the audit harness remains deterministic.
+- The PostgreSQL-backed WORM integration test runs against the containerized `cos-plus-test` database in the audit harness rather than relying on a developer workstation.
+- Coverage enforcement is intentionally scoped to the currently audit-ready middleware orchestration modules: `L1_ingestion`, `L2_semantic`, `L7_synthesis`, and `orchestrator/pipeline`.
 
 ---
 

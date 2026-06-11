@@ -1,0 +1,15 @@
+FROM node:20.19.0-bookworm-slim
+
+WORKDIR /workspace
+
+ENV CI=true \
+    NODE_ENV=test \
+    npm_config_include=optional
+
+COPY package.json package-lock.json turbo.json tsconfig.base.json vitest.config.ts ./
+COPY packages ./packages
+COPY db ./db
+
+RUN npm ci --include=optional
+
+CMD ["npm", "run", "audit:test"]

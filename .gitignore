@@ -36,6 +36,7 @@ __pycache__/
 
 # Coverage
 coverage/
+.audit-artifacts/
 
 # OS
 .DS_Store

@@ -1,0 +1,36 @@
+services:
+  cos-plus-test:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ios_plus
+      POSTGRES_USER: cos_admin
+      POSTGRES_PASSWORD: iosplus_dev_admin
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cos_admin -d ios_plus"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    depends_on:
+      cos-plus-test:
+        condition: service_healthy
+    environment:
+      CI: "true"
+      COS_HOST: cos-plus-test
+      COS_PORT: "5432"
+      COS_DATABASE: ios_plus
+      COS_DB_PASSWORD_COS_ADMIN: iosplus_dev_admin
+    volumes:
+      - ./coverage:/workspace/coverage
+      - ./.audit-artifacts:/workspace/.audit-artifacts
+    command: >
+      bash -lc "set -euo pipefail;
+      mkdir -p coverage .audit-artifacts;
+      rm -rf coverage/* .audit-artifacts/*;
+      npm run audit:test 2>&1 | tee .audit-artifacts/audit-test.log"

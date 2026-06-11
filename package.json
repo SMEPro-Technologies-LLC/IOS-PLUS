@@ -2,7 +2,9 @@
   "name": "ios-plus-monorepo",
   "version": "1.0.0",
   "private": true,
-  "engines": { "node": ">=20.12.2" },
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "workspaces": [
     "packages/shared",
     "packages/middleware-engine",
@@ -13,20 +15,23 @@
     "packages/uco-resolver"
   ],
   "scripts": {
-    "build":           "turbo run build",
-    "test":            "turbo run test",
-    "lint":            "turbo run lint",
-    "typecheck":       "turbo run typecheck",
-    "clean":           "turbo run clean",
-    "db:migrate":      "flyway migrate",
-    "db:verify-worm":  "psql $DATABASE_URL_AUDIT_READER -f scripts/db/verify_worm_triggers.sql",
+    "build": "turbo run build",
+    "test": "npm run test:unit",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:coverage": "vitest run --config vitest.config.ts --coverage",
+    "audit:test": "npm run build && npm run test:coverage",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean",
+    "db:migrate": "flyway migrate",
+    "db:verify-worm": "psql $DATABASE_URL_AUDIT_READER -f scripts/db/verify_worm_triggers.sql",
     "ops:verify-keys": "python3 scripts/ops/verify_key_publication_consistency.py",
-    "dev":             "docker compose up -d",
-    "test":            "vitest run"
+    "dev": "docker compose up -d"
   },
   "devDependencies": {
-    "turbo":      "^1.13.0",
+    "@vitest/coverage-v8": "^4.1.0",
+    "turbo": "^1.13.0",
     "typescript": "^5.4.0",
-    "vitest":     "^1.4.0"
+    "vitest": "^4.1.0"
   }
 }

@@ -117,6 +117,11 @@ docker compose down -v
 
 Migrations live in `db/migrations/`. Flyway runs automatically on `docker compose up`.
 
+> **Pending migrations (V8/V9):** the V8 obligation-metadata and V9 amendments migrations are
+> landing via open PRs with a hard merge-order dependency (V8 before V9). See
+> [`docs/merge-plan.md`](docs/merge-plan.md) for the triage/merge plan and the
+> migration-ordering smoke check.
+
 | Version | File | Description |
 |---|---|---|
 | V1 | `V1__core_operational.sql` | Core operational tables |

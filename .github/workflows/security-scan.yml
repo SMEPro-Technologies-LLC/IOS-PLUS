@@ -257,7 +257,7 @@ jobs:
             --no-banner \
             --redact \
             --exit-code 1 \
-            --source .
+            .
 
       - name: Run TruffleHog (diff scan on PR)
         if: github.event_name == 'pull_request'

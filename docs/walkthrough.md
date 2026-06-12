@@ -108,3 +108,27 @@ kubectl logs job/uco-seed-validation-manual-01 -n ios-plus-staging
 ```
 
 The staging environment is **fully deployed, initialized, and validated**.
+
+---
+
+## 10. Final Sandbox Constraints & Operator Transition Notes
+
+Two external dependencies remain outside repository-local remediation and should be treated as known handoff constraints:
+
+### A. Helm Lint Dependency on External Bitnami Chart Sources
+
+* **Constraint**: `helm dependency build` / `helm lint` flows depend on remote Bitnami chart indexes and package downloads.
+* **Sandbox Impact**: In restricted/offline environments, chart dependency resolution can fail despite local chart/template correctness.
+* **Operator Transition Note**: Run Helm dependency/lint verification in a network-enabled CI runner or pre-seed the required chart dependencies into an internal mirror/cache available to the deployment environment.
+
+### B. Staging / Production Deployment Credential Dependencies
+
+* **Constraint**: Promotion workflows still require externally managed credentials (e.g., cloud auth, registry auth, DNS/publication credentials, and environment-scoped secrets).
+* **Sandbox Impact**: Local sandbox and constrained CI contexts cannot fully validate end-to-end staging/production rollout paths without these credentials.
+* **Operator Transition Note**: Before deployment execution, confirm credential injection paths (GitHub Environments / secret managers / workload identity bindings) are fully provisioned and mapped to the deployment jobs.
+
+### C. Handoff Scope Clarification
+
+* Repository code and workflow logic are now prepared for production path execution.
+* Remaining blockers are operational environment prerequisites, not code defects.
+* Final go-live readiness depends on operator-side connectivity and credential provisioning in target environments.

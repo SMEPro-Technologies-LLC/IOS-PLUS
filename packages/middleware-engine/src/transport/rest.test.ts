@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createRestApp } from "./rest.js";
+import { executePipeline } from "../orchestrator/pipeline.js";
 import type { PipelineDependencies } from "../orchestrator/pipeline.js";
 import type { NAICSProfile } from "@ios-plus/shared";
 import type { Server } from "node:http";
@@ -23,6 +24,14 @@ vi.mock("../orchestrator/pipeline.js", () => {
     resumePipeline: vi.fn().mockResolvedValue({ approved: true, requestId: "mock-req-id" }),
   };
 });
+
+const defaultInferenceResponse = {
+  requestId: "mock-req-id",
+  policyAction: "APPROVE",
+  evidencePackages: [],
+  ucoNodeResults: [],
+  totalLatencyMs: 1,
+};
 
 // ---------------------------------------------------------------------------
 // Stateful in-memory Redis mock — supports quarantine store operations
@@ -522,6 +531,37 @@ describe("REST Transport — Backpressure, Hardening, and Quarantine Hardening",
     riskTolerance: 5
   };
 
+  const createParkedContext = (quarantineId: string, tenantId: string) => ({
+    ctx: {
+      requestId: `${quarantineId}-req`,
+      tenantId,
+      sessionId: `${quarantineId}-session`,
+      traceId: `${quarantineId}-trace`,
+      classificationLevel: "CONFIDENTIAL",
+      ucoContext: {
+        profileId: "", naicsCodes: ["5415"], resolvedNodeIds: [],
+        nodes: [], crossCuttingNodes: [], totalNodes: 0, resolvedAt: new Date().toISOString()
+      },
+      startedAt: new Date().toISOString(),
+      timeouts: { L1: 10, L2: 30, L3: 50, L4: 20, L5: 50, L6: 120, L7: 200 },
+      request: { requestId: `${quarantineId}-req`, tenantId, sessionId: `${quarantineId}-session`, rawInput: "x", contentType: "application/json", metadata: {} },
+    },
+    naicsProfile: mockProfile,
+    requestHash: `${quarantineId}-hash`,
+    gateResult: {
+      gateDecisionId: quarantineId,
+      sessionId: `${quarantineId}-session`,
+      tenantId,
+      nodeResults: [],
+      aggregatePolicyAction: "ESCALATE",
+      evaluationLatencyMs: 0,
+      cachedResult: false,
+      quarantinedNodeIds: [],
+    },
+    createdAt: Date.now(),
+    _ttlMs: 86400000,
+  });
+
   beforeAll(async () => {
     originalFetch = global.fetch;
     global.fetch = (async (url: string, options?: RequestInit) => {
@@ -667,36 +707,7 @@ describe("REST Transport — Backpressure, Hardening, and Quarantine Hardening",
   it("POST /v1/compliance/queue/:id/clear returns 409 on second (duplicate) claim attempt", async () => {
     // Manually insert a parked context into the fake Redis store
     const quarantineId = "qid-double-resume-test";
-    const fakeContext = {
-      ctx: {
-        requestId: "req-dr-1",
-        tenantId: "tenant-1",
-        sessionId: "sess-dr-1",
-        traceId: "trace-dr-1",
-        classificationLevel: "CONFIDENTIAL",
-        ucoContext: {
-          profileId: "", naicsCodes: ["5415"], resolvedNodeIds: [],
-          nodes: [], crossCuttingNodes: [], totalNodes: 0, resolvedAt: new Date().toISOString()
-        },
-        startedAt: new Date().toISOString(),
-        timeouts: { L1: 10, L2: 30, L3: 50, L4: 20, L5: 50, L6: 120, L7: 200 },
-        request: { requestId: "req-dr-1", tenantId: "tenant-1", sessionId: "sess-dr-1", rawInput: "x", contentType: "application/json", metadata: {} },
-      },
-      naicsProfile: mockProfile,
-      requestHash: "hash-dr-1",
-      gateResult: {
-        gateDecisionId: quarantineId,
-        sessionId: "sess-dr-1",
-        tenantId: "tenant-1",
-        nodeResults: [],
-        aggregatePolicyAction: "ESCALATE",
-        evaluationLatencyMs: 0,
-        cachedResult: false,
-        quarantinedNodeIds: [],
-      },
-      createdAt: Date.now(),
-      _ttlMs: 86400000,
-    };
+    const fakeContext = createParkedContext(quarantineId, "tenant-1");
     testRedisStore.set(`quarantine:${quarantineId}`, {
       value: JSON.stringify(fakeContext),
       expiresAt: Date.now() + 86400000,
@@ -722,5 +733,70 @@ describe("REST Transport — Backpressure, Hardening, and Quarantine Hardening",
     expect(secondRes.status).toBe(409);
     const body = await secondRes.json() as any;
     expect(body.error).toContain("Conflict");
+  });
+
+  it("POST /v1/compliance/queue/:id/clear returns 404 on tenant mismatch and preserves the parked context", async () => {
+    const quarantineId = "qid-tenant-mismatch";
+    const key = `quarantine:${quarantineId}`;
+    testRedisStore.set(key, {
+      value: JSON.stringify(createParkedContext(quarantineId, "tenant-A")),
+      expiresAt: Date.now() + 86400000,
+    });
+
+    const mismatchRes = await fetch(`http://localhost:${port}/v1/compliance/queue/${quarantineId}/clear`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-tenant-id": "tenant-B" },
+    });
+    expect(mismatchRes.status).toBe(404);
+    expect(testRedisStore.has(key)).toBe(true);
+
+    const successRes = await fetch(`http://localhost:${port}/v1/compliance/queue/${quarantineId}/clear`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-tenant-id": "tenant-A" },
+    });
+    expect(successRes.status).toBe(200);
+    const body = await successRes.json() as any;
+    expect(body.approved).toBe(true);
+    expect(testRedisStore.has(key)).toBe(false);
+  });
+
+  it("POST /v1/inference decrements inflight count when the client aborts before finish", async () => {
+    const abortInFlightRequest = async () => {
+      let markStarted!: () => void;
+      const started = new Promise<void>((resolve) => {
+        markStarted = resolve;
+      });
+      vi.mocked(executePipeline).mockImplementationOnce(async () => {
+        markStarted();
+        return await new Promise<never>(() => {});
+      });
+
+      const controller = new AbortController();
+      const request = fetch(`http://localhost:${port}/v1/inference`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-tenant-id": "tenant-1" },
+        body: JSON.stringify({ input: "abort-me" }),
+        signal: controller.signal,
+      });
+
+      await started;
+      controller.abort();
+      await expect(request).rejects.toMatchObject({ name: "AbortError" });
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    };
+
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    await abortInFlightRequest();
+    await abortInFlightRequest();
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+
+    vi.mocked(executePipeline).mockResolvedValue(defaultInferenceResponse as any);
+    const res = await fetch(`http://localhost:${port}/v1/inference`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-tenant-id": "tenant-1" },
+      body: JSON.stringify({ input: "after-abort" }),
+    });
+
+    expect(res.status).toBe(200);
   });
 });

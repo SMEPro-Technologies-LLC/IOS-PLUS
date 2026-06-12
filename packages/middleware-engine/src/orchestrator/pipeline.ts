@@ -73,10 +73,11 @@ export async function executePipeline(
   latencies["L5"] = l5.latencyMs;
   MetricsRegistry.observe("ios_middleware_layer_latency_ms", l5.latencyMs, { layer: "L5" });
 
-  // Audit decisions to database for triggered nodes
-  for (const nodeRes of l5.gateResult.nodeResults) {
-    if (nodeRes.triggered) {
-      await deps.gateDecisionRepository.insertDecision({
+  // Batch audit decisions to database — one multi-row INSERT replaces the N+1 loop
+  const triggeredNodes = l5.gateResult.nodeResults.filter(n => n.triggered);
+  if (triggeredNodes.length > 0) {
+    await deps.gateDecisionRepository.insertDecisions(
+      triggeredNodes.map(nodeRes => ({
         decisionId: crypto.randomUUID(),
         sessionId: ctx.sessionId,
         tenantId: ctx.tenantId,
@@ -88,8 +89,8 @@ export async function executePipeline(
         overrideApplied: false,
         evidencePackageId: l4.evidencePackage.packageId,
         latencyMs: nodeRes.evaluationLatencyMs,
-      });
-    }
+      }))
+    );
   }
 
   if (l5.gateResult.aggregatePolicyAction === "BLOCK") {

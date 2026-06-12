@@ -100,6 +100,38 @@ export class MetricsRegistry {
       }
     }
 
+    out += '# HELP ios_middleware_rejected_payload_total Total number of requests rejected due to oversized payload (413).\n';
+    out += '# TYPE ios_middleware_rejected_payload_total counter\n';
+    for (const [key, val] of this.counters.entries()) {
+      if (key.startsWith('ios_middleware_rejected_payload_total')) {
+        out += `${key} ${val}\n`;
+      }
+    }
+
+    out += '# HELP ios_middleware_throttled_total Total number of requests rejected due to rate limiting or inflight cap (429/503).\n';
+    out += '# TYPE ios_middleware_throttled_total counter\n';
+    for (const [key, val] of this.counters.entries()) {
+      if (key.startsWith('ios_middleware_throttled_total')) {
+        out += `${key} ${val}\n`;
+      }
+    }
+
+    out += '# HELP ios_quarantine_claim_conflict_total Total number of quarantine claim conflicts (double-resume 409/410).\n';
+    out += '# TYPE ios_quarantine_claim_conflict_total counter\n';
+    for (const [key, val] of this.counters.entries()) {
+      if (key.startsWith('ios_quarantine_claim_conflict_total')) {
+        out += `${key} ${val}\n`;
+      }
+    }
+
+    out += '# HELP ios_quarantine_redis_errors_total Total number of QuarantineStore Redis errors.\n';
+    out += '# TYPE ios_quarantine_redis_errors_total counter\n';
+    for (const [key, val] of this.counters.entries()) {
+      if (key.startsWith('ios_quarantine_redis_errors_total')) {
+        out += `${key} ${val}\n`;
+      }
+    }
+
     return out;
   }
 }

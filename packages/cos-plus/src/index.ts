@@ -110,6 +110,36 @@ export class GateDecisionRepository {
       ]
     );
   }
+
+  /**
+   * Batch-inserts multiple gate decisions in a single parameterized INSERT statement.
+   * Use this in the hot path to avoid N+1 round-trips to the database.
+   * No-op when the decisions array is empty.
+   */
+  async insertDecisions(decisions: GateDecisionRecord[]): Promise<void> {
+    if (decisions.length === 0) return;
+    const pool = this.registry.pool('audit_writer');
+
+    const valuePlaceholders = decisions.map((_, i) => {
+      const base = i * 12;
+      return `($${base + 1},$${base + 2},$${base + 3},$${base + 4},$${base + 5},$${base + 6},$${base + 7},$${base + 8},$${base + 9},$${base + 10},$${base + 11},$${base + 12})`;
+    }).join(', ');
+
+    const params = decisions.flatMap(d => [
+      d.decisionId, d.sessionId, d.tenantId, d.decidedAt, d.ucoNodeId,
+      d.policyAction, d.riskWeight, d.rationale, d.overrideApplied,
+      d.overrideAuthorizedBy ?? null, d.evidencePackageId, d.latencyMs,
+    ]);
+
+    await pool.query(
+      `INSERT INTO gate_decisions
+         (decision_id, session_id, tenant_id, decided_at, uco_node_id,
+          policy_action, risk_weight, rationale, override_applied,
+          override_authorized_by, evidence_package_id, latency_ms)
+       VALUES ${valuePlaceholders}`,
+      params
+    );
+  }
 }
 
 export { CosConnectionRegistry as default };

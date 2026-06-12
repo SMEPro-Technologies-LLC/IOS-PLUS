@@ -67,3 +67,122 @@ describe("COS+ Connection Registry and Repositories", () => {
     expect(fetched).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// GateDecisionRepository — batch insertDecisions
+// ---------------------------------------------------------------------------
+
+describe("GateDecisionRepository — insertDecisions batch method", () => {
+  it("issues exactly one query for multiple decisions (not N queries)", async () => {
+    // Use a fresh mock registry that captures query calls
+    const queryCapture: { sql: string; params: unknown[] }[] = [];
+    const config = {
+      host: "localhost", port: 5432, database: "ios_plus", ssl: false,
+      passwords: {
+        ios_app: "app-pass", audit_writer: "writer-pass", audit_reader: "reader-pass",
+        rag_reader: "rag-reader-pass", rag_writer: "rag-writer-pass", cos_admin: "admin-pass"
+      }
+    };
+    const registry = new CosConnectionRegistry(config);
+
+    // Intercept calls through the pool mock
+    const pool = registry.pool("audit_writer");
+    const originalQuery = (pool as unknown as Record<string, unknown>)["query"];
+    const queryCaptureFn = vi.fn().mockImplementation((sql: string, params: unknown[]) => {
+      queryCapture.push({ sql, params });
+      return Promise.resolve({ rows: [] });
+    });
+    (pool as unknown as Record<string, unknown>)["query"] = queryCaptureFn;
+
+    const repo = new GateDecisionRepository(registry);
+
+    const decisions: GateDecisionRecord[] = [
+      {
+        decisionId: "dec-1",
+        sessionId: "sess-1",
+        tenantId: "tenant-1",
+        decidedAt: "2026-06-01T12:00:00Z",
+        ucoNodeId: "UCO-001",
+        policyAction: "BLOCK",
+        riskWeight: 8,
+        rationale: "Test reason 1",
+        overrideApplied: false,
+        evidencePackageId: "pkg-1",
+        latencyMs: 5,
+      },
+      {
+        decisionId: "dec-2",
+        sessionId: "sess-1",
+        tenantId: "tenant-1",
+        decidedAt: "2026-06-01T12:00:00Z",
+        ucoNodeId: "UCO-002",
+        policyAction: "APPROVE",
+        riskWeight: 6,
+        rationale: "Test reason 2",
+        overrideApplied: false,
+        evidencePackageId: "pkg-1",
+        latencyMs: 3,
+      },
+      {
+        decisionId: "dec-3",
+        sessionId: "sess-1",
+        tenantId: "tenant-1",
+        decidedAt: "2026-06-01T12:00:00Z",
+        ucoNodeId: "UCO-003",
+        policyAction: "ESCALATE",
+        riskWeight: 9,
+        rationale: "Test reason 3",
+        overrideApplied: false,
+        evidencePackageId: "pkg-1",
+        latencyMs: 7,
+      },
+    ];
+
+    await repo.insertDecisions(decisions);
+
+    // Exactly one query should have been issued
+    expect(queryCapture).toHaveLength(1);
+
+    const captured = queryCapture[0];
+    expect(captured).toBeDefined();
+
+    const { sql, params } = captured!;
+
+    // SQL should contain a multi-row VALUES clause
+    expect(sql).toContain("INSERT INTO gate_decisions");
+    // 3 rows → should have 3 value groups each starting with ($N
+    const valueGroups = sql.match(/\(\$\d+/g);
+    expect(valueGroups?.length).toBe(3);
+
+    // Params should be 3 × 12 = 36 values in total
+    expect(params).toHaveLength(36);
+
+    // Spot-check: each decision's decisionId is at its row's first param offset
+    expect(params[0]).toBe("dec-1");
+    expect(params[12]).toBe("dec-2");
+    expect(params[24]).toBe("dec-3");
+
+    // Restore
+    (pool as unknown as Record<string, unknown>)["query"] = originalQuery;
+  });
+
+  it("is a no-op (zero queries) when decisions array is empty", async () => {
+    const config = {
+      host: "localhost", port: 5432, database: "ios_plus", ssl: false,
+      passwords: {
+        ios_app: "app-pass", audit_writer: "writer-pass", audit_reader: "reader-pass",
+        rag_reader: "rag-reader-pass", rag_writer: "rag-writer-pass", cos_admin: "admin-pass"
+      }
+    };
+    const registry = new CosConnectionRegistry(config);
+    const pool = registry.pool("audit_writer");
+    const queryMockFn = vi.fn().mockResolvedValue({ rows: [] });
+    (pool as unknown as Record<string, unknown>)["query"] = queryMockFn;
+
+    const repo = new GateDecisionRepository(registry);
+    await repo.insertDecisions([]);
+
+    expect(queryMockFn).not.toHaveBeenCalled();
+  });
+});
+

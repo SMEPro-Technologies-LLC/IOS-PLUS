@@ -9,15 +9,83 @@ import { v4 as uuidv7 } from "uuid";
 import type { InferenceRequest, NAICSProfile } from "@ios-plus/shared";
 import type { PipelineDependencies } from "../orchestrator/pipeline.js";
 import { executePipeline, resumePipeline } from "../orchestrator/pipeline.js";
-import { quarantineStore } from "../orchestrator/quarantineStore.js";
+import { quarantineStore, QuarantineStoreError, type StoredContext } from "../orchestrator/quarantineStore.js";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import { MetricsRegistry } from "./metrics.js";
 
+// ---------------------------------------------------------------------------
+// Backpressure configuration (env-configurable; composes with HPA at the pod level)
+// ---------------------------------------------------------------------------
+
+const _DEFAULT_MAX_BODY_BYTES = 1 * 1024 * 1024; // 1 MB default
+
+/**
+ * Simple in-process token-bucket rate limiter.
+ * Refills at RATE_LIMIT_RPS tokens per second. Each request consumes one token.
+ * Per-pod; composes with the Kubernetes HPA for cluster-level limiting.
+ */
+class TokenBucket {
+  private tokens: number;
+  private lastRefillMs: number;
+
+  constructor(private readonly capacity: number, private readonly refillPerMs: number) {
+    this.tokens = capacity;
+    this.lastRefillMs = Date.now();
+  }
+
+  tryConsume(): boolean {
+    const now = Date.now();
+    const elapsed = now - this.lastRefillMs;
+    this.tokens = Math.min(this.capacity, this.tokens + elapsed * this.refillPerMs);
+    this.lastRefillMs = now;
+    if (this.tokens >= 1) {
+      this.tokens -= 1;
+      return true;
+    }
+    return false;
+  }
+
+  /** Approximate seconds until the next token is available (minimum 1 per RFC 7231). */
+  retryAfterSeconds(): number {
+    return Math.max(1, Math.ceil((1 - this.tokens) / (this.refillPerMs * 1000)));
+  }
+}
+
 export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSProfile) {
+  // ---------------------------------------------------------------------------
+  // Read env-configurable parameters at app-creation time (not module-load time)
+  // so tests can override them by setting env vars before calling createRestApp().
+  // ---------------------------------------------------------------------------
+  // Read and validate env-configurable parameters. Invalid (non-numeric) values fall back to defaults.
+  const rawBodyBytes = +(process.env["MAX_REQUEST_BODY_BYTES"] ?? "");
+  const MAX_BODY_BYTES = Number.isFinite(rawBodyBytes) && rawBodyBytes > 0 ? rawBodyBytes : _DEFAULT_MAX_BODY_BYTES;
+  const rawInflight = +(process.env["MAX_INFLIGHT_REQUESTS"] ?? "");
+  const MAX_INFLIGHT = Number.isFinite(rawInflight) && rawInflight > 0 ? rawInflight : 100;
+  const rawRps = +(process.env["RATE_LIMIT_RPS"] ?? "");
+  const RATE_LIMIT_RPS = Number.isFinite(rawRps) && rawRps > 0 ? rawRps : 50;
+
   const app = express();
-  app.use(express.json({ limit: "1mb" }));
+
+  // ---------------------------------------------------------------------------
+  // JSON body parsing with configurable size limit.
+  // Express will call the error handler with status 413 for oversized bodies.
+  // ---------------------------------------------------------------------------
+  app.use(express.json({ limit: MAX_BODY_BYTES }));
   app.use(express.static(process.cwd()));
+
+  // 413 handler for oversized bodies (must be declared before routes)
+  app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err?.type === "entity.too.large" || err?.status === 413) {
+      MetricsRegistry.inc("ios_middleware_rejected_payload_total", { reason: "body_too_large" });
+      return res.status(413).json({
+        error: "Payload Too Large",
+        maxBytes: MAX_BODY_BYTES,
+        hint: `Set MAX_REQUEST_BODY_BYTES env var to increase the limit.`,
+      });
+    }
+    next(err);
+  });
 
   // Middleware to track HTTP requests
   app.use((req, res, next) => {
@@ -217,8 +285,40 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     res.send(MetricsRegistry.render());
   });
 
+  // ---------------------------------------------------------------------------
+  // Backpressure: in-flight counter + token-bucket rate limiter.
+  // Applied ONLY to inference/decoding endpoints; health/ready/metrics are exempt.
+  // ---------------------------------------------------------------------------
+  const rateBucket = new TokenBucket(RATE_LIMIT_RPS, RATE_LIMIT_RPS / 1000);
+  let inflightCount = 0;
 
-  app.post("/v1/inference", async (req, res) => {
+  const backpressureMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+    if (inflightCount >= MAX_INFLIGHT) {
+      MetricsRegistry.inc("ios_middleware_throttled_total", { reason: "inflight_cap" });
+      res.setHeader("Retry-After", "1");
+      res.status(503).json({
+        error: "Service Unavailable",
+        reason: "Too many concurrent requests. Retry after 1 second.",
+      });
+      return;
+    }
+    if (!rateBucket.tryConsume()) {
+      MetricsRegistry.inc("ios_middleware_throttled_total", { reason: "rate_limit" });
+      const retryAfter = rateBucket.retryAfterSeconds();
+      res.setHeader("Retry-After", String(retryAfter));
+      res.status(429).json({
+        error: "Too Many Requests",
+        reason: `Rate limit of ${RATE_LIMIT_RPS} RPS exceeded. Retry after ${retryAfter} second(s).`,
+        retryAfterSeconds: retryAfter,
+      });
+      return;
+    }
+    inflightCount++;
+    res.on("finish", () => { inflightCount--; });
+    next();
+  };
+
+  app.post("/v1/inference", backpressureMiddleware, async (req, res) => {
     const requestId = uuidv7();
     try {
       const request: InferenceRequest = {
@@ -251,7 +351,7 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
           evidenceId,
         });
 
-        // 2. Park context in-memory quarantine store
+        // 2. Park context in Redis quarantine store (fail-closed: throws 503 on Redis error)
         const l5GateResult = {
           gateDecisionId: quarantineId,
           sessionId: request.sessionId,
@@ -279,7 +379,7 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
           request,
         };
 
-        quarantineStore.park(quarantineId, {
+        await quarantineStore.park(quarantineId, {
           ctx,
           naicsProfile,
           requestHash,
@@ -303,6 +403,14 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
 
       res.status(response.policyAction === "BLOCK" ? 403 : 200).json(response);
     } catch (err) {
+      if (err instanceof QuarantineStoreError) {
+        MetricsRegistry.inc("ios_quarantine_redis_errors_total", { operation: "park" });
+        return res.status(503).json({
+          error: "Service Unavailable",
+          reason: "Quarantine store is temporarily unavailable. Request state could not be persisted.",
+          requestId,
+        });
+      }
       // Structured error log — surfaces full context for debugging
       // while the response stays a clean 500 with the requestId for client correlation.
       console.error(JSON.stringify({
@@ -340,36 +448,74 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     }
   });
 
-  app.post("/v1/compliance/queue/:quarantineId/clear", async (req, res) => {
-    const { quarantineId } = req.params;
-    const tenantId = req.headers["x-tenant-id"] as string ?? "unknown";
-    const parked = quarantineStore.retrieve(quarantineId);
-    if (!parked || parked.ctx.tenantId !== tenantId) {
-      return res.status(404).json({ error: `Parked context not found or access denied for quarantine ID: ${quarantineId}` });
-    }
+  /**
+   * Helper: execute a resume verdict for a quarantined request.
+   *
+   * Uses atomic GETDEL (claim) to ensure exactly one caller can resume a given
+   * quarantine. If another admin has already claimed the record — or if it has
+   * expired — responds 409 Conflict. On pipeline failure after a successful claim,
+   * re-parks the context with its remaining TTL so the verdict can be retried.
+   */
+  async function handleResume(
+    quarantineId: string,
+    tenantId: string,
+    action: "CLEAR" | "BLOCK",
+    res: express.Response
+  ): Promise<void> {
+    let parked: StoredContext | null;
     try {
-      const response = await resumePipeline(parked, "CLEAR", deps);
-      quarantineStore.remove(quarantineId);
-      res.json(response);
+      parked = await quarantineStore.claim(quarantineId);
     } catch (err) {
-      res.status(500).json({ error: String(err) });
+      MetricsRegistry.inc("ios_quarantine_redis_errors_total", { operation: "claim" });
+      res.status(503).json({
+        error: "Service Unavailable",
+        reason: "Quarantine store is temporarily unavailable.",
+        quarantineId,
+      });
+      return;
     }
+
+    if (!parked || parked.ctx.tenantId !== tenantId) {
+      // Already claimed by another caller, expired, or tenant mismatch
+      MetricsRegistry.inc("ios_quarantine_claim_conflict_total", { action });
+      res.status(409).json({
+        error: "Conflict",
+        reason: "Quarantine record has already been claimed, expired, or does not belong to this tenant.",
+        quarantineId,
+      });
+      return;
+    }
+
+    try {
+      const response = await resumePipeline(parked, action, deps);
+      if (action === "BLOCK") {
+        res.status(403).json(response);
+      } else {
+        res.json(response);
+      }
+    } catch (err) {
+      // Re-park with remaining TTL so the verdict can be retried (fail-safe re-park).
+      const storedTtlMs = parked._ttlMs ?? 24 * 60 * 60 * 1000;
+      const remainingMs = Math.max(60_000, parked.createdAt + storedTtlMs - Date.now());
+      try {
+        await quarantineStore.park(quarantineId, parked, remainingMs);
+      } catch {
+        MetricsRegistry.inc("ios_quarantine_redis_errors_total", { operation: "repark" });
+      }
+      res.status(500).json({ error: "Internal pipeline error — context has been re-parked for retry.", quarantineId });
+    }
+  }
+
+  app.post("/v1/compliance/queue/:quarantineId/clear", async (req, res) => {
+    const quarantineId = req.params["quarantineId"] ?? "";
+    const tenantId = req.headers["x-tenant-id"] as string ?? "unknown";
+    await handleResume(quarantineId, tenantId, "CLEAR", res);
   });
 
   app.post("/v1/compliance/queue/:quarantineId/block", async (req, res) => {
-    const { quarantineId } = req.params;
+    const quarantineId = req.params["quarantineId"] ?? "";
     const tenantId = req.headers["x-tenant-id"] as string ?? "unknown";
-    const parked = quarantineStore.retrieve(quarantineId);
-    if (!parked || parked.ctx.tenantId !== tenantId) {
-      return res.status(404).json({ error: `Parked context not found or access denied for quarantine ID: ${quarantineId}` });
-    }
-    try {
-      const response = await resumePipeline(parked, "BLOCK", deps);
-      quarantineStore.remove(quarantineId);
-      res.status(403).json(response);
-    } catch (err) {
-      res.status(500).json({ error: String(err) });
-    }
+    await handleResume(quarantineId, tenantId, "BLOCK", res);
   });
 
   // --- UCO Compliance Rule Management Routes ---

@@ -27,6 +27,7 @@
     "openai": "^4.28.0"
   },
   "devDependencies": {
+    "fast-check": "^3.23.2",
     "@types/express": "^4.17.21",
     "@types/uuid": "^9.0.0",
     "typescript": "^5.4.0"

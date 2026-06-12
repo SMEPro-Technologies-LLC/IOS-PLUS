@@ -761,6 +761,8 @@ describe("REST Transport — Backpressure, Hardening, and Quarantine Hardening",
   });
 
   it("POST /v1/inference decrements inflight count when the client aborts before finish", async () => {
+    const rateLimitRefillMs = 1100;
+
     const abortInFlightRequest = async () => {
       let markStarted!: () => void;
       const started = new Promise<void>((resolve) => {
@@ -785,10 +787,10 @@ describe("REST Transport — Backpressure, Hardening, and Quarantine Hardening",
       await new Promise((resolve) => setTimeout(resolve, 25));
     };
 
-    await new Promise((resolve) => setTimeout(resolve, 1100));
+    await new Promise((resolve) => setTimeout(resolve, rateLimitRefillMs));
     await abortInFlightRequest();
     await abortInFlightRequest();
-    await new Promise((resolve) => setTimeout(resolve, 1100));
+    await new Promise((resolve) => setTimeout(resolve, rateLimitRefillMs));
 
     vi.mocked(executePipeline).mockResolvedValue(defaultInferenceResponse as any);
     const res = await fetch(`http://localhost:${port}/v1/inference`, {

@@ -1,0 +1,13 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: TimeChaos
+metadata:
+  name: moonshot-clock-skew
+spec:
+  mode: all
+  selector:
+    namespaces:
+      - ios-plus
+    labelSelectors:
+      app: middleware-engine
+  timeOffset: "5m"
+  duration: "60s"

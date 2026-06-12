@@ -1,0 +1,24 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: moonshot-network-loss-redis
+spec:
+  action: loss
+  mode: all
+  selector:
+    namespaces:
+      - ios-plus
+    labelSelectors:
+      app: middleware-engine
+  loss:
+    loss: "30"
+    correlation: "25"
+  direction: to
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - ios-plus
+      labelSelectors:
+        app.kubernetes.io/name: redis
+  duration: "45s"

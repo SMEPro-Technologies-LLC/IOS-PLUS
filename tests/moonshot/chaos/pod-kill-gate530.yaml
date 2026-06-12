@@ -1,0 +1,15 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: moonshot-container-kill-gate530
+spec:
+  action: container-kill
+  mode: one
+  selector:
+    namespaces:
+      - ios-plus
+    labelSelectors:
+      app: middleware-engine
+  containerNames:
+    - gate-530-sidecar
+  duration: "30s"

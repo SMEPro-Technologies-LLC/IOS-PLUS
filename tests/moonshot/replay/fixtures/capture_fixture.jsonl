@@ -1,0 +1,2 @@
+{"index":0,"requestTs":1700000000.0,"responseTs":1700000000.01,"request":{"tenantId":"tenant-123","sessionId":"replay-fixture-a","body":{"input":"Moonshot replay fixture request A"}},"response":{"status":200,"policyAction":"APPROVE","body":{"policyAction":"APPROVE"}}}
+{"index":1,"requestTs":1700000000.05,"responseTs":1700000000.06,"request":{"tenantId":"tenant-123","sessionId":"replay-fixture-b","body":{"input":"Moonshot replay fixture request B"}},"response":{"status":403,"policyAction":"BLOCK","body":{"policyAction":"BLOCK"}}}

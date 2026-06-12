@@ -281,6 +281,7 @@ Final production readiness still requires:
 ## Documentation
 
 Internal implementation and operational specifications are maintained in the Engineering Body document set.
+Moonshot verification runbook: [tests/moonshot/README.md](tests/moonshot/README.md).
 
 For product, deployment, or partnership inquiries, contact [support@smeprotech.com](mailto:support@smeprotech.com).
 

@@ -20,5 +20,9 @@
     "json-canonicalize": "^1.0.6",
     "uuid": "^9.0.0"
   },
-  "devDependencies": { "@types/uuid": "^9.0.0", "typescript": "^5.4.0" }
+  "devDependencies": {
+    "@types/uuid": "^9.0.0",
+    "fast-check": "^3.23.2",
+    "typescript": "^5.4.0"
+  }
 }

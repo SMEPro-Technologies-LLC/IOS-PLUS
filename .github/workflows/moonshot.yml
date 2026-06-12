@@ -1,0 +1,123 @@
+name: Moonshot Verification Harness
+
+on:
+  workflow_dispatch:
+    inputs:
+      layer:
+        description: "Moonshot layer to execute"
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - load-smoke
+          - fuzz
+          - replay-static
+      expect_phase1_flags:
+        description: "Enable assertions that require PR #9 behavior"
+        required: true
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: "20.12.2"
+
+jobs:
+  fuzz-quick:
+    if: ${{ github.event.inputs.layer == 'all' || github.event.inputs.layer == 'fuzz' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Run L1 property fuzz test
+        run: npm run test --workspace @ios-plus/middleware-engine -- src/layers/L1_fuzz.test.ts
+      - name: Run JCS property fuzz test
+        run: npm run test --workspace @ios-plus/evidence-fabric -- src/jcs_fuzz.test.ts
+      - name: Save fuzz summary
+        run: |
+          mkdir -p moonshot-artifacts
+          printf 'FUZZ_RUNS=%s\n' "${FUZZ_RUNS:-200}" > moonshot-artifacts/fuzz-summary.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moonshot-fuzz-quick
+          path: moonshot-artifacts/
+          retention-days: 90
+
+  load-smoke:
+    if: ${{ github.event.inputs.layer == 'all' || github.event.inputs.layer == 'load-smoke' }}
+    runs-on: ubuntu-latest
+    env:
+      MOONSHOT_EXPECT_BACKPRESSURE: ${{ github.event.inputs.expect_phase1_flags == 'true' && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: grafana/setup-k6-action@v1
+      - name: Boot local stack
+        run: docker compose up -d
+      - name: Wait for /ready
+        run: |
+          ready=0
+          for i in $(seq 1 120); do
+            code=$(curl -s -o /tmp/moonshot-ready.json -w "%{http_code}" http://localhost:3001/ready || true)
+            if [ "$code" = "200" ]; then
+              echo "ready"
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "middleware /ready never reached 200" >&2
+            exit 1
+          fi
+      - name: Run k6 smoke
+        run: k6 run tests/moonshot/load/smoke.js --summary-export /tmp/k6-smoke-summary.json
+      - name: Run dimensional strain
+        run: k6 run tests/moonshot/load/dimensional-strain.js --summary-export /tmp/k6-dimensional-summary.json
+      - name: Collect load artifacts
+        if: always()
+        run: |
+          mkdir -p moonshot-artifacts
+          cp /tmp/k6-smoke-summary.json moonshot-artifacts/ || true
+          cp /tmp/k6-dimensional-summary.json moonshot-artifacts/ || true
+          docker compose logs middleware-engine > moonshot-artifacts/middleware.log || true
+      - name: Teardown stack
+        if: always()
+        run: docker compose down -v
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: moonshot-load-smoke
+          path: moonshot-artifacts/
+          retention-days: 90
+
+  replay-static:
+    if: ${{ github.event.inputs.layer == 'all' || github.event.inputs.layer == 'replay-static' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replay deterministic fixture
+        run: |
+          python3 tests/moonshot/replay/replay.py --capture tests/moonshot/replay/fixtures/capture_fixture.jsonl --output /tmp/replay-a.jsonl --offline
+          cp /tmp/replay-a.jsonl /tmp/replay-baseline.jsonl
+          python3 tests/moonshot/replay/replay.py --capture tests/moonshot/replay/fixtures/capture_fixture.jsonl --output /tmp/replay-b.jsonl --compare /tmp/replay-baseline.jsonl --offline
+          diff -u /tmp/replay-baseline.jsonl /tmp/replay-b.jsonl > /tmp/replay-diff.txt
+      - name: Collect replay artifacts
+        if: always()
+        run: |
+          mkdir -p moonshot-artifacts
+          cp /tmp/replay-a.jsonl moonshot-artifacts/ || true
+          cp /tmp/replay-b.jsonl moonshot-artifacts/ || true
+          cp /tmp/replay-diff.txt moonshot-artifacts/ || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: moonshot-replay-static
+          path: moonshot-artifacts/
+          retention-days: 90

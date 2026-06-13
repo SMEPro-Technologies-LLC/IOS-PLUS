@@ -314,7 +314,15 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
       return;
     }
     inflightCount++;
-    res.on("finish", () => { inflightCount--; });
+    let decremented = false;
+    const decrementInflight = () => {
+      if (!decremented) {
+        decremented = true;
+        inflightCount--;
+      }
+    };
+    res.on("finish", decrementInflight);
+    res.on("close", decrementInflight);
     next();
   };
 
@@ -462,6 +470,11 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     action: "CLEAR" | "BLOCK",
     res: express.Response
   ): Promise<void> {
+    const getRemainingQuarantineTtlMs = (stored: StoredContext): number => {
+      const storedTtlMs = stored._ttlMs ?? 24 * 60 * 60 * 1000;
+      return Math.max(60_000, stored.createdAt + storedTtlMs - Date.now());
+    };
+
     let parked: StoredContext | null;
     try {
       parked = await quarantineStore.claim(quarantineId);
@@ -475,12 +488,26 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
       return;
     }
 
-    if (!parked || parked.ctx.tenantId !== tenantId) {
-      // Already claimed by another caller, expired, or tenant mismatch
-      MetricsRegistry.inc("ios_quarantine_claim_conflict_total", { action });
+    if (!parked) {
+      MetricsRegistry.inc("ios_quarantine_claim_conflict_total", { action, reason: "already_claimed" });
       res.status(409).json({
         error: "Conflict",
-        reason: "Quarantine record has already been claimed, expired, or does not belong to this tenant.",
+        reason: "Quarantine record has already been claimed or expired.",
+        quarantineId,
+      });
+      return;
+    }
+
+    if (parked.ctx.tenantId !== tenantId) {
+      MetricsRegistry.inc("ios_quarantine_claim_conflict_total", { action, reason: "tenant_mismatch" });
+      try {
+        await quarantineStore.park(quarantineId, parked, getRemainingQuarantineTtlMs(parked));
+      } catch {
+        MetricsRegistry.inc("ios_quarantine_redis_errors_total", { operation: "repark" });
+      }
+      res.status(404).json({
+        error: "Not Found",
+        reason: "Quarantine record not found or access denied.",
         quarantineId,
       });
       return;
@@ -495,10 +522,8 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
       }
     } catch (err) {
       // Re-park with remaining TTL so the verdict can be retried (fail-safe re-park).
-      const storedTtlMs = parked._ttlMs ?? 24 * 60 * 60 * 1000;
-      const remainingMs = Math.max(60_000, parked.createdAt + storedTtlMs - Date.now());
       try {
-        await quarantineStore.park(quarantineId, parked, remainingMs);
+        await quarantineStore.park(quarantineId, parked, getRemainingQuarantineTtlMs(parked));
       } catch {
         MetricsRegistry.inc("ios_quarantine_redis_errors_total", { operation: "repark" });
       }

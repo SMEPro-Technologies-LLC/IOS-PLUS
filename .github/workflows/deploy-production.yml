@@ -32,7 +32,7 @@ jobs:
           git verify-tag ${{ github.ref_name }} || echo "Warning: unsigned tag"
 
       - name: Configure kubectl (production)
-        uses: azure/k8s-set-context@v3
+        uses: azure/k8s-set-context@v5
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets['PRODUCTION_KUBECONFIG'] }}

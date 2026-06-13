@@ -448,7 +448,7 @@ jobs:
 
       - name: Post UCO validation results to PR
         if: always() && github.event_name == 'pull_request' && steps.read_md.outputs.found == 'true'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: uco-seed-validation
           path: /tmp/pr_comment_body.txt

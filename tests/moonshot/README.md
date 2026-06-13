@@ -117,4 +117,10 @@ python3 -m tests.moonshot.skew.test_merkle_skew
 - `load-smoke` (smoke + dimensional strain)
 - `replay-static`
 
+Each moonshot CI run now emits machine-readable evidence status artifacts used by diligence docs:
+
+- `moonshot-fuzz-quick/section-3.5-l1-fuzz-status.json`
+- `moonshot-fuzz-quick/section-3.5-jcs-fuzz-status.json`
+- `moonshot-load-smoke/section-3.4-dimensional-status.json`
+
 Chaos experiments and full breakpoint/soak runs are cluster/operator driven and not executed in CI.

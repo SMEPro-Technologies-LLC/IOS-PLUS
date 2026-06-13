@@ -99,10 +99,13 @@ This section maps claims directly to repository test artifacts and current execu
 - `tests/moonshot/load/dimensional-strain.js`
 - payload corpus under `tests/moonshot/load/payloads/`
 
-**Validated in current tests:**
+**Repository-traceable (test intent/assertions in repository):**
 
-- malformed/hyper-dense input classes are expected to produce structured client-error behavior
-- thresholds assert no 5xx responses in the tested dimensional-strain run profile
+- `tests/moonshot/load/dimensional-strain.js` encodes checks for structured non-socket responses plus no 5xx thresholds
+
+**Repository-verified via executed CI artifact (only when run output exists):**
+
+- `moonshot-load-smoke/section-3.4-dimensional-status.json` shows `repositoryVerifiedViaCiArtifact: true` based on the exported k6 summary (`k6-dimensional-summary.json`)
 
 **Not validated:**
 
@@ -111,13 +114,19 @@ This section maps claims directly to repository test artifacts and current execu
 
 ### 3.5 Evidence Summary (Current State)
 
-**Validated (current repo tests):**
+**Repository-traceable (tests/scripts exist, assertions inspectable):**
 
-- ingestion robustness and normalization invariants in L1
-- policy aggregation and escalation conversion logic in controlled unit scenarios
-- fail-closed timeout behavior in tested server path
-- replay-harness reproducibility for recorded fixture sequence
-- malformed payload resilience checks for dimensional strain scripts
+- ingestion robustness and normalization invariants in L1 (`packages/middleware-engine/src/layers/L1_fuzz.test.ts`)
+- policy aggregation and escalation conversion logic in controlled unit scenarios (`packages/gate-530/src/gate-530.test.ts`)
+- fail-closed timeout behavior in tested server path (`packages/gate-530/src/gate-530.test.ts`)
+- replay-harness reproducibility for recorded fixture sequence (`tests/moonshot/replay/replay.py`)
+- malformed payload resilience checks for dimensional strain scripts (`tests/moonshot/load/dimensional-strain.js`)
+
+**Repository-verified via executed CI artifact (run evidence retained):**
+
+- L1 fuzz at 200 iterations only when `ci-validation-evidence/section-3.5-l1-fuzz-status.json` reports `repositoryVerifiedViaCiArtifact: true` (canonical CI source); `moonshot-fuzz-quick/section-3.5-l1-fuzz-status.json` is an accepted equivalent source for manually dispatched Moonshot runs
+- Gate 530 unit tests only when `ci-validation-evidence/section-3.5-gate-530-status.json` reports `repositoryVerifiedViaCiArtifact: true`
+- Dimensional strain malformed-input profile only when `moonshot-load-smoke/section-3.4-dimensional-status.json` reports `repositoryVerifiedViaCiArtifact: true`
 
 **Partially validated:**
 
@@ -133,7 +142,7 @@ This section maps claims directly to repository test artifacts and current execu
 > **Data integrity requirement:** Numeric placeholders and campaign metrics must be populated only from real executed run outputs. No inferred or synthetic KPI insertion is permitted for regulator, acquirer, or external diligence use.
 >
 > Acceptable metric sources:
-> - Saved CI artifacts (using the artifact names currently configured in `.github/workflows/moonshot.yml` for fuzz/load/replay runs).
+> - Saved CI artifacts (including `ci-validation-evidence`, `moonshot-fuzz-quick`, and `moonshot-load-smoke` outputs generated in workflow steps).
 > - Documented local run outputs captured in versioned evidence logs before publication.
 >
 > Artifact access notes:
@@ -167,7 +176,7 @@ Accordingly, adversarial-security positioning should remain:
 
 ## Section 6 — Diligence Positioning and Claim Discipline
 
-This brief should be positioned as a technical governance/evidence document grounded in repository-traceable artifacts.
+This brief should be positioned as a technical governance/evidence document grounded in repository-traceable artifacts, and upgraded to repository-verified claims only when retained CI evidence artifacts exist.
 
 Approved claim framing:
 
@@ -175,6 +184,7 @@ Approved claim framing:
 - Deterministic enforcement claims are scoped to rule-evaluated paths under fixed inputs.
 - Semantic-intent interpretation currently includes an LLM-mediated component and can introduce probabilistic variability.
 - Advanced jailbreak-resistance outcomes remain validation targets pending additional campaign evidence.
+- A claim row may be marked repository-verified only when the corresponding JSON evidence artifact reports `repositoryVerifiedViaCiArtifact: true`.
 
 Prohibited claim framing (until supported by executed evidence):
 

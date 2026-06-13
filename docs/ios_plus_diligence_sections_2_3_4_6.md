@@ -124,8 +124,8 @@ This section maps claims directly to repository test artifacts and current execu
 
 **Repository-verified via executed CI artifact (run evidence retained):**
 
-- L1 fuzz at 200 iterations only when `ci-validation-evidence/section-3.5-l1-fuzz-status.json` (or `moonshot-fuzz-quick/section-3.5-l1-fuzz-status.json`) reports `repositoryVerifiedViaCiArtifact: true`
-- Gate 530 unit tests only when `ci-validation-evidence/section-3.5-gate530-status.json` reports `repositoryVerifiedViaCiArtifact: true`
+- L1 fuzz at 200 iterations only when `ci-validation-evidence/section-3.5-l1-fuzz-status.json` reports `repositoryVerifiedViaCiArtifact: true` (canonical CI source); `moonshot-fuzz-quick/section-3.5-l1-fuzz-status.json` is an accepted equivalent source for manually dispatched Moonshot runs
+- Gate 530 unit tests only when `ci-validation-evidence/section-3.5-gate-530-status.json` reports `repositoryVerifiedViaCiArtifact: true`
 - Dimensional strain malformed-input profile only when `moonshot-load-smoke/section-3.4-dimensional-status.json` reports `repositoryVerifiedViaCiArtifact: true`
 
 **Partially validated:**

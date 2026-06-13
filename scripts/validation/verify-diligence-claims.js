@@ -22,7 +22,7 @@ for (const phrase of prohibitedPhrases) {
     if (!lineLower.includes(phraseLower)) {
       continue;
     }
-    const allowedQuotedBullet = line.trimStart().startsWith(`- “${phrase}`);
+    const allowedQuotedBullet = line.trimStart().toLowerCase().startsWith(`- “${phraseLower}`);
     if (!allowedQuotedBullet) {
       violations.push(phrase);
       break;

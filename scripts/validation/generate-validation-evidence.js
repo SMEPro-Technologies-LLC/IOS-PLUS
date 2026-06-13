@@ -5,14 +5,19 @@ const path = require("node:path");
 
 const parseArgs = (argv) => {
   const out = {};
-  for (let i = 2; i < argv.length; i += 1) {
+  let i = 2;
+  while (i < argv.length) {
     const key = argv[i];
     if (!key.startsWith("--")) {
+      i += 1;
       continue;
     }
     const value = argv[i + 1];
+    if (value === undefined || value.startsWith("--")) {
+      throw new Error(`Missing value for argument: ${key}`);
+    }
     out[key.slice(2)] = value;
-    i += 1;
+    i += 2;
   }
   return out;
 };

@@ -61,7 +61,7 @@ jobs:
             --section 3.5 \
             --claim "Gate 530 unit tests" \
             --test-command "npm run test --workspace @ios-plus/gate-530 -- src/gate-530.test.ts" \
-            --output ci-validation-artifacts/section-3.5-gate530-status.json
+            --output ci-validation-artifacts/section-3.5-gate-530-status.json
           node scripts/validation/generate-validation-evidence.js \
             --mode test \
             --section 3.5 \

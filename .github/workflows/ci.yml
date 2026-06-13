@@ -45,6 +45,38 @@ jobs:
       - name: Test
         run: npx turbo run test
 
+      - name: Verify diligence claim framing
+        run: node scripts/validation/verify-diligence-claims.js
+
+      - name: Run Gate 530 evidence check
+        run: npm run test --workspace @ios-plus/gate-530 -- src/gate-530.test.ts
+
+      - name: Run L1 fuzz evidence check (200 iterations)
+        run: FUZZ_RUNS=200 npm run test --workspace @ios-plus/middleware-engine -- src/layers/L1_fuzz.test.ts
+
+      - name: Write CI validation evidence records
+        run: |
+          node scripts/validation/generate-validation-evidence.js \
+            --mode test \
+            --section 3.5 \
+            --claim "Gate 530 unit tests" \
+            --test-command "npm run test --workspace @ios-plus/gate-530 -- src/gate-530.test.ts" \
+            --output ci-validation-artifacts/section-3.5-gate530-status.json
+          node scripts/validation/generate-validation-evidence.js \
+            --mode test \
+            --section 3.5 \
+            --claim "L1 fuzz at 200 iterations" \
+            --test-command "FUZZ_RUNS=200 npm run test --workspace @ios-plus/middleware-engine -- src/layers/L1_fuzz.test.ts" \
+            --fuzz-runs 200 \
+            --output ci-validation-artifacts/section-3.5-l1-fuzz-status.json
+
+      - name: Upload CI validation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-validation-evidence
+          path: ci-validation-artifacts/
+          retention-days: 90
+
       - name: Validate SQL migrations (syntax check)
         run: |
           echo "Validating Flyway migration files..."

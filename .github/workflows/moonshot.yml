@@ -41,6 +41,20 @@ jobs:
         run: |
           mkdir -p moonshot-artifacts
           printf 'FUZZ_RUNS=%s\n' "${FUZZ_RUNS:-200}" > moonshot-artifacts/fuzz-summary.txt
+          node scripts/validation/generate-validation-evidence.js \
+            --mode test \
+            --section 3.5 \
+            --claim "L1 fuzz at ${FUZZ_RUNS:-200} iterations" \
+            --test-command "npm run test --workspace @ios-plus/middleware-engine -- src/layers/L1_fuzz.test.ts" \
+            --fuzz-runs "${FUZZ_RUNS:-200}" \
+            --output moonshot-artifacts/section-3.5-l1-fuzz-status.json
+          node scripts/validation/generate-validation-evidence.js \
+            --mode test \
+            --section 3.5 \
+            --claim "JCS/signing fuzz at ${FUZZ_RUNS:-200} iterations" \
+            --test-command "npm run test --workspace @ios-plus/evidence-fabric -- src/jcs_fuzz.test.ts" \
+            --fuzz-runs "${FUZZ_RUNS:-200}" \
+            --output moonshot-artifacts/section-3.5-jcs-fuzz-status.json
       - uses: actions/upload-artifact@v4
         with:
           name: moonshot-fuzz-quick
@@ -80,6 +94,13 @@ jobs:
         run: k6 run tests/moonshot/load/smoke.js --summary-export /tmp/k6-smoke-summary.json
       - name: Run dimensional strain
         run: k6 run tests/moonshot/load/dimensional-strain.js --summary-export /tmp/k6-dimensional-summary.json
+      - name: Derive dimensional evidence status
+        if: always()
+        run: |
+          node scripts/validation/generate-validation-evidence.js \
+            --mode dimensional \
+            --summary /tmp/k6-dimensional-summary.json \
+            --output moonshot-artifacts/section-3.4-dimensional-status.json
       - name: Collect load artifacts
         if: always()
         run: |

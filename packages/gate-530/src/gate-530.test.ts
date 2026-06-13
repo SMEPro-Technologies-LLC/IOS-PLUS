@@ -4,25 +4,26 @@ import type { UCONodeSummary } from "@ios-plus/shared";
 import http2 from "node:http2";
 
 vi.mock("ioredis", () => {
+  class RedisMock {
+    private store = new Map<string, any>();
+
+    ping = vi.fn().mockResolvedValue("PONG");
+    get = vi.fn().mockImplementation(async (key) => this.store.get(key) || null);
+    set = vi.fn().mockImplementation(async (key, val) => {
+      this.store.set(key, val);
+      return "OK";
+    });
+    incr = vi.fn().mockImplementation(async (key) => {
+      const val = (this.store.get(key) || 0) + 1;
+      this.store.set(key, val);
+      return val;
+    });
+    expire = vi.fn().mockResolvedValue(1);
+    quit = vi.fn().mockResolvedValue("OK");
+  }
+
   return {
-    Redis: vi.fn().mockImplementation(() => {
-      const store = new Map<string, any>();
-      return {
-        ping: vi.fn().mockResolvedValue("PONG"),
-        get: vi.fn().mockImplementation(async (key) => store.get(key) || null),
-        set: vi.fn().mockImplementation(async (key, val) => {
-          store.set(key, val);
-          return "OK";
-        }),
-        incr: vi.fn().mockImplementation(async (key) => {
-          const val = (store.get(key) || 0) + 1;
-          store.set(key, val);
-          return val;
-        }),
-        expire: vi.fn().mockResolvedValue(1),
-        quit: vi.fn().mockResolvedValue("OK")
-      };
-    })
+    Redis: RedisMock
   };
 });
 
@@ -114,12 +115,13 @@ describe("Gate 530 Logic Engine Unit Tests", () => {
   });
 
   it("HTTP/2 server handles evaluations correctly", async () => {
-    const server = engine.startHTTP2Server(3099);
+    const server = engine.startHTTP2Server(0);
     await new Promise<void>((resolve) => {
       server.on("listening", () => resolve());
     });
 
-    const client = http2.connect("http://localhost:3099");
+    const port = (server.address() as any).port;
+    const client = http2.connect(`http://localhost:${port}`);
     const req = client.request({
       ":method": "POST",
       ":path": "/",
@@ -164,7 +166,7 @@ describe("Gate 530 Logic Engine Unit Tests", () => {
   });
 
   it("HTTP/2 server fails closed on timeout", async () => {
-    const server = engine.startHTTP2Server(3100);
+    const server = engine.startHTTP2Server(0);
     await new Promise<void>((resolve) => {
       server.on("listening", () => resolve());
     });
@@ -174,7 +176,8 @@ describe("Gate 530 Logic Engine Unit Tests", () => {
       return {} as any;
     });
 
-    const client = http2.connect("http://localhost:3100");
+    const port = (server.address() as any).port;
+    const client = http2.connect(`http://localhost:${port}`);
     const req = client.request({
       ":method": "POST",
       ":path": "/",

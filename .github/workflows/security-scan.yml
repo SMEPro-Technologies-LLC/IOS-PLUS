@@ -94,6 +94,15 @@ jobs:
             console.log('PASS: No high/critical vulnerabilities');
           "
 
+      - name: Enforce dependency license policy (npm)
+        run: |
+          npx --yes license-checker-rseidelsohn@4.3.0 \
+            --start . \
+            --excludePrivatePackages \
+            --json \
+            --out /tmp/npm-licenses.json \
+            --failOn "GPL-1.0;GPL-2.0;GPL-2.0-only;GPL-2.0-or-later;GPL-3.0;GPL-3.0-only;GPL-3.0-or-later;AGPL-1.0;AGPL-3.0;AGPL-3.0-only;AGPL-3.0-or-later;LGPL-2.0;LGPL-2.0-only;LGPL-2.1;LGPL-2.1-only;LGPL-3.0;LGPL-3.0-only"
+
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
         with:
@@ -125,6 +134,7 @@ jobs:
           name: dependency-audit-${{ github.run_id }}
           path: |
             /tmp/npm-audit.json
+            /tmp/npm-licenses.json
             /tmp/pip-audit.json
           retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
 

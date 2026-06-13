@@ -58,8 +58,11 @@ describe("COS+ WORM Trigger Database Integration Tests", () => {
 
   it("blocks UPDATE and DELETE operations on evidence_packages", async () => {
     if (!hasDb) {
-      // Skip if no running DB
-      return;
+      throw new Error(
+        "WORM integration test requires a live database. " +
+        "Ensure the Postgres service container is running and COS_DB_* environment variables are set. " +
+        "A silent skip here would produce a false-green CI result for a headline compliance claim."
+      );
     }
 
     const client = new Client({ connectionString: dsn });

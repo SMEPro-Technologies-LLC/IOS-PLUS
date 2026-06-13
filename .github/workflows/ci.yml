@@ -17,6 +17,25 @@ jobs:
     name: CI Pipeline
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      cos-plus:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: ios_plus
+          POSTGRES_USER: cos_admin
+          POSTGRES_PASSWORD: iosplus_dev_admin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cos_admin -d ios_plus"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      COS_DB_HOST: 127.0.0.1
+      COS_DB_PORT: "5432"
+      COS_DB_NAME: ios_plus
+      COS_DB_PASSWORD_COS_ADMIN: iosplus_dev_admin
 
     steps:
       - name: Checkout
@@ -32,6 +51,16 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Apply database migrations for integration tests
+        run: |
+          docker run --rm --network host \
+            -e FLYWAY_URL=jdbc:postgresql://${COS_DB_HOST}:${COS_DB_PORT}/${COS_DB_NAME} \
+            -e FLYWAY_USER=cos_admin \
+            -e FLYWAY_PASSWORD=${COS_DB_PASSWORD_COS_ADMIN} \
+            -v "$PWD/db/migrations:/flyway/sql:ro" \
+            flyway/flyway:10 \
+            migrate
 
       - name: Typecheck (all packages)
         run: npx turbo run typecheck

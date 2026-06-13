@@ -73,8 +73,14 @@ describe("COS+ WORM Trigger Database Integration Tests", () => {
     } else {
       keyId = uuidv7();
       await client.query(
-        `INSERT INTO ios_signing_keys (key_id, public_key_ed25519, dns_txt_record, filesystem_path)
-         VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO ios_signing_keys (
+           key_id,
+           public_key_ed25519,
+           dns_txt_record,
+           filesystem_path,
+           expires_at
+         )
+         VALUES ($1, $2, $3, $4, NOW() + INTERVAL '90 days')`,
         [keyId, "pubkey-dummy-data", "dns-record", "/tmp/dummy.pub"]
       );
     }

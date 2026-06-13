@@ -39,9 +39,9 @@ describe("RAG Vault retrieval", () => {
   const ucoContext: UCOContext = {
     profileId: "profile-1",
     naicsCodes: ["523120"],
-    resolvedNodeIds: ["UCO-FIN-001"],
+    resolvedNodeIds: ["UCO-FINANCE-001"],
     nodes: [{
-      ucoNodeId: "UCO-FIN-001",
+      ucoNodeId: "UCO-FINANCE-001",
       regulationName: "SEC Rule",
       governingAgency: "SEC",
       specificActivity: "Trading",
@@ -69,7 +69,7 @@ describe("RAG Vault retrieval", () => {
           chunk_id: "chunk-1",
           source_id: "src-1",
           sector_code: "03-FINANCE",
-          uco_node_id: "UCO-FIN-001",
+          uco_node_id: "UCO-FINANCE-001",
           chunk_text: "SEC requirements for trading desks",
           metadata: { source: "reg-db" },
           similarity: 0.92

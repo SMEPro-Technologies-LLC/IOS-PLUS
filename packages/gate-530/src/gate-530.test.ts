@@ -44,6 +44,7 @@ describe("Gate 530 Logic Engine Unit Tests", () => {
     specificActivity: "Trading",
     governingAgency: "SEC",
     jurisdictionLevel: "Federal",
+    lastUpdated: "2026-01-01",
     riskWeight: 5,
     policyAction: "APPROVE",
     ruleExpression: "true"
@@ -56,8 +57,22 @@ describe("Gate 530 Logic Engine Unit Tests", () => {
     specificActivity: "Margin Account",
     governingAgency: "SEC",
     jurisdictionLevel: "Federal",
+    lastUpdated: "2026-01-01",
     riskWeight: 8,
     policyAction: "ESCALATE",
+    ruleExpression: "true"
+  } as unknown as UCONodeSummary;
+
+  const mockNodeActivitySensitive = {
+    ucoNodeId: "UCO-FIN-003",
+    sector: "Financial Services",
+    regulatoryRegime: "SEC",
+    specificActivity: "Wire Transfer",
+    governingAgency: "SEC",
+    jurisdictionLevel: "Federal",
+    lastUpdated: "2026-01-01",
+    riskWeight: 10,
+    policyAction: "APPROVE",
     ruleExpression: "true"
   } as unknown as UCONodeSummary;
 
@@ -219,5 +234,76 @@ describe("Gate 530 Logic Engine Unit Tests", () => {
     expect(resp.ok).toBe(false);
     expect(resp.error).toBe("TIMEOUT_BLOCK");
     expect(resp.result.aggregatePolicyAction).toBe("BLOCK");
+  });
+
+  it("uses detected activity to influence policy outcomes", async () => {
+    const matching = await engine.evaluate({
+      sessionId: "session-activity-match",
+      tenantId: "tenant-1",
+      requestContext: {
+        detectedActivity: "Wire Transfer",
+        jurisdictions: ["Federal"],
+        riskTolerance: 5,
+        timestampIso: "2026-06-01T00:00:00.000Z"
+      },
+      nodes: [mockNodeActivitySensitive]
+    });
+
+    expect(matching.aggregatePolicyAction).toBe("APPROVE");
+
+    const mismatch = await engine.evaluate({
+      sessionId: "session-activity-mismatch",
+      tenantId: "tenant-1",
+      requestContext: {
+        detectedActivity: "Cash reconciliation",
+        jurisdictions: ["Federal"],
+        riskTolerance: 5,
+        timestampIso: "2026-06-01T00:00:00.000Z"
+      },
+      nodes: [mockNodeActivitySensitive]
+    });
+
+    expect(mismatch.aggregatePolicyAction).toBe("ESCALATE");
+  });
+
+  it("penalizes stale regulation nodes using lastUpdated", async () => {
+    const freshNode = {
+      ...mockNodeEscalate,
+      policyAction: "APPROVE",
+      specificActivity: "Trading",
+      lastUpdated: "2026-05-01"
+    } as unknown as UCONodeSummary;
+    const staleNode = {
+      ...freshNode,
+      ucoNodeId: "UCO-FIN-004",
+      lastUpdated: "2023-01-01"
+    } as unknown as UCONodeSummary;
+
+    const fresh = await engine.evaluate({
+      sessionId: "session-fresh-node",
+      tenantId: "tenant-1",
+      requestContext: {
+        detectedActivity: "Margin Trading",
+        jurisdictions: ["Federal"],
+        riskTolerance: 6,
+        timestampIso: "2026-06-01T00:00:00.000Z"
+      },
+      nodes: [freshNode]
+    });
+
+    const stale = await engine.evaluate({
+      sessionId: "session-stale-node",
+      tenantId: "tenant-1",
+      requestContext: {
+        detectedActivity: "Margin Trading",
+        jurisdictions: ["Federal"],
+        riskTolerance: 6,
+        timestampIso: "2026-06-01T00:00:00.000Z"
+      },
+      nodes: [staleNode]
+    });
+
+    expect(fresh.aggregatePolicyAction).toBe("APPROVE");
+    expect(stale.aggregatePolicyAction).toBe("ESCALATE");
   });
 });

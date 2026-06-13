@@ -86,6 +86,48 @@ function scoreToAction(score: DimensionScore, node: UCONodeSummary): PolicyActio
   return node.policyAction;
 }
 
+function tokenizeActivity(input: string): Set<string> {
+  return new Set(
+    input
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+  );
+}
+
+function computeActivityMatch(detectedActivity: string, specificActivity?: string): number {
+  const detected = tokenizeActivity(detectedActivity);
+  const node = tokenizeActivity(specificActivity ?? '');
+  if (detected.size === 0 || node.size === 0) return 0.3;
+
+  let intersection = 0;
+  for (const token of detected) {
+    if (node.has(token)) intersection++;
+  }
+  const union = new Set([...detected, ...node]).size;
+  const similarity = union === 0 ? 0 : intersection / union;
+  return Math.max(0.2, Math.min(1, similarity));
+}
+
+function computeAgencyAuthority(node: UCONodeSummary, jurisdictions: string[]): number {
+  if (!node.governingAgency?.trim()) return 0.3;
+  if (node.jurisdictionLevel === 'Federal') return 1.0;
+  const requested = new Set(jurisdictions.map(j => j.trim().toLowerCase()).filter(Boolean));
+  return requested.has(node.jurisdictionLevel.toLowerCase()) ? 1.0 : 0.5;
+}
+
+function computeRegulatoryCurrency(timestampIso: string, lastUpdated?: string): number {
+  const referenceDate = new Date(timestampIso);
+  const updateDate = new Date(lastUpdated ?? '');
+  if (Number.isNaN(referenceDate.getTime()) || Number.isNaN(updateDate.getTime())) return 0.5;
+
+  const ageDays = (referenceDate.getTime() - updateDate.getTime()) / (1000 * 60 * 60 * 24);
+  if (ageDays <= 365) return 1.0;
+  if (ageDays <= 730) return 0.7;
+  return 0.4;
+}
+
 /** Evaluate all UCO nodes for a request context */
 function evaluateDimensions(
   node: UCONodeSummary,
@@ -96,14 +138,11 @@ function evaluateDimensions(
     : ctx.jurisdictions.some(j => j.toLowerCase() === node.jurisdictionLevel.toLowerCase()) ? 1.0
     : 0.3;
 
-  // Activity match â€” full match or partial match heuristic
-  const activity_match = 0.8; // resolved by L2 semantic parser in full impl
+  const activity_match = computeActivityMatch(ctx.detectedActivity, node.specificActivity);
 
-  // Agency authority â€” always active for nodes in the 350-node matrix
-  const agency_authority = 1.0;
+  const agency_authority = computeAgencyAuthority(node, ctx.jurisdictions);
 
-  // Regulatory currency â€” staleness check (>365 days â†’ 0.5 penalty)
-  const regulatory_currency = 0.95;
+  const regulatory_currency = computeRegulatoryCurrency(ctx.timestampIso, node.lastUpdated);
 
   // Risk weight threshold â€” compare node risk vs. tenant tolerance
   const risk_weight_threshold = node.riskWeight <= ctx.riskTolerance ? 1.0

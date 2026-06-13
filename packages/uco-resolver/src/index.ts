@@ -28,11 +28,13 @@ interface UCONodeRow {
   uco_node_id: string;
   regulation_name: string;
   governing_agency: string;
+  specific_activity: string;
   policy_action: PolicyAction;
   risk_weight: number;
   enforcement_type: EnforcementType;
   ybr_gate: YBRGate;
   jurisdiction_level: JurisdictionLevel;
+  last_updated: string;
   naics: string;
   ontology_level: OntologyLevel;
   compliance_chain_ref: string;
@@ -123,7 +125,8 @@ export class UCOResolver {
     if (naicsCodes.length === 0) return [];
     const { rows } = await this.pool.query<UCONodeRow>(
       `SELECT uco_node_id, regulation_name, governing_agency, policy_action,
-              risk_weight, enforcement_type, ybr_gate, jurisdiction_level, naics, ontology_level
+              specific_activity, risk_weight, enforcement_type, ybr_gate, jurisdiction_level,
+              last_updated, naics, ontology_level
        FROM uco_nodes
        WHERE naics = ANY($1::text[])
          AND ontology_level != 'cross-cutting'
@@ -136,7 +139,8 @@ export class UCOResolver {
   private async queryXSCNodes(): Promise<UCONodeSummary[]> {
     const { rows } = await this.pool.query<UCONodeRow>(
       `SELECT uco_node_id, regulation_name, governing_agency, policy_action,
-              risk_weight, enforcement_type, ybr_gate, jurisdiction_level, naics, ontology_level
+              specific_activity, risk_weight, enforcement_type, ybr_gate, jurisdiction_level,
+              last_updated, naics, ontology_level
        FROM uco_nodes
        WHERE ontology_level = 'cross-cutting'
          AND uco_node_id LIKE 'UCO-XSC-5%'
@@ -151,12 +155,14 @@ export class UCOResolver {
       ucoNodeId: r.uco_node_id,
       regulationName: r.regulation_name,
       governingAgency: r.governing_agency,
+      specificActivity: r.specific_activity,
       policyAction: r.policy_action,
       riskWeight,
       riskTier: riskWeightToTier(riskWeight),
       enforcementType: r.enforcement_type,
       ybrGate: r.ybr_gate,
       jurisdictionLevel: r.jurisdiction_level,
+      lastUpdated: r.last_updated,
     };
   }
 

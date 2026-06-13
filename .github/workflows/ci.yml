@@ -45,6 +45,22 @@ jobs:
       - name: Test
         run: npx turbo run test
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run ops script unit tests
+        run: python3 -m unittest discover -s scripts/ops -p "test_*.py"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Validate Terraform configuration
+        run: |
+          terraform -chdir=infra/terraform init -backend=false
+          terraform -chdir=infra/terraform validate
+
       - name: Validate SQL migrations (syntax check)
         run: |
           echo "Validating Flyway migration files..."

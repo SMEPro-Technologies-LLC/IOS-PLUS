@@ -48,6 +48,8 @@ export interface UCONodeSummary {
   ucoNodeId: string; regulationName: string; governingAgency: string;
   policyAction: PolicyAction; riskWeight: RiskWeight; riskTier: RiskTier;
   enforcementType: EnforcementType; ybrGate: YBRGate; jurisdictionLevel: JurisdictionLevel;
+  specificActivity?: string;
+  lastUpdated?: string;
 }
 
 /** Result of evaluating a single UCO node against a request */

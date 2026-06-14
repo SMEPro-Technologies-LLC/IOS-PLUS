@@ -263,11 +263,30 @@ jobs:
 
       - name: Run Gitleaks
         run: |
-          gitleaks git \
-            --no-banner \
-            --redact \
-            --exit-code 1 \
-            .
+          GITLEAKS_ARGS=(
+            git
+            --no-banner
+            --redact
+            --exit-code 1
+          )
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+
+            if [ -n "$BASE_SHA" ] && [ -n "$HEAD_SHA" ] && \
+               git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null && \
+               git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null; then
+              gitleaks "${GITLEAKS_ARGS[@]}" \
+                --log-opts="${BASE_SHA}..${HEAD_SHA}" \
+                .
+            else
+              echo "::warning::PR SHAs unavailable for diff scan; falling back to full-history gitleaks scan."
+              gitleaks "${GITLEAKS_ARGS[@]}" .
+            fi
+          else
+            gitleaks "${GITLEAKS_ARGS[@]}" .
+          fi
 
       - name: Run TruffleHog (diff scan on PR)
         if: github.event_name == 'pull_request'

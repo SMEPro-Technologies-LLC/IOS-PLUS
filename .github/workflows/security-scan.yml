@@ -263,11 +263,20 @@ jobs:
 
       - name: Run Gitleaks
         run: |
-          gitleaks git \
-            --no-banner \
-            --redact \
-            --exit-code 1 \
-            .
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            gitleaks git \
+              --no-banner \
+              --redact \
+              --exit-code 1 \
+              --log-opts="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}" \
+              .
+          else
+            gitleaks git \
+              --no-banner \
+              --redact \
+              --exit-code 1 \
+              .
+          fi
 
       - name: Run TruffleHog (diff scan on PR)
         if: github.event_name == 'pull_request'

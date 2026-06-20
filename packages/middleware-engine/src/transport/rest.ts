@@ -372,6 +372,66 @@ export function createRestApp(deps: PipelineDependencies, naicsProfile: NAICSPro
     }
   });
 
+  app.get("/v1/compliance/licensure/state-lookup", async (req, res) => {
+    try {
+      const pool = deps.cosRegistry.pool("ios_app");
+      const studentCipRaw = req.query["student_cip"];
+      const destinationStateRaw = req.query["destination_state"];
+
+      const studentCip = typeof studentCipRaw === "string" ? studentCipRaw.trim() : "";
+      const destinationState = typeof destinationStateRaw === "string" ? destinationStateRaw.trim().toUpperCase() : "";
+
+      if (!studentCip) {
+        return res.status(400).json({ error: "Missing required query parameter: student_cip" });
+      }
+
+      if (!destinationState) {
+        return res.status(400).json({ error: "Missing required query parameter: destination_state" });
+      }
+
+      if (!/^[A-Z]{2}$/.test(destinationState)) {
+        return res.status(400).json({ error: "destination_state must be a 2-letter state code" });
+      }
+
+      const query = `
+        SELECT
+          student_cip,
+          destination_state,
+          uco_node_id,
+          regulation_name,
+          governing_agency,
+          jurisdiction_level,
+          jurisdiction_detail,
+          state,
+          verification_status,
+          licensure_flag,
+          enforcement_type,
+          policy_action,
+          risk_weight,
+          matched_cip,
+          matched_soc,
+          matched_naics,
+          match_path,
+          match_confidence,
+          verification_rank
+        FROM fn_lookup_state_licensure_by_cip($1, $2)
+      `;
+
+      const { rows } = await pool.query(query, [studentCip, destinationState]);
+
+      res.json({
+        student_cip: studentCip,
+        destination_state: destinationState,
+        licensure_required: rows.length > 0,
+        total_matches: rows.length,
+        preferred_match: rows[0] ?? null,
+        matches: rows,
+      });
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
+  });
+
   // --- UCO Compliance Rule Management Routes ---
 
   // API Key Authentication Middleware for admin control plane

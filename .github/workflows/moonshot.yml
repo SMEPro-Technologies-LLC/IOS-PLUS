@@ -27,7 +27,7 @@ jobs:
     if: ${{ github.event.inputs.layer == 'all' || github.event.inputs.layer == 'fuzz' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -67,7 +67,7 @@ jobs:
     env:
       MOONSHOT_EXPECT_BACKPRESSURE: ${{ github.event.inputs.expect_phase1_flags == 'true' && 'true' || 'false' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -122,7 +122,7 @@ jobs:
     if: ${{ github.event.inputs.layer == 'all' || github.event.inputs.layer == 'replay-static' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Replay deterministic fixture
         run: |
           python3 tests/moonshot/replay/replay.py --capture tests/moonshot/replay/fixtures/capture_fixture.jsonl --output /tmp/replay-a.jsonl --offline

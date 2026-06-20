@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@ios-plus/shared": "*",
-    "pg": "^8.11.0"
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "@types/pg": "^8.11.0",

@@ -25,9 +25,10 @@ The repository now contains a materially hardened implementation of the IOS+ pla
 - database migration and invariant verification tooling,
 - Prometheus-compatible metrics and alert-rule scaffolding,
 - release orchestration and rollback automation,
+- state licensure lookup via CIP→SOC→NAICS traversal support,
 - and recent successful CI runs on `main`.
 
-IOS+ should currently be understood as a **working integration candidate undergoing operational hardening**. The repository is substantially beyond proof-of-concept status, but final production readiness still depends on target-environment validation, cloud service provisioning, and end-to-end operational activation.
+IOS+ should currently be understood as a **working integration candidate undergoing operational hardening**. The repository is substantially beyond proof-of-concept status, but final production readiness still depends on environment-specific validation.
 
 ---
 
@@ -43,7 +44,8 @@ With IOS+, teams can:
 - evaluate AI requests against compliance rules before execution,
 - create signed evidence records for inference events,
 - store append-only audit data with compliance-first indexing,
-- and support regulated retrieval and operational review workflows.
+- support regulated retrieval and operational review workflows,
+- and map education-to-occupation-to-licensure paths for governed destination-state determinations.
 
 ---
 
@@ -80,13 +82,44 @@ Compliance-aware retrieval for regulated knowledge workflows.
 
 ### COS+ Database
 
-Compliance-first persistence layer for evidence and audit records.
+Compliance-first persistence layer for evidence, audit records, and governed ontology traversal.
 
 - PostgreSQL-based storage with pgvector support
 - Append-only audit table design
 - WORM-enforced audit protections
 - Compliance-primary indexing for traceable review and retention workflows
 - Migration and invariant verification support for deployment gating
+- State licensure lookup support through `v_state_licensure_candidates` and `fn_lookup_state_licensure_by_cip(...)`
+
+---
+
+## UDM Licensure Traversal
+
+IOS+ now includes an initial implementation of the Universal Decoding Matrix traversal needed to support destination-state licensure determinations.
+
+Current implemented path:
+
+- direct `uco_nodes.cip`
+- `CIP -> NAICS`
+- `CIP -> SOC -> NAICS`
+- join to `uco_obligation_metadata.state`
+- derive licensure via `enforcement_type = 'License/Certificate'`
+- rank direct matches first, then confidence, then risk
+
+Current endpoint:
+
+```http
+GET /v1/compliance/licensure/state-lookup?student_cip=51.3801&destination_state=CA
+```
+
+Current database objects:
+
+- `v_state_licensure_candidates`
+- `fn_lookup_state_licensure_by_cip(student_cip, destination_state)`
+
+Reference report:
+
+- `docs/COS_UDM_Review_Expansion_Report.md`
 
 ---
 
@@ -99,6 +132,7 @@ IOS+ is best suited for organizations that need provable control over AI-driven 
 - Compliance-sensitive agent workflows
 - Audit-ready inference logging and review
 - Sector-specific policy enforcement before model execution
+- Degree-plan-to-licensure destination-state evaluation
 
 ---
 
@@ -110,6 +144,7 @@ IOS+ is designed for:
 - compliance and governance leaders,
 - regulated AI program owners,
 - security and audit stakeholders,
+- higher-education and healthcare operators with licensure exposure,
 - and solution teams deploying AI into high-control environments.
 
 ---
@@ -132,7 +167,8 @@ The current repo also includes deployment-focused hardening assets such as:
 - Vault secret projection support,
 - migration and invariant verification jobs,
 - release orchestration scripts,
-- and alert-rule configuration.
+- alert-rule configuration,
+- and UDM-backed licensure lookup paths.
 
 ## Repository Structure
 
@@ -197,6 +233,12 @@ npm run build
 helm lint infra/helm/ios-plus
 ```
 
+### Licensure Lookup Smoke Test
+
+```bash
+curl "http://localhost:3001/v1/compliance/licensure/state-lookup?student_cip=51.3801&destination_state=CA"
+```
+
 ---
 
 ## Audit Readiness / Acquirer Validation
@@ -226,14 +268,6 @@ docker compose -f docker-compose.test.yml up --build --exit-code-from test-runne
 - coverage artifacts are written to `coverage/` (`lcov.info`, `cobertura-coverage.xml`, and summary files),
 - audit harness logs are written to `.audit-artifacts/audit-test.log`,
 - and CI uploads `coverage/` as a workflow artifact on every run.
-
-### Test architecture and isolation boundaries
-
-- TypeScript tests live adjacent to source files inside each package to mirror production boundaries.
-- Middleware orchestration contract tests explicitly verify dependency injection and parameter passing between the orchestration pipeline and downstream middleware services.
-- Gate 530, COS+ repository access, and transport routes are tested in isolation with mocked external dependencies so the audit harness remains deterministic.
-- The PostgreSQL-backed WORM integration test runs against the containerized `cos-plus-test` database in the audit harness rather than relying on a developer workstation.
-- Coverage enforcement is intentionally scoped to the currently audit-ready middleware orchestration modules: `L1_ingestion`, `L2_semantic`, `L7_synthesis`, and `orchestrator/pipeline`.
 
 ---
 
@@ -269,19 +303,6 @@ This script is intended to automate:
 - readiness verification,
 - and rollback on failed deployment health checks.
 
-### Included Operational Assets
-
-The repo now includes assets for:
-
-- key management workflows,
-- Vault bootstrap and policy application,
-- seed data loading,
-- Helm-based deployment,
-- migration and post-migration validation,
-- Merkle root publication and verification,
-- alert-rule configuration,
-- and post-deployment verification.
-
 ---
 
 ## Security Notes
@@ -302,6 +323,7 @@ The repo currently supports a stronger operational posture than earlier versions
 - secret-ingestion support through Vault-projected env files,
 - migration verification gates,
 - admin mutation audit logging,
+- licensure lookup traversal support,
 - and alerting/metrics scaffolding.
 
 That said, this repository should still be described carefully:
@@ -313,6 +335,7 @@ Final production readiness still requires:
 - target-environment Vault activation,
 - cloud DNS and service identity configuration,
 - end-to-end staging validation,
+- comprehensive UDM seed population,
 - and sustained operational verification in the live environment.
 
 ---
@@ -321,6 +344,10 @@ Final production readiness still requires:
 
 Internal implementation and operational specifications are maintained in the Engineering Body document set.
 Moonshot verification runbook: [tests/moonshot/README.md](tests/moonshot/README.md).
+
+Additional reference material:
+
+- `docs/COS_UDM_Review_Expansion_Report.md`
 
 For product, deployment, or partnership inquiries, contact [support@smeprotech.com](mailto:support@smeprotech.com).
 

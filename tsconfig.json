@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@ios-plus/shared": ["packages/shared/src"],
+      "@ios-plus/gate-530": ["packages/gate-530/src"],
+      "@ios-plus/evidence-fabric": ["packages/evidence-fabric/src"],
+      "@ios-plus/cos-plus": ["packages/cos-plus/src"],
+      "@ios-plus/rag-vault": ["packages/rag-vault/src"],
+      "@ios-plus/uco-resolver": ["packages/uco-resolver/src"]
+    }
+  },
+  "include": ["packages/*/src/**/*", "packages/*/tests/**/*"],
+  "exclude": ["node_modules", "dist", "coverage"]
+}

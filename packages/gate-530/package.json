@@ -1,0 +1,27 @@
+{
+  "name": "@ios-plus/gate-530",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "start:api": "node dist/api-index.js",
+    "test": "vitest run src/__tests__",
+    "test:watch": "vitest src/__tests__"
+  },
+  "dependencies": {
+    "@ios-plus/shared": "1.0.0",
+    "@ios-plus/evidence-fabric": "1.0.0",
+    "@ios-plus/cos-plus": "1.0.0",
+    "dotenv": "^16.4.5",
+    "jose": "^5.4.0",
+    "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.6",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

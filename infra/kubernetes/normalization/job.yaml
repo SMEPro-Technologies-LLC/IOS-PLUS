@@ -1,0 +1,238 @@
+# ============================================================================
+# IOS+ Platform — Normalization Pipeline (CronJob)
+# ============================================================================
+# ETL pipelines, schema mapping, and deduplication. Campus normalization runs
+# every 15 minutes; regulatory normalization runs hourly. Both use the same
+# container with a MODE env var to differentiate behavior.
+#
+# Cloud SQL Auth Proxy is provided as an init container so migrations and
+# schema validation can complete before the main job starts.
+# ============================================================================
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ios-plus-normalization-campus
+  namespace: normalization
+  labels:
+    app.kubernetes.io/name: ios-plus-normalization
+    app.kubernetes.io/component: normalization
+    app.kubernetes.io/version: "v2.0.0"
+    cost-center: lamar-cos
+    tier: processing
+spec:
+  schedule: "*/15 * * * *"
+  timeZone: "America/Chicago"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 3600
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: ios-plus-normalization
+            app.kubernetes.io/component: normalization
+            cost-center: lamar-cos
+        spec:
+          serviceAccountName: ios-plus-normalization-sa
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            fsGroup: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          initContainers:
+            - name: cloudsql-auth-proxy-init
+              image: cloudsql-auth-proxy
+              imagePullPolicy: Always
+              restartPolicy: Always
+              command:
+                - "/cloud-sql-proxy"
+                - "--private-ip"
+                - "--structured-logs"
+                - "--port=5432"
+                - "lamar-cos:us-central1:cos-db"
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65532
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+              ports:
+                - name: cloudsql
+                  containerPort: 5432
+                  protocol: TCP
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          containers:
+            - name: ios-plus-normalization
+              image: ios-plus-normalization
+              imagePullPolicy: Always
+              env:
+                - name: MODE
+                  value: "campus"
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: ios-plus-normalization-secrets
+                      key: DATABASE_URL
+                - name: REDIS_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: ios-plus-normalization-secrets
+                      key: REDIS_HOST
+                - name: NODE_ENV
+                  value: "production"
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 256Mi
+                limits:
+                  cpu: 2000m
+                  memory: 2Gi
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1001
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir:
+                sizeLimit: 100Mi
+          restartPolicy: OnFailure
+
+---
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ios-plus-normalization-regulatory
+  namespace: normalization
+  labels:
+    app.kubernetes.io/name: ios-plus-normalization
+    app.kubernetes.io/component: normalization
+    app.kubernetes.io/version: "v2.0.0"
+    cost-center: lamar-cos
+    tier: processing
+spec:
+  schedule: "0 * * * *"
+  timeZone: "America/Chicago"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 3600
+      backoffLimit: 3
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: ios-plus-normalization
+            app.kubernetes.io/component: normalization
+            cost-center: lamar-cos
+        spec:
+          serviceAccountName: ios-plus-normalization-sa
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            fsGroup: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          initContainers:
+            - name: cloudsql-auth-proxy-init
+              image: cloudsql-auth-proxy
+              imagePullPolicy: Always
+              restartPolicy: Always
+              command:
+                - "/cloud-sql-proxy"
+                - "--private-ip"
+                - "--structured-logs"
+                - "--port=5432"
+                - "lamar-cos:us-central1:cos-db"
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65532
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+              ports:
+                - name: cloudsql
+                  containerPort: 5432
+                  protocol: TCP
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          containers:
+            - name: ios-plus-normalization
+              image: ios-plus-normalization
+              imagePullPolicy: Always
+              env:
+                - name: MODE
+                  value: "regulatory"
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: ios-plus-normalization-secrets
+                      key: DATABASE_URL
+                - name: REDIS_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: ios-plus-normalization-secrets
+                      key: REDIS_HOST
+                - name: NODE_ENV
+                  value: "production"
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 256Mi
+                limits:
+                  cpu: 2000m
+                  memory: 2Gi
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1001
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir:
+                sizeLimit: 100Mi
+          restartPolicy: OnFailure

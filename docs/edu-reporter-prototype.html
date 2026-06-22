@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDU Reporter — Interactive Prototype</title>
+<style>
+:root {
+  --bg: #f4f7f6;
+  --text: #1a1a2e;
+  --text-muted: #5a5a6a;
+  --accent: #2c5aa0;
+  --green: #2e7d32;
+  --orange: #e65100;
+  --gold: #f9a825;
+  --purple: #6a1b9a;
+  --red: #c62828;
+  --teal: #00695c;
+  --light-blue: #e6f0fa;
+  --light-green: #e8f5e9;
+  --light-orange: #fff3e0;
+  --light-purple: #f0e6ff;
+  --light-red: #ffebee;
+  --shadow: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-hover: 0 8px 24px rgba(0,0,0,0.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+.app {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 260px;
+  background: #fff;
+  border-right: 1px solid #e0e0e0;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+}
+.logo {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.logo-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.role-badge {
+  background: var(--light-blue);
+  color: var(--accent);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  display: inline-block;
+}
+.nav-group {
+  margin-bottom: 20px;
+}
+.nav-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.nav-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-item:hover {
+  background: #f5f5f5;
+  color: var(--text);
+}
+.nav-item.active {
+  background: var(--light-blue);
+  color: var(--accent);
+  font-weight: 600;
+}
+.nav-item .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-critical { background: var(--red); }
+.dot-warning { background: var(--orange); }
+.dot-elevated { background: var(--gold); }
+.dot-low { background: var(--green); }
+
+/* Main content */
+.main {
+  flex: 1;
+  padding: 24px 32px;
+  overflow-y: auto;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.header h1 {
+  font-size: 1.5rem;
+  color: var(--text);
+}
+.header-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Summary cards */
+.cards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  min-width: 200px;
+  flex: 1;
+  box-shadow: var(--shadow);
+  border-left: 4px solid transparent;
+}
+.card-critical { border-left-color: var(--red); }
+.card-warning { border-left-color: var(--orange); }
+.card-elevated { border-left-color: var(--gold); }
+.card-low { border-left-color: var(--green); }
+.card h3 {
+  font-size: 2rem;
+  margin-bottom: 4px;
+}
+.card h3.critical { color: var(--red); }
+.card h3.warning { color: var(--orange); }
+.card h3.elevated { color: var(--gold); }
+.card h3.low { color: var(--green); }
+.card p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.card .change {
+  font-size: 0.75rem;
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+/* Table */
+.table-container {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.table-header h2 {
+  font-size: 1rem;
+  color: var(--text);
+}
+.table-header .actions {
+  display: flex;
+  gap: 8px;
+}
+.btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: #1a3a6e; }
+.btn-outline {
+  background: #fff;
+  color: var(--text-muted);
+  border: 1px solid #e0e0e0;
+}
+.btn-outline:hover { background: #f5f5f5; }
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.table th {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+.table td {
+  padding: 14px 16px;
+  font-size: 0.85rem;
+  border-bottom: 1px solid #f5f5f5;
+  color: var(--text);
+}
+.table tr:hover { background: #f8f9fa; }
+.table tr:last-child td { border-bottom: none; }
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+.badge-critical { background: var(--light-red); color: var(--red); }
+.badge-warning { background: var(--light-orange); color: var(--orange); }
+.badge-elevated { background: #fff8e1; color: var(--gold); }
+.badge-low { background: var(--light-green); color: var(--green); }
+.badge-aligned { background: var(--light-green); color: var(--green); }
+.badge-drift { background: var(--light-orange); color: var(--orange); }
+.badge-misalign { background: var(--light-red); color: var(--red); }
+.badge-sat { background: var(--light-green); color: var(--green); }
+.badge-watch { background: var(--light-orange); color: var(--orange); }
+.badge-crit { background: var(--light-red); color: var(--red); }
+
+.evidence-link {
+  color: var(--accent);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+.evidence-link:hover { text-decoration: underline; }
+
+/* Evidence panel */
+.evidence-panel {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 420px;
+  height: 100vh;
+  background: #fff;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.15);
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+  overflow-y: auto;
+  padding: 24px;
+}
+.evidence-panel.open { transform: translateX(0); }
+.evidence-panel h2 {
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+.evidence-panel .close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.evidence-section {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.evidence-section h3 {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.evidence-section p, .evidence-section li {
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+.evidence-section ul { margin-left: 16px; }
+.evidence-section code {
+  background: #f0f0f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8em;
+}
+.trace-id {
+  background: #1a1a2e;
+  color: #a8d5a2;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+
+/* Overlay */
+.overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.3);
+  display: none;
+  z-index: 999;
+}
+.overlay.open { display: block; }
+
+/* Dashboard selector */
+.dashboard-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.dashboard-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+.dashboard-btn:hover { background: #f5f5f5; }
+.dashboard-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* Charts placeholder */
+.chart-placeholder {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* Section hidden */
+.section { display: none; }
+.section.active { display: block; }
+
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .cards { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">EDU Reporter</div>
+    <div class="logo-sub">IOS+ Reporting Surface</div>
+    <div class="role-badge">Advisor Lens</div>
+    <div class="nav-group">
+      <div class="nav-label">Dashboards</div>
+      <div class="nav-item active" onclick="showSection('uc01')">
+        <span class="dot dot-critical"></span>
+        Predictive Persistence
+      </div>
+      <div class="nav-item" onclick="showSection('uc02')">
+        <span class="dot dot-low"></span>
+        Transcript Evaluation
+      </div>
+      <div class="nav-item" onclick="showSection('uc03')">
+        <span class="dot dot-warning"></span>
+        Accreditation Gap
+      </div>
+      <div class="nav-item" onclick="showSection('uc04')">
+        <span class="dot dot-elevated"></span>
+        Course Alignment
+      </div>
+      <div class="nav-item" onclick="showSection('uc05')">
+        <span class="dot dot-low"></span>
+        Grading Load
+      </div>
+      <div class="nav-item" onclick="showSection('uc06')">
+        <span class="dot dot-warning"></span>
+        Allied Health
+      </div>
+      <div class="nav-item" onclick="showSection('uc08')">
+        <span class="dot dot-elevated"></span>
+        Regulatory Watchtower
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Operational</div>
+      <div class="nav-item" onclick="showSection('licensure')">Licensure Lookup</div>
+      <div class="nav-item" onclick="showSection('sap')">SAP Monitoring</div>
+      <div class="nav-item" onclick="showSection('enrollment')">Enrollment Verification</div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main">
+    <!-- UC-01: Predictive Persistence -->
+    <div id="uc01" class="section active">
+      <div class="header">
+        <h1>Predictive Persistence</h1>
+        <div class="header-meta">Refreshed: 2 hours ago | Role: Advisor (Section 401, 403)</div>
+      </div>
+      <div class="cards">
+        <div class="card card-critical">
+          <h3 class="critical">2</h3>
+          <p>Critical Risk Students</p>
+          <div class="change">↑ 1 from last week</div>
+        </div>
+        <div class="card card-warning">
+          <h3 class="warning">4</h3>
+          <p>High Risk Students</p>
+          <div class="change">→ No change</div>
+        </div>
+        <div class="card card-elevated">
+          <h3 class="elevated">8</h3>
+          <p>Elevated Risk Students</p>
+          <div class="change">↓ 2 from last week</div>
+        </div>
+        <div class="card card-low">
+          <h3 class="low">42</h3>
+          <p>Low Risk Students</p>
+          <div class="change">↓ 1 from last week</div>
+        </div>
+      </div>
+      <div class="chart-placeholder">Risk Tier Distribution (Last 6 Weeks) — Trend Chart</div>
+      <div class="table-container">
+        <div class="table-header">
+          <h2>Intervention Queue</h2>
+          <div class="actions">
+            <button class="btn btn-outline">Export</button>
+            <button class="btn btn-primary">Refresh</button>
+          </div>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Risk Tier</th>
+              <th>GPA</th>
+              <th>Last Login</th>
+              <th>Assignments</th>
+              <th>Recommended Action</th>
+              <th>Evidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>SYN-4819</strong></td>
+              <td><span class="badge badge-critical">CRITICAL</span></td>
+              <td>1.85</td>
+              <td>12 days ago</td>
+              <td>3/10 submitted</td>
+              <td>Immediate outreach — advisor call</td>
+              <td><a class="evidence-link" onclick="openEvidence('req-abc-123')">Trace: req-abc-123</a></td>
+            </tr>
+            <tr>
+              <td><strong>SYN-2914</strong></td>
+              <td><span class="badge badge-critical">CRITICAL</span></td>
+              <td>1.92</td>
+              <td>9 days ago</td>
+              <td>4/12 submitted</td>
+              <td>Schedule tutoring + advising</td>
+              <td><a class="evidence-link" onclick="openEvidence('req-abc-124')">Trace: req-abc-124</a></td>
+            </tr>
+            <tr>
+              <td><strong>SYN-7742</strong></td>
+              <td><span class="badge badge-warning">HIGH</span></td>
+              <td>2.15</td>
+              <td>5 days ago</td>
+              <td>6/10 submitted</td>
+              <td>Check-in email + resources</td>
+              <td><a class="evidence-link" onclick="openEvidence('req-abc-125')">Trace: req-abc-125</a></td>
+            </tr>
+            <tr>
+              <td><strong>SYN-3381</strong></td>
+              <td><span class="badge badge-elevated">ELEVATED</span></td>
+              <td>2.67</td>
+              <td>2 days ago</td>
+              <td>7/10 submitted</td>
+              <td>Monitor + study skills workshop</td>
+              <td><a class="evidence-link" onclick="openEvidence('req-abc-126')">Trace: req-abc-126</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- UC-04: Course Alignment -->
+    <div id="uc04" class="section">
+      <div class="header">
+        <h1>Course Outcome Alignment</h1>
+        <div class="header-meta">Last analyzed: Today | Semester: Spring 2026</div>
+      </div>
+      <div class="cards">
+        <div class="card card-low">
+          <h3 class="low">18</h3>
+          <p>Fully Aligned Courses</p>
+        </div>
+        <div class="card card-elevated">
+          <h3 class="elevated">5</h3>
+          <p>Drifting Courses</p>
+        </div>
+        <div class="card card-warning">
+          <h3 class="warning">2</h3>
+          <p>Misaligned Courses</p>
+        </div>
+      </div>
+      <div class="table-container">
+        <div class="table-header">
+          <h2>Drift Alerts</h2>
+          <div class="actions">
+            <button class="btn btn-outline">Export</button>
+          </div>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Course</th>
+              <th>Instructor</th>
+              <th>Approved CLOs</th>
+              <th>Actual Assessments</th>
+              <th>Alignment Score</th>
+              <th>Status</th>
+              <th>Evidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>NURS 401</strong></td>
+              <td>Dr. Smith</td>
+              <td>5 CLOs</td>
+              <td>3 assessments (1 essay, 2 quizzes)</td>
+              <td>0.72</td>
+              <td><span class="badge badge-drift">DRIFTING</span></td>
+              <td><a class="evidence-link" onclick="openEvidence('req-drift-001')">Trace: req-drift-001</a></td>
+            </tr>
+            <tr>
+              <td><strong>CHEM 201</strong></td>
+              <td>Dr. Johnson</td>
+              <td>4 CLOs</td>
+              <td>2 assessments (2 quizzes)</td>
+              <td>0.45</td>
+              <td><span class="badge badge-misalign">MISALIGNED</span></td>
+              <td><a class="evidence-link" onclick="openEvidence('req-drift-002')">Trace: req-drift-002</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- UC-06: Allied Health -->
+    <div id="uc06" class="section">
+      <div class="header">
+        <h1>Allied Health Programs</h1>
+        <div class="header-meta">NCLEX Cohort: 2025 | Next review: March 2026</div>
+      </div>
+      <div class="cards">
+        <div class="card card-low">
+          <h3 class="low">8</h3>
+          <p>Programs Satisfactory</p>
+        </div>
+        <div class="card card-elevated">
+          <h3 class="elevated">1</h3>
+          <p>Programs on Warning</p>
+        </div>
+        <div class="card card-critical">
+          <h3 class="critical">1</h3>
+          <p>Programs Critical</p>
+        </div>
+      </div>
+      <div class="table-container">
+        <div class="table-header">
+          <h2>Program Status</h2>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Program</th>
+              <th>Accreditor</th>
+              <th>Cohort Size</th>
+              <th>Pass Rate</th>
+              <th>Required</th>
+              <th>Status</th>
+              <th>Next Site Visit</th>
+              <th>Evidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>BSN Nursing</strong></td>
+              <td>CCNE</td>
+              <td>48</td>
+              <td>91.7%</td>
+              <td>80%</td>
+              <td><span class="badge badge-sat">SATISFACTORY</span></td>
+              <td>Oct 2027</td>
+              <td><a class="evidence-link" onclick="openEvidence('req-nursing-001')">Trace: req-nursing-001</a></td>
+            </tr>
+            <tr>
+              <td><strong>ADN Nursing</strong></td>
+              <td>ACEN</td>
+              <td>32</td>
+              <td>76.5%</td>
+              <td>80%</td>
+              <td><span class="badge badge-watch">WARNING</span></td>
+              <td>Apr 2026</td>
+              <td><a class="evidence-link" onclick="openEvidence('req-nursing-002')">Trace: req-nursing-002</a></td>
+            </tr>
+            <tr>
+              <td><strong>PTA</strong></td>
+              <td>CAPTE</td>
+              <td>24</td>
+              <td>62.5%</td>
+              <td>85%</td>
+              <td><span class="badge badge-crit">CRITICAL</span></td>
+              <td>Jun 2026</td>
+              <td><a class="evidence-link" onclick="openEvidence('req-pta-001')">Trace: req-pta-001</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- UC-08: Regulatory Watchtower -->
+    <div id="uc08" class="section">
+      <div class="header">
+        <h1>Regulatory Watchtower</h1>
+        <div class="header-meta">Monitoring: 5 sources | Last poll: 4 hours ago</div>
+      </div>
+      <div class="cards">
+        <div class="card card-critical">
+          <h3 class="critical">1</h3>
+          <p>Critical Alerts</p>
+        </div>
+        <div class="card card-warning">
+          <h3 class="warning">2</h3>
+          <p>High Alerts</p>
+        </div>
+        <div class="card card-elevated">
+          <h3 class="elevated">3</h3>
+          <p>Medium Alerts</p>
+        </div>
+      </div>
+      <div class="table-container">
+        <div class="table-header">
+          <h2>Pending Review</h2>
+          <div class="actions">
+            <button class="btn btn-primary">Approve All Reviewed</button>
+          </div>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Source</th>
+              <th>Change Type</th>
+              <th>Summary</th>
+              <th>Impact</th>
+              <th>Urgency</th>
+              <th>Detected</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>SACSCOC</strong></td>
+              <td>Amended Standard</td>
+              <td>Principle 2.5: Faculty credentials revised to include industry experience</td>
+              <td>All programs</td>
+              <td><span class="badge badge-crit">CRITICAL</span></td>
+              <td>2 days ago</td>
+              <td>
+                <button class="btn btn-primary" style="font-size:0.7rem;padding:4px 10px">Approve</button>
+                <button class="btn btn-outline" style="font-size:0.7rem;padding:4px 10px">Reject</button>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>NCSBN</strong></td>
+              <td>Threshold Change</td>
+              <td>NCLEX-RN minimum pass rate increased from 80% to 85% effective July 2026</td>
+              <td>Nursing programs</td>
+              <td><span class="badge badge-warning">HIGH</span></td>
+              <td>1 week ago</td>
+              <td>
+                <button class="btn btn-primary" style="font-size:0.7rem;padding:4px 10px">Approve</button>
+                <button class="btn btn-outline" style="font-size:0.7rem;padding:4px 10px">Reject</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Licensure Lookup -->
+    <div id="licensure" class="section">
+      <div class="header">
+        <h1>Degree-Plan-to-Licensure Lookup</h1>
+        <div class="header-meta">UDM Traversal: CIP → SOC → NAICS → State</div>
+      </div>
+      <div class="chart-placeholder" style="height:300px">
+        <div>
+          <p style="font-size:1.2rem;margin-bottom:16px"><strong>Lookup Form</strong></p>
+          <p>CIP Code: <strong>51.3801</strong> (Registered Nursing)</p>
+          <p>Destination State: <strong>CA</strong></p>
+          <p style="margin-top:16px"><button class="btn btn-primary">Run Lookup</button></p>
+          <p style="margin-top:24px;font-size:0.85rem;color:var(--text-muted)">
+            Result: CA RN License required · CA Board of Registered Nursing ·<br>
+            Confidence: 0.95 · Risk: Low · Direct CIP→NAICS match
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Other sections (placeholders) -->
+    <div id="uc02" class="section"><div class="header"><h1>Transcript Evaluation</h1></div><div class="chart-placeholder">Transcript Evaluation Queue — 2-day turnaround dashboard</div></div>
+    <div id="uc03" class="section"><div class="header"><h1>Accreditation Gap Analysis</h1></div><div class="chart-placeholder">Readiness Heat Map — 414 SACSCOC files indexed</div></div>
+    <div id="uc05" class="section"><div class="header"><h1>Grading Load Analysis</h1></div><div class="chart-placeholder">Grading Load Index — quantitative workload dashboard</div></div>
+    <div id="sap" class="section"><div class="header"><h1>SAP Monitoring</h1></div><div class="chart-placeholder">Satisfactory Academic Progress tracking</div></div>
+    <div id="enrollment" class="section"><div class="header"><h1>Enrollment Verification</h1></div><div class="chart-placeholder">Real-time enrollment status for Title IV</div></div>
+  </div>
+</div>
+
+<!-- Evidence Panel -->
+<div class="overlay" id="overlay" onclick="closeEvidence()"></div>
+<div class="evidence-panel" id="evidencePanel">
+  <button class="close-btn" onclick="closeEvidence()">&times;</button>
+  <h2>Evidence Detail</h2>
+  <div class="evidence-section">
+    <h3>Trace ID</h3>
+    <div class="trace-id" id="evTraceId">req-abc-123</div>
+  </div>
+  <div class="evidence-section">
+    <h3>Source Signals</h3>
+    <ul id="evSources">
+      <li>Banner: GPA 1.85, Credit hours attempted: 12, Completed: 6</li>
+      <li>Blackboard: Days since login: 12, Assignments submitted: 3/10</li>
+    </ul>
+  </div>
+  <div class="evidence-section">
+    <h3>Processing Logic</h3>
+    <p id="evLogic">Algorithm: risk-v2.1<br>Formula: IF gpa &lt; 2.0 AND days_since_login &gt; 7 THEN CRITICAL<br>Confidence: 0.97</p>
+  </div>
+  <div class="evidence-section">
+    <h3>Gate 530 Decision</h3>
+    <p id="evDecision">Action: ALLOW<br>Reason: Risk scoring permitted for advisor role<br>Dimension: operational<br>Confidence: 0.99</p>
+  </div>
+  <div class="evidence-section">
+    <h3>Evidence Record</h3>
+    <p>Signature: <code>Ed25519-SHA256-...</code></p>
+    <p>Timestamp: <code>2026-01-15T14:30:00Z</code></p>
+    <p>Public Key: <code>base64-...</code></p>
+  </div>
+  <div class="evidence-section" style="border-bottom:none">
+    <button class="btn btn-primary" style="width:100%">Verify Signature</button>
+  </div>
+</div>
+
+<script>
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  // Find and highlight nav item
+  const navItems = document.querySelectorAll('.nav-item');
+  for (let i = 0; i < navItems.length; i++) {
+    if (navItems[i].getAttribute('onclick').includes("'" + id + "'")) {
+      navItems[i].classList.add('active');
+    }
+  }
+}
+
+const evidenceData = {
+  'req-abc-123': {
+    traceId: 'req-abc-123',
+    sources: [
+      'Banner: GPA 1.85, Credit hours attempted: 12, Completed: 6',
+      'Blackboard: Days since login: 12, Assignments submitted: 3/10, Time on task: 4.2 hours'
+    ],
+    logic: 'Algorithm: risk-v2.1<br>Formula: IF gpa &lt; 2.0 AND days_since_login &gt; 7 THEN CRITICAL<br>Confidence: 0.97',
+    decision: 'Action: ALLOW<br>Reason: Risk scoring permitted for advisor role<br>Dimension: operational<br>Confidence: 0.99'
+  },
+  'req-abc-124': {
+    traceId: 'req-abc-124',
+    sources: [
+      'Banner: GPA 1.92, Credit hours attempted: 15, Completed: 9',
+      'Blackboard: Days since login: 9, Assignments submitted: 4/12'
+    ],
+    logic: 'Algorithm: risk-v2.1<br>Formula: IF gpa &lt; 2.0 AND assignments_submitted &lt; 0.5 THEN CRITICAL<br>Confidence: 0.94',
+    decision: 'Action: ALLOW<br>Reason: Risk scoring permitted for advisor role<br>Dimension: operational<br>Confidence: 0.99'
+  },
+  'req-drift-001': {
+    traceId: 'req-drift-001',
+    sources: [
+      'Concourse: CLO #3 = "Students will analyze patient data"',
+      'Blackboard: Assessment = "Multiple choice quiz" (no analysis required)'
+    ],
+    logic: 'Algorithm: alignment-v1.2<br>Similarity score: 0.23<br>Threshold: 0.60<br>Result: DRIFTING',
+    decision: 'Action: ALLOW<br>Reason: Drift detection permitted for faculty role<br>Dimension: operational<br>Confidence: 0.88'
+  },
+  'req-nursing-002': {
+    traceId: 'req-nursing-002',
+    sources: [
+      'NCLEX-RN pass rate: 76.5% (24 of 32 students)',
+      'Required threshold: 80%',
+      'Gap: -3.5 percentage points'
+    ],
+    logic: 'Algorithm: threshold-v1.0<br>Pass rate 76.5% &lt; required 80%<br>Result: WARNING',
+    decision: 'Action: ESCALATE<br>Reason: Threshold breach requires dean review<br>Dimension: regulatory<br>Confidence: 1.00'
+  }
+};
+
+function openEvidence(traceId) {
+  const data = evidenceData[traceId] || evidenceData['req-abc-123'];
+  document.getElementById('evTraceId').textContent = data.traceId;
+  document.getElementById('evSources').innerHTML = data.sources.map(s => '<li>' + s + '</li>').join('');
+  document.getElementById('evLogic').innerHTML = data.logic;
+  document.getElementById('evDecision').innerHTML = data.decision;
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('evidencePanel').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEvidence() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('evidencePanel').classList.remove('open');
+  document.body.style.overflow = '';
+}
+</script>
+</body>
+</html>

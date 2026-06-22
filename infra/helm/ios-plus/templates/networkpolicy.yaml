@@ -1,0 +1,24 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ios-plus.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ios-plus.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "ios-plus.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  {{- if .Values.networkPolicy.ingress }}
+  ingress:
+    {{- toYaml .Values.networkPolicy.ingress | nindent 4 }}
+  {{- end }}
+  {{- if .Values.networkPolicy.egress }}
+  egress:
+    {{- toYaml .Values.networkPolicy.egress | nindent 4 }}
+  {{- end }}
+{{- end }}

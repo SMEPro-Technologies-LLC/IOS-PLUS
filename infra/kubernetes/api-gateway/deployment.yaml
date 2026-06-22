@@ -1,0 +1,286 @@
+# ============================================================================
+# IOS+ Platform — API Gateway Deployment
+# ============================================================================
+# GKE production-grade deployment with Cloud SQL Auth Proxy sidecar,
+# Secret Manager integration, health probes, and hardened security context.
+# ============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ios-plus-api
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: ios-plus-api
+    app.kubernetes.io/component: api-gateway
+    app.kubernetes.io/version: "v2.0.0"
+    cost-center: lamar-cos
+    tier: ingress
+spec:
+  replicas: 5
+  revisionHistoryLimit: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ios-plus-api
+        app.kubernetes.io/component: api-gateway
+        app.kubernetes.io/version: "v2.0.0"
+        cost-center: lamar-cos
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: ios-plus-api-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        # --- Main API container ------------------------------------------------
+        - name: ios-plus-api
+          image: ios-plus-api
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-api-secrets
+                  key: DATABASE_URL
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-api-secrets
+                  key: REDIS_HOST
+            - name: VAULT_ADDR
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-api-secrets
+                  key: VAULT_ADDR
+            - name: ADMIN_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-api-secrets
+                  key: ADMIN_JWT_SECRET
+            - name: NODE_ENV
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-api-secrets
+                  key: NODE_ENV
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+              scheme: HTTP
+            periodSeconds: 10
+            failureThreshold: 30
+            timeoutSeconds: 5
+            successThreshold: 1
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: secrets
+              mountPath: /etc/ios-plus/secrets
+              readOnly: true
+
+        # --- Cloud SQL Auth Proxy sidecar ------------------------------------
+        - name: cloudsql-auth-proxy
+          image: cloudsql-auth-proxy
+          imagePullPolicy: Always
+          command:
+            - "/cloud-sql-proxy"
+            - "--private-ip"
+            - "--structured-logs"
+            - "--port=5432"
+            - "lamar-cos:us-central1:cos-db"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          ports:
+            - name: cloudsql
+              containerPort: 5432
+              protocol: TCP
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi
+        - name: secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: ios-plus-api-secrets
+
+      # Preferred anti-affinity for HA
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - ios-plus-api
+                topologyKey: kubernetes.io/hostname
+      nodeSelector:
+        cloud.google.com/gke-nodepool: api-gateway-pool
+      tolerations:
+        - key: "api-gateway"
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ios-plus-api-hpa
+  namespace: api-gateway
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ios-plus-api
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+
+---
+# Pod Disruption Budget
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ios-plus-api-pdb
+  namespace: api-gateway
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-api
+
+---
+# SecretProviderClass for Google Secret Manager (CSI driver)
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: ios-plus-api-secrets
+  namespace: api-gateway
+spec:
+  provider: gcp
+  parameters:
+    secrets: |
+      - resourceName: "projects/lamar-cos/secrets/ios-plus-database-url/versions/latest"
+        path: "DATABASE_URL"
+      - resourceName: "projects/lamar-cos/secrets/ios-plus-redis-host/versions/latest"
+        path: "REDIS_HOST"
+      - resourceName: "projects/lamar-cos/secrets/ios-plus-vault-addr/versions/latest"
+        path: "VAULT_ADDR"
+      - resourceName: "projects/lamar-cos/secrets/ios-plus-admin-jwt-secret/versions/latest"
+        path: "ADMIN_JWT_SECRET"
+      - resourceName: "projects/lamar-cos/secrets/ios-plus-node-env/versions/latest"
+        path: "NODE_ENV"
+  secretObjects:
+    - secretName: ios-plus-api-secrets
+      type: Opaque
+      data:
+        - objectName: DATABASE_URL
+          key: DATABASE_URL
+        - objectName: REDIS_HOST
+          key: REDIS_HOST
+        - objectName: VAULT_ADDR
+          key: VAULT_ADDR
+        - objectName: ADMIN_JWT_SECRET
+          key: ADMIN_JWT_SECRET
+        - objectName: NODE_ENV
+          key: NODE_ENV

@@ -1,0 +1,33 @@
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: production
+  labels:
+    app: ios-plus
+    environment: production
+    managed-by: cloud-deploy
+  annotations:
+    canary.strategy: "25-50-75-100"
+    rollback.enabled: "true"
+spec:
+  gke:
+    cluster: projects/${GCP_PROJECT_ID}/locations/${GCP_REGION}/clusters/ios-plus-production
+  executionConfigs:
+    - usages:
+        - RENDER
+        - DEPLOY
+        - VERIFY
+      artifactStorage:
+        defaultPool:
+          serviceAccount: ${GCP_SERVICE_ACCOUNT}
+      serviceAccount: ${GCP_SERVICE_ACCOUNT}
+  requireApproval: true
+  description: |
+    Production target for IOS+.
+    Canary deployment strategy: 25% → 50% → 75% → 100%.
+    Each phase requires successful verification before proceeding.
+    Automated rollback on verification failure.
+    Manual approval gate required before initial promotion from staging.
+
+  # --- Canary configuration is defined in the DeliveryPipeline ---
+  # The pipeline references this target and applies the canary percentages.

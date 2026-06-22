@@ -1,0 +1,234 @@
+# ============================================================================
+# IOS+ Platform — Staging Overlay
+# ============================================================================
+# Lower replica counts, relaxed resource limits, tainted node selectors for
+# cost-efficient staging workloads. No PDBs or HPA to reduce complexity.
+# ============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namePrefix: staging-
+
+namespace: api-gateway
+
+commonLabels:
+  environment: staging
+  cost-center: lamar-cos
+
+commonAnnotations:
+  iosplus.io/environment: "staging"
+
+resources:
+  - ../../
+
+patches:
+  # --- api-gateway: reduce replicas, remove HPA/PDB -----------------------
+  - target:
+      kind: Deployment
+      name: ios-plus-api
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits
+        value:
+          cpu: "1000m"
+          memory: "1Gi"
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: staging-pool
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: ios-plus-api-hpa
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 5
+  - target:
+      kind: PodDisruptionBudget
+      name: ios-plus-api-pdb
+    patch: |
+      - op: replace
+        path: /spec/minAvailable
+        value: 1
+
+  # --- trust-model: 2 replicas (minimum HA) --------------------------------
+  - target:
+      kind: Deployment
+      name: ios-plus-trust-model
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: staging-pool
+
+  # --- connector-ingestion: 2 replicas -------------------------------------
+  - target:
+      kind: Deployment
+      name: ios-plus-connector
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: staging-pool
+
+  # --- rules-workflow: 2 replicas ------------------------------------------
+  - target:
+      kind: Deployment
+      name: ios-plus-rules-workflow
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: staging-pool
+
+  # --- frontend-apps: 2 replicas -------------------------------------------
+  - target:
+      kind: Deployment
+      name: ios-plus-frontend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: staging-pool
+
+  # --- monitoring: 1 replica each, smaller storage ------------------------
+  - target:
+      kind: Deployment
+      name: ios-plus-prometheus
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: staging-pool
+  - target:
+      kind: PersistentVolumeClaim
+      name: ios-plus-prometheus-pvc
+    patch: |
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 20Gi
+  - target:
+      kind: Deployment
+      name: ios-plus-grafana
+    patch: |
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: staging-pool
+  - target:
+      kind: PersistentVolumeClaim
+      name: ios-plus-grafana-pvc
+    patch: |
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 5Gi
+
+  # --- ingress: staging host -----------------------------------------------
+  - target:
+      kind: Ingress
+      name: ios-plus-api-ingress
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: staging.app.ioscos.com
+      - op: remove
+        path: /spec/rules/1
+
+  # --- frontend config: staging API URL ------------------------------------
+  - target:
+      kind: ConfigMap
+      name: ios-plus-frontend-config
+    patch: |
+      - op: replace
+        path: /data/API_BASE_URL
+        value: "https://staging.app.ioscos.com/api/v2"
+      - op: replace
+        path: /data/ENV
+        value: "staging"
+
+  # --- namespace labels: environment staging --------------------------------
+  - target:
+      kind: Namespace
+      name: api-gateway
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: staging
+  - target:
+      kind: Namespace
+      name: trust-model
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: staging
+  - target:
+      kind: Namespace
+      name: connector-ingestion
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: staging
+  - target:
+      kind: Namespace
+      name: normalization
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: staging
+  - target:
+      kind: Namespace
+      name: rules-workflow
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: staging
+  - target:
+      kind: Namespace
+      name: ml-jobs
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: staging
+  - target:
+      kind: Namespace
+      name: frontend-apps
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: staging
+  - target:
+      kind: Namespace
+      name: monitoring
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: staging
+
+configMapGenerator:
+  - name: ios-plus-frontend-config
+    behavior: merge
+    literals:
+      - API_BASE_URL=https://staging.app.ioscos.com/api/v2
+      - ENV=staging

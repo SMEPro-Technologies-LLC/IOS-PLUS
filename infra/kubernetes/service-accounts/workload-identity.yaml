@@ -1,0 +1,103 @@
+# ============================================================================
+# IOS+ Platform — Workload Identity Service Accounts
+# ============================================================================
+# Each namespace gets a dedicated Kubernetes ServiceAccount bound to a
+# Google Cloud IAM ServiceAccount via Workload Identity. This enables
+# secure, keyless authentication to GCP services (Cloud SQL, Pub/Sub,
+# Secret Manager, Cloud Storage, etc.) without static credentials.
+#
+# IMPORTANT: After applying these manifests, bind each KSA to the GSA:
+#   gcloud iam service-accounts add-iam-policy-binding \
+#     --role roles/iam.workloadIdentityUser \
+#     --member "serviceAccount:LAMAR_COS_PROJECT.svc.id.goog[connector-ingestion/ios-plus-connector-sa]" \
+#     ios-plus-connector@lamar-cos.iam.gserviceaccount.com
+#
+# Repeat for all namespaces below.
+# ============================================================================
+
+# --- connector-ingestion ----------------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ios-plus-connector-sa
+  namespace: connector-ingestion
+  annotations:
+    iam.gke.io/gcp-service-account: ios-plus-connector@lamar-cos.iam.gserviceaccount.com
+automountServiceAccountToken: false
+
+# --- normalization ----------------------------------------------------------
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ios-plus-normalization-sa
+  namespace: normalization
+  annotations:
+    iam.gke.io/gcp-service-account: ios-plus-normalization@lamar-cos.iam.gserviceaccount.com
+automountServiceAccountToken: false
+
+# --- rules-workflow ---------------------------------------------------------
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ios-plus-rules-workflow-sa
+  namespace: rules-workflow
+  annotations:
+    iam.gke.io/gcp-service-account: ios-plus-rules-workflow@lamar-cos.iam.gserviceaccount.com
+automountServiceAccountToken: false
+
+# --- ml-jobs ----------------------------------------------------------------
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ios-plus-ml-jobs-sa
+  namespace: ml-jobs
+  annotations:
+    iam.gke.io/gcp-service-account: ios-plus-ml-jobs@lamar-cos.iam.gserviceaccount.com
+automountServiceAccountToken: false
+
+# --- trust-model ------------------------------------------------------------
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ios-plus-trust-model-sa
+  namespace: trust-model
+  annotations:
+    iam.gke.io/gcp-service-account: ios-plus-trust-model@lamar-cos.iam.gserviceaccount.com
+automountServiceAccountToken: false
+
+# --- api-gateway ------------------------------------------------------------
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ios-plus-api-sa
+  namespace: api-gateway
+  annotations:
+    iam.gke.io/gcp-service-account: ios-plus-api@lamar-cos.iam.gserviceaccount.com
+automountServiceAccountToken: false
+
+# --- frontend-apps ----------------------------------------------------------
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ios-plus-frontend-sa
+  namespace: frontend-apps
+  annotations:
+    iam.gke.io/gcp-service-account: ios-plus-frontend@lamar-cos.iam.gserviceaccount.com
+automountServiceAccountToken: false
+
+# --- monitoring -------------------------------------------------------------
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ios-plus-monitoring-sa
+  namespace: monitoring
+  annotations:
+    iam.gke.io/gcp-service-account: ios-plus-monitoring@lamar-cos.iam.gserviceaccount.com
+automountServiceAccountToken: false

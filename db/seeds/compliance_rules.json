@@ -1,0 +1,140 @@
+[
+  {
+    "id": "rule-001",
+    "name": "HIPAA Privacy Rule",
+    "dimension": "regulatory",
+    "condition": {
+      "regulation": "HIPAA",
+      "type": "privacy",
+      "scope": "PHI"
+    },
+    "effect": "deny",
+    "priority": 10,
+    "sector": "healthcare",
+    "active": true
+  },
+  {
+    "id": "rule-002",
+    "name": "PCI-DSS Data Encryption",
+    "dimension": "security",
+    "condition": {
+      "standard": "PCI-DSS",
+      "requirement": "encryption_at_rest",
+      "version": "4.0"
+    },
+    "effect": "deny",
+    "priority": 20,
+    "sector": "finance",
+    "active": true
+  },
+  {
+    "id": "rule-003",
+    "name": "GDPR Right to Deletion",
+    "dimension": "privacy",
+    "condition": {
+      "regulation": "GDPR",
+      "article": "17",
+      "subject": "data_subject"
+    },
+    "effect": "require_approval",
+    "priority": 30,
+    "sector": "all",
+    "active": true
+  },
+  {
+    "id": "rule-004",
+    "name": "SOX Financial Controls",
+    "dimension": "regulatory",
+    "condition": {
+      "act": "SOX",
+      "section": "404",
+      "control_type": "ITGC"
+    },
+    "effect": "require_approval",
+    "priority": 15,
+    "sector": "finance",
+    "active": true
+  },
+  {
+    "id": "rule-005",
+    "name": "FERPA Student Privacy",
+    "dimension": "privacy",
+    "condition": {
+      "regulation": "FERPA",
+      "data_type": "education_records"
+    },
+    "effect": "deny",
+    "priority": 25,
+    "sector": "education",
+    "active": true
+  },
+  {
+    "id": "rule-006",
+    "name": "Operational Backup Policy",
+    "dimension": "operational",
+    "condition": {
+      "requirement": "daily_backup",
+      "rpo": "24h",
+      "rto": "4h"
+    },
+    "effect": "allow",
+    "priority": 100,
+    "sector": "all",
+    "active": true
+  },
+  {
+    "id": "rule-007",
+    "name": "AI Ethics Review",
+    "dimension": "ethical",
+    "condition": {
+      "technology": "AI",
+      "review_required": true,
+      "impact_assessment": "high"
+    },
+    "effect": "require_approval",
+    "priority": 50,
+    "sector": "all",
+    "active": true
+  },
+  {
+    "id": "rule-008",
+    "name": "Energy Sector CIP",
+    "dimension": "sector_specific",
+    "condition": {
+      "standard": "NERC-CIP",
+      "version": "6",
+      "critical_asset": true
+    },
+    "effect": "deny",
+    "priority": 5,
+    "sector": "energy",
+    "active": true
+  },
+  {
+    "id": "rule-009",
+    "name": "Government Data Classification",
+    "dimension": "security",
+    "condition": {
+      "classification": "CONFIDENTIAL",
+      "clearance_required": true
+    },
+    "effect": "deny",
+    "priority": 10,
+    "sector": "government",
+    "active": true
+  },
+  {
+    "id": "rule-010",
+    "name": "Healthcare Access Logging",
+    "dimension": "operational",
+    "condition": {
+      "sector": "healthcare",
+      "log_access": true,
+      "audit_level": "comprehensive"
+    },
+    "effect": "allow",
+    "priority": 90,
+    "sector": "healthcare",
+    "active": true
+  }
+]

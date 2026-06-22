@@ -1,0 +1,216 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ios-plus.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ios-plus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: middleware
+    compliance-scope: ios-plus
+  annotations:
+    description: "IOS+ Middleware Engine deployment"
+    revision: "{{ .Release.Revision }}"
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ios-plus.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 0
+  template:
+    metadata:
+      annotations:
+        {{- include "ios-plus.vaultAnnotations" . | nindent 8 }}
+        {{- if .Values.secrets.vaultAgentInjection }}
+        vault.hashicorp.com/agent-inject-secret-database: "{{ .Values.secrets.vaultPath }}/database"
+        vault.hashicorp.com/agent-inject-template-database: |
+          {{ "{{" }} with secret "{{ .Values.secrets.vaultPath }}/database" {{ "}}" }}
+          DATABASE_URL={{ "{{" }} .Data.url {{ "}}" }}
+          {{ "{{" }} end {{ "}}" }}
+        vault.hashicorp.com/agent-inject-secret-jwt: "{{ .Values.secrets.vaultPath }}/jwt"
+        vault.hashicorp.com/agent-inject-template-jwt: |
+          {{ "{{" }} with secret "{{ .Values.secrets.vaultPath }}/jwt" {{ "}}" }}
+          JWT_SECRET={{ "{{" }} .Data.secret {{ "}}" }}
+          {{ "{{" }} end {{ "}}" }}
+        vault.hashicorp.com/agent-inject-secret-api: "{{ .Values.secrets.vaultPath }}/api"
+        vault.hashicorp.com/agent-inject-template-api: |
+          {{ "{{" }} with secret "{{ .Values.secrets.vaultPath }}/api" {{ "}}" }}
+          API_KEY={{ "{{" }} .Data.key {{ "}}" }}
+          {{ "{{" }} end {{ "}}" }}
+        vault.hashicorp.com/agent-inject-secret-transit: "{{ .Values.secrets.vaultPath }}/transit"
+        vault.hashicorp.com/agent-inject-template-transit: |
+          {{ "{{" }} with secret "{{ .Values.secrets.vaultPath }}/transit" {{ "}}" }}
+          VAULT_TRANSIT_TOKEN={{ "{{" }} .Data.token {{ "}}" }}
+          {{ "{{" }} end {{ "}}" }}
+        {{- end }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.service.metricsPort }}"
+        prometheus.io/path: "/metrics"
+      labels:
+        {{- include "ios-plus.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: middleware
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ios-plus.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      
+      initContainers:
+        - name: db-migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["npm", "run", "migrate"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ios-plus.fullname" . }}-database
+                  key: url
+                  optional: true
+            - name: NODE_ENV
+              value: {{ .Values.env.NODE_ENV | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.env.LOG_LEVEL | quote }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "ios-plus.fullname" . }}-config
+                optional: true
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: vault-secrets
+              mountPath: /vault/secrets
+              readOnly: true
+      
+      containers:
+        - name: ios-plus
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.service.metricsPort }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.env.PORT | quote }}
+            - name: METRICS_PORT
+              value: {{ .Values.env.METRICS_PORT | quote }}
+            - name: NODE_ENV
+              value: {{ .Values.env.NODE_ENV | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.env.LOG_LEVEL | quote }}
+            - name: DATABASE_URL
+              value: {{ .Values.env.DATABASE_URL | quote }}
+            - name: VAULT_ADDR
+              value: {{ .Values.env.VAULT_ADDR | quote }}
+            - name: VAULT_NAMESPACE
+              value: {{ .Values.env.VAULT_NAMESPACE | quote }}
+            - name: EVIDENCE_SIGNING_ENABLED
+              value: {{ .Values.env.EVIDENCE_SIGNING_ENABLED | quote }}
+            - name: AUDIT_WORM_ENABLED
+              value: {{ .Values.env.AUDIT_WORM_ENABLED | quote }}
+            - name: RAG_EMBEDDING_PROVIDER
+              value: {{ .Values.env.RAG_EMBEDDING_PROVIDER | quote }}
+            - name: COMPLIANCE_ENGINE_MODE
+              value: {{ .Values.env.COMPLIANCE_ENGINE_MODE | quote }}
+            - name: GATE530_RULE_REFRESH_INTERVAL
+              value: {{ .Values.env.GATE530_RULE_REFRESH_INTERVAL | quote }}
+            - name: LICENSURE_LOOKUP_TIMEOUT
+              value: {{ .Values.env.LICENSURE_LOOKUP_TIMEOUT | quote }}
+            - name: COS_PLUS_CACHE_TTL
+              value: {{ .Values.env.COS_PLUS_CACHE_TTL | quote }}
+            - name: VAULT_TRANSIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ios-plus.fullname" . }}-transit
+                  key: token
+                  optional: true
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ios-plus.fullname" . }}-jwt
+                  key: secret
+                  optional: true
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ios-plus.fullname" . }}-api
+                  key: key
+                  optional: true
+          envFrom:
+            - configMapRef:
+                name: {{ include "ios-plus.fullname" . }}-config
+                optional: true
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          startupProbe:
+            {{- toYaml .Values.startupProbe | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/cache
+            - name: vault-secrets
+              mountPath: /vault/secrets
+              readOnly: true
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+      
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi
+        - name: cache
+          emptyDir:
+            sizeLimit: 500Mi
+        - name: vault-secrets
+          emptyDir:
+            medium: Memory
+      
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "ios-plus.selectorLabels" . | nindent 14 }}

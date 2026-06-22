@@ -1,0 +1,10 @@
+state,naics_code,soc_code,enforcement_type,title,authority,effective_date
+CA,621111,29-1141,license,California RN License,California Board of Registered Nursing,2020-01-01
+CA,621330,29-1171,license,California NP License,California Board of Registered Nursing,2020-01-01
+CA,621511,29-2052,certification,California Pharmacy Technician Certification,California State Board of Pharmacy,2021-01-01
+TX,621111,29-1141,license,Texas RN License,Texas Board of Nursing,2019-01-01
+TX,621330,29-1171,license,Texas NP License,Texas Board of Nursing,2019-01-01
+TX,621511,29-2052,registration,Texas Pharmacy Technician Registration,Texas State Board of Pharmacy,2020-01-01
+FL,621111,29-1141,license,Florida RN License,Florida Board of Nursing,2018-01-01
+FL,621330,29-1171,license,Florida NP License,Florida Board of Nursing,2018-01-01
+FL,621511,29-2052,certification,Florida Pharmacy Technician Registration,Florida Board of Pharmacy,2022-01-01

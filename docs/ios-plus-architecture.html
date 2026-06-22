@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IOS+ Architecture — Education Compliance Platform</title>
+<style>
+:root {
+  --bg: #f4f7f6;
+  --text: #1a1a2e;
+  --text-muted: #5a5a6a;
+  --cloud-bg: #e8f4fd;
+  --cloud-border: #b3d9f7;
+  --engine-bg: #e6f5e6;
+  --engine-border: #a8d5a2;
+  --matrix-bg: #f0e6ff;
+  --matrix-border: #c9a8f0;
+  --copilot-bg: #f5f0ff;
+  --copilot-border: #d4c5f0;
+  --live-bg: #fff8e6;
+  --live-border: #f0d78c;
+  --reporter-bg: #e6f5e6;
+  --reporter-border: #a8d5a2;
+  --accent: #2c5aa0;
+  --shadow: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-hover: 0 8px 24px rgba(0,0,0,0.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 40px 20px;
+}
+.container { max-width: 1200px; margin: 0 auto; }
+h1 {
+  text-align: center;
+  font-size: 1.8rem;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-bottom: 40px;
+}
+
+/* Section labels */
+.section-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Cloud sources row */
+.cloud-row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.cloud-block {
+  background: var(--cloud-bg);
+  border: 1.5px solid var(--cloud-border);
+  border-radius: 12px;
+  padding: 16px 24px;
+  min-width: 180px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+}
+.cloud-block:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+  border-color: #7ab8e8;
+}
+.cloud-block h3 { font-size: 1rem; color: var(--accent); margin-bottom: 4px; }
+.cloud-block p { font-size: 0.8rem; color: var(--text-muted); }
+.cloud-block .tag {
+  position: absolute;
+  top: -8px;
+  right: 8px;
+  background: #fff;
+  border: 1px solid var(--cloud-border);
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* Arrow down */
+.arrow-down {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+/* Connector arrows */
+.connector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: -8px 0;
+  position: relative;
+  z-index: 1;
+}
+.connector-line {
+  width: 2px;
+  height: 24px;
+  background: #ccc;
+  position: relative;
+}
+.connector-line::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: -4px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 8px solid #ccc;
+}
+
+/* Engine block */
+.engine-block {
+  background: var(--engine-bg);
+  border: 2px solid var(--engine-border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  position: relative;
+}
+.engine-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2d6a4f;
+}
+.engine-header .right { color: var(--text-muted); font-weight: 500; font-size: 0.8rem; }
+
+.engine-inner {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.inner-block {
+  border-radius: 12px;
+  padding: 20px 24px;
+  min-width: 220px;
+  max-width: 300px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+}
+.inner-block:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+}
+.inner-block h4 { font-size: 1rem; margin-bottom: 6px; }
+.inner-block p { font-size: 0.8rem; line-height: 1.5; }
+
+.canonical { background: #eef8e8; border: 1.5px solid #c5e1a5; }
+.canonical:hover { border-color: #9ccc65; }
+.canonical h4 { color: #558b2f; }
+.matrix { background: var(--matrix-bg); border: 1.5px solid var(--matrix-border); }
+.matrix:hover { border-color: #a87be0; }
+.matrix h4 { color: #6a1b9a; }
+.evidence { background: #e8f5e9; border: 1.5px solid #a5d6a7; }
+.evidence:hover { border-color: #66bb6a; }
+.evidence h4 { color: #2e7d32; }
+
+/* Middle row */
+.middle-row {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.middle-block {
+  border-radius: 12px;
+  padding: 20px 24px;
+  min-width: 280px;
+  max-width: 420px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.middle-block:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+}
+.middle-block h4 { font-size: 1rem; margin-bottom: 6px; }
+.middle-block p { font-size: 0.8rem; line-height: 1.5; }
+
+.copilot-block { background: var(--copilot-bg); border: 1.5px solid var(--copilot-border); }
+.copilot-block:hover { border-color: #b39ddb; }
+.copilot-block h4 { color: #5e35b1; }
+.live-block { background: var(--live-bg); border: 1.5px solid var(--live-border); }
+.live-block:hover { border-color: #e6c35c; }
+.live-block h4 { color: #8d6e00; }
+
+/* Reporter block */
+.reporter-block {
+  background: var(--reporter-bg);
+  border: 2px solid var(--reporter-border);
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.reporter-block:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+  border-color: #81c784;
+}
+.reporter-block h3 { color: #2e7d32; font-size: 1.1rem; margin-bottom: 8px; }
+.reporter-block p { color: var(--text-muted); font-size: 0.85rem; line-height: 1.6; }
+
+/* Footer */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Detail panel */
+.detail-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.detail-overlay.active { display: flex; }
+.detail-panel {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 640px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  animation: slideIn 0.3s ease;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.detail-panel h2 { margin-bottom: 12px; font-size: 1.4rem; }
+.detail-panel .meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px; }
+.detail-panel .close-btn {
+  float: right;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  line-height: 1;
+}
+.detail-panel .close-btn:hover { color: var(--text); }
+.detail-panel ul { margin-left: 20px; margin-bottom: 16px; }
+.detail-panel li { margin-bottom: 6px; line-height: 1.5; }
+.detail-panel code {
+  background: #f0f0f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+.detail-panel .endpoint {
+  background: #1a1a2e;
+  color: #a8d5a2;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .engine-inner { flex-direction: column; align-items: center; }
+  .middle-row { flex-direction: column; align-items: center; }
+  .cloud-row { flex-direction: column; align-items: center; }
+  .inner-block, .middle-block { max-width: 100%; width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>IOS+ Architecture</h1>
+  <p class="subtitle">Education Compliance Platform — On-Premise Engine with Cloud Source Integration</p>
+
+  <!-- Cloud Sources -->
+  <div class="section-label">
+    <span>Cloud sources</span>
+    <span style="font-size:0.75rem; text-transform:none; font-weight:400;">vendor-hosted · read-only</span>
+  </div>
+  <div class="cloud-row">
+    <div class="cloud-block" onclick="openDetail('banner')">
+      <span class="tag">SIS</span>
+      <h3>Banner</h3>
+      <p>via Ethos</p>
+    </div>
+    <div class="cloud-block" onclick="openDetail('blackboard')">
+      <span class="tag">LMS</span>
+      <h3>Blackboard</h3>
+      <p>engagement</p>
+    </div>
+    <div class="cloud-block" onclick="openDetail('concourse')">
+      <span class="tag">Syllabi</span>
+      <h3>Concourse</h3>
+      <p>syllabi of record</p>
+    </div>
+    <div class="cloud-block" onclick="openDetail('copilot')">
+      <span class="tag">AI</span>
+      <h3>Microsoft Copilot</h3>
+      <p>AI tool governed</p>
+    </div>
+  </div>
+
+  <div class="arrow-down">API connectors · pull / sync</div>
+
+  <!-- IOS+ Engine -->
+  <div class="engine-block">
+    <div class="engine-header">
+      <span>IOS+ engine — on premises</span>
+      <span class="right">data never leaves campus</span>
+    </div>
+    <div class="engine-inner">
+      <div class="inner-block canonical" onclick="openDetail('canonical')">
+        <h4>Canonical layer</h4>
+        <p>one student, one record<br>pseudonymized · SYN</p>
+      </div>
+      <div class="inner-block matrix" onclick="openDetail('matrix')">
+        <h4>Universal Decoding Matrix</h4>
+        <p>CIP · SOC · NAICS · license<br>cited node + policy action</p>
+      </div>
+      <div class="inner-block evidence" onclick="openDetail('evidence')">
+        <h4>Evidence chain</h4>
+        <p>SHA-256 · trace id<br>lineage + audit</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"><div class="connector-line"></div></div>
+
+  <!-- Middle row -->
+  <div class="middle-row">
+    <div class="middle-block copilot-block" onclick="openDetail('copilot-orchestrated')">
+      <h4>Microsoft Copilot, orchestrated by the matrix</h4>
+      <p>answers only from cited nodes</p>
+    </div>
+    <div class="middle-block live-block" onclick="openDetail('live-check')">
+      <h4>Live check at query time</h4>
+      <p>confirms node, or flags change<br>regulatory lookup only — no PII</p>
+    </div>
+  </div>
+
+  <div class="connector"><div class="connector-line"></div></div>
+
+  <!-- EDU Reporter -->
+  <div class="reporter-block" onclick="openDetail('reporter')">
+    <h3>EDU Reporter</h3>
+    <p>monitored filings — IPEDS · CBM · NSLDS · FISAP · Clery<br>operational views + degree-plan-to-licensure lookup</p>
+  </div>
+
+  <div class="footer">
+    <span>Click any block to go deeper</span>
+    <span>Phase 2 connects live · licensure endpoint shipped</span>
+  </div>
+</div>
+
+<!-- Detail Overlay -->
+<div class="detail-overlay" id="detailOverlay" onclick="closeDetail(event)">
+  <div class="detail-panel" id="detailPanel" onclick="event.stopPropagation()">
+    <button class="close-btn" onclick="closeDetail()">&times;</button>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<script>
+const details = {
+  banner: {
+    title: 'Banner via Ethos',
+    meta: 'Student Information System (SIS) Integration',
+    body: `
+      <p>Banner by Ellucian is the primary student information system. The Ethos integration platform provides:</p>
+      <ul>
+        <li><strong>API Connectors:</strong> RESTful APIs for student records, enrollment, and academic history</li>
+        <li><strong>Pull/Sync:</strong> Scheduled ETL jobs to synchronize student data into the canonical layer</li>
+        <li><strong>Pseudonymization:</strong> Student PII is hashed before entering the IOS+ engine</li>
+        <li><strong>Read-only:</strong> No write-back to Banner; all mutations flow through the canonical layer</li>
+        <li><strong>Data:</strong> Student demographics, enrollment status, degree plans, academic standing, transcripts</li>
+      </ul>
+      <p><strong>Sync frequency:</strong> Every 15 minutes during business hours, hourly overnight.</p>
+    `
+  },
+  blackboard: {
+    title: 'Blackboard Engagement',
+    meta: 'Learning Management System (LMS) Integration',
+    body: `
+      <p>Blackboard Learn provides engagement and activity data for compliance monitoring:</p>
+      <ul>
+        <li><strong>Course engagement:</strong> Login frequency, time-on-task, assignment submission rates</li>
+        <li><strong>Academic activity:</strong> Discussion participation, assessment completion, grade progression</li>
+        <li><strong>Attendance proxy:</strong> LMS activity as a proxy for attendance verification</li>
+        <li><strong>Retention signals:</strong> Early warning indicators for SAP (Satisfactory Academic Progress)</li>
+      </ul>
+      <p>Data is anonymized via the canonical layer before entering the UDM for analysis.</p>
+    `
+  },
+  concourse: {
+    title: 'Concourse Syllabi of Record',
+    meta: 'Curriculum Management & Syllabus Repository',
+    body: `
+      <p>Concourse manages the official syllabi of record for regulatory compliance:</p>
+      <ul>
+        <li><strong>Syllabi of Record:</strong> Official course descriptions tied to CIP codes for Title IV compliance</li>
+        <li><strong>Learning Outcomes:</strong> Measurable outcomes mapped to SOC/NAICS occupational requirements</li>
+        <li><strong>Curriculum Alignment:</strong> Course content verification against state licensure prerequisites</li>
+        <li><strong>Audit Trail:</strong> Every syllabus revision is timestamped and signed in the evidence chain</li>
+      </ul>
+      <p>Syllabus data feeds the UDM to validate that programs prepare students for licensure.</p>
+    `
+  },
+  copilot: {
+    title: 'Microsoft Copilot',
+    meta: 'Governed AI Assistant — Read-Only Cloud Source',
+    body: `
+      <p><strong>Microsoft Copilot</strong> is a vendor-hosted AI tool that acts as a read-only cloud source into the IOS+ engine:</p>
+      <ul>
+        <li><strong>Governed Mode:</strong> All Microsoft Copilot responses are constrained by the Universal Decoding Matrix</li>
+        <li><strong>Query Log:</strong> Every Copilot query is logged in the evidence chain with SHA-256 signatures</li>
+        <li><strong>Answer Sourcing:</strong> Copilot answers only from cited nodes in the UDM — no hallucination</li>
+        <li><strong>Compliance Filter:</strong> PHI/PII is blocked at the canonical layer before reaching Microsoft Copilot</li>
+        <li><strong>Microsoft Graph Integration:</strong> Operates within the institution's Microsoft 365 tenant boundary</li>
+      </ul>
+      <p>Microsoft Copilot is <strong>not</strong> a source of truth. It is an interface layer that queries the IOS+ engine.</p>
+    `
+  },
+  canonical: {
+    title: 'Canonical Layer',
+    meta: 'One Student · One Record · Pseudonymized · SYN',
+    body: `
+      <p>The canonical layer is the single source of truth for student data within the IOS+ engine:</p>
+      <ul>
+        <li><strong>One Student, One Record:</strong> Deduplicates data from Banner, Blackboard, and other sources into a unified student profile</li>
+        <li><strong>Pseudonymization:</strong> All PII is hashed using SHA-256 with a campus-specific salt. The original ID is never stored in the engine.</li>
+        <li><strong>SYN (Synthetic Identifier):</strong> Each student is assigned a synthetic UUID that is consistent across all downstream systems</li>
+        <li><strong>Data Governance:</strong> Field-level provenance tracking — every value knows its source system and last sync time</li>
+        <li><strong>Change Detection:</strong> Differential sync detects changes at the source and triggers downstream re-evaluation</li>
+      </ul>
+      <p>The canonical layer ensures that no student PII ever leaves the campus network. All external-facing queries operate on pseudonymized identifiers.</p>
+      <div class="endpoint">POST /v1/canonical/resolve — resolve SYN to internal record</div>
+    `
+  },
+  matrix: {
+    title: 'Universal Decoding Matrix (UDM)',
+    meta: 'CIP · SOC · NAICS · License — Cited Node + Policy Action',
+    body: `
+      <p>The UDM is the governed ontology that maps educational programs to licensure requirements:</p>
+      <ul>
+        <li><strong>CIP (Classification of Instructional Programs):</strong> NCES taxonomy of educational programs (e.g., 51.3801 = Registered Nursing)</li>
+        <li><strong>SOC (Standard Occupational Classification):</strong> BLS taxonomy of occupations (e.g., 29-1141 = Registered Nurses)</li>
+        <li><strong>NAICS (North American Industry Classification):</strong> Census taxonomy of industries (e.g., 621111 = Offices of Physicians)</li>
+        <li><strong>License:</strong> State-level regulatory obligations from uco_obligation_metadata</li>
+        <li><strong>Cited Node:</strong> Every UDM traversal produces a cited node with provenance and confidence score</li>
+        <li><strong>Policy Action:</strong> Gate 530 evaluates each traversal against compliance policies before returning results</li>
+      </ul>
+      <p><strong>Traversal Paths:</strong></p>
+      <ul>
+        <li>Direct: <code>CIP → NAICS → State Obligation</code></li>
+        <li>Two-hop: <code>CIP → SOC → NAICS → State Obligation</code></li>
+      </ul>
+      <p><strong>Ranking:</strong> Direct matches first, then by confidence (descending), then by risk (ascending).</p>
+      <div class="endpoint">GET /v1/compliance/licensure/state-lookup?student_cip=51.3801&destination_state=CA</div>
+    `
+  },
+  evidence: {
+    title: 'Evidence Chain',
+    meta: 'SHA-256 · Trace ID · Lineage + Audit',
+    body: `
+      <p>Every decision in the IOS+ engine is cryptographically signed and auditable:</p>
+      <ul>
+        <li><strong>SHA-256 Hashing:</strong> Every evidence record includes a SHA-256 hash of its canonical payload</li>
+        <li><strong>Trace ID:</strong> Every request is assigned a trace ID that propagates through all layers for end-to-end lineage</li>
+        <li><strong>Ed25519 Signing:</strong> Evidence records are signed with Ed25519 keys (local or Vault Transit)</li>
+        <li><strong>JCS Canonicalization:</strong> Payloads are canonicalized per RFC 8785 before signing to ensure deterministic verification</li>
+        <li><strong>Chain Integrity:</strong> Each evidence record includes the previous record's hash, creating an immutable chain</li>
+        <li><strong>WORM Enforcement:</strong> Audit tables are protected by PostgreSQL triggers that block UPDATE and DELETE</li>
+        <li><strong>Triple Publication:</strong> Evidence is verified against three independent publication keys for cryptographic assurance</li>
+      </ul>
+      <p><strong>Retention:</strong> 7 years (2555 days) for audit events and evidence records per regulatory requirements.</p>
+      <div class="endpoint">GET /v1/evidence/:requestId — retrieve signed evidence record</div>
+    `
+  },
+  'copilot-orchestrated': {
+    title: 'Microsoft Copilot, Orchestrated by the Matrix',
+    meta: 'Answers Only from Cited Nodes',
+    body: `
+      <p><strong>Microsoft Copilot</strong> is orchestrated by the Universal Decoding Matrix to ensure all AI responses are grounded in cited evidence:</p>
+      <ul>
+        <li><strong>Cited Node Constraint:</strong> Microsoft Copilot can only generate answers from nodes that have been explicitly cited and verified by the UDM</li>
+        <li><strong>Source Grounding:</strong> Every answer includes the citation ID, UDM path, and confidence score of the underlying data</li>
+        <li><strong>Policy Gate:</strong> Gate 530 evaluates every Copilot query before execution — denied queries return a structured compliance error</li>
+        <li><strong>No PII:</strong> Microsoft Copilot operates on pseudonymized data; it never sees real student names, SSNs, or other PII</li>
+        <li><strong>Evidence Logging:</strong> Every Copilot query and response is logged in the evidence chain with a trace ID</li>
+        <li><strong>Tenant Isolation:</strong> Runs within the institution's Microsoft 365 tenant; data does not leave campus boundaries</li>
+      </ul>
+      <p>This architecture prevents AI hallucination by constraining Microsoft Copilot to only use verified, cited data from the UDM.</p>
+    `
+  },
+  'live-check': {
+    title: 'Live Check at Query Time',
+    meta: 'Confirms Node, or Flags Change — Regulatory Lookup Only, No PII',
+    body: `
+      <p>Every query triggers a live compliance check against current regulatory data:</p>
+      <ul>
+        <li><strong>Node Confirmation:</strong> The UDM verifies that the cited node is still valid (not expired, not revoked)</li>
+        <li><strong>Change Detection:</strong> If a state licensure requirement has changed since the last sync, the live check flags it</li>
+        <li><strong>Regulatory Lookup Only:</strong> The live check queries only regulatory metadata — no student PII is involved</li>
+        <li><strong>Fail-Closed:</strong> If the live check cannot confirm a node (e.g., API down), the system defaults to DENY with an escalation reason</li>
+        <li><strong>Cache Strategy:</strong> Regulatory data is cached for 24 hours; stale data triggers a background refresh</li>
+        <li><strong>Alerting:</strong> Changes in licensure requirements trigger alerts to compliance officers via the monitoring stack</li>
+      </ul>
+      <p>The live check ensures that answers are always based on the most current regulatory landscape, not stale cached data.</p>
+    `
+  },
+  reporter: {
+    title: 'EDU Reporter',
+    meta: 'Monitored Filings — Operational Views + Degree-Plan-to-Licensure Lookup',
+    body: `
+      <p>EDU Reporter is the compliance reporting and filing engine for higher education regulatory requirements:</p>
+      <ul>
+        <li><strong>IPEDS (Integrated Postsecondary Education Data System):</strong> Annual and fall/spring data collection submissions</li>
+        <li><strong>CBM (Consolidated Budget and Reporting):</strong> State-level budget and enrollment reporting</li>
+        <li><strong>NSLDS (National Student Loan Data System):</strong> Enrollment reporting and roster submission</li>
+        <li><strong>FISAP (Fiscal Operations Report):</strong> Federal student aid fiscal operations</li>
+        <li><strong>Clery Act:</strong> Campus safety and crime statistics reporting</li>
+      </ul>
+      <p><strong>Operational Views:</strong></p>
+      <ul>
+        <li>Degree-plan-to-licensure lookup: For each active degree plan, show the licensure requirements in all 50 states</li>
+        <li>SAP monitoring: Satisfactory Academic Progress tracking with early warning alerts</li>
+        <li>Enrollment verification: Real-time enrollment status for Title IV compliance</li>
+        <li>Program review dashboard: CIP-to-NAICS alignment with licensure coverage scores</li>
+      </ul>
+      <p>All reports are generated from the canonical layer with evidence-backed data lineage for audit defense.</p>
+      <div class="endpoint">GET /v1/reports/degree-plan-licensure — licensure coverage by degree plan</div>
+    `
+  }
+};
+
+function openDetail(key) {
+  const d = details[key];
+  if (!d) return;
+  document.getElementById('detailContent').innerHTML = 
+    '<h2>' + d.title + '</h2>' +
+    '<div class="meta">' + d.meta + '</div>' +
+    d.body;
+  document.getElementById('detailOverlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDetail(e) {
+  if (e && e.target !== document.getElementById('detailOverlay')) return;
+  document.getElementById('detailOverlay').classList.remove('active');
+  document.body.style.overflow = '';
+}
+</script>
+</body>
+</html>

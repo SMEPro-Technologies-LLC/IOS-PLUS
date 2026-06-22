@@ -1,0 +1,302 @@
+# ============================================================================
+# IOS+ Platform — Production Overlay
+# ============================================================================
+# Higher replica counts, stricter resource limits, HPA, PDB, dedicated node
+# selectors, and production-specific labels. All namespaces set to production.
+# ============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namePrefix: prod-
+
+namespace: api-gateway
+
+commonLabels:
+  environment: production
+  cost-center: lamar-cos
+
+commonAnnotations:
+  iosplus.io/environment: "production"
+
+resources:
+  - ../../
+
+patches:
+  # --- api-gateway: 5 replicas, stricter limits, HPA, PDB -------------------
+  - target:
+      kind: Deployment
+      name: ios-plus-api
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 5
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests
+        value:
+          cpu: "500m"
+          memory: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits
+        value:
+          cpu: "2000m"
+          memory: "2Gi"
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: api-gateway-pool
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: ios-plus-api-hpa
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 5
+      - op: replace
+        path: /spec/maxReplicas
+        value: 20
+      - op: replace
+        path: /spec/metrics/0/resource/target/averageUtilization
+        value: 70
+  - target:
+      kind: PodDisruptionBudget
+      name: ios-plus-api-pdb
+    patch: |
+      - op: replace
+        path: /spec/minAvailable
+        value: 2
+
+  # --- trust-model: 3 replicas for HA --------------------------------------
+  - target:
+      kind: Deployment
+      name: ios-plus-trust-model
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests
+        value:
+          cpu: "250m"
+          memory: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits
+        value:
+          cpu: "2000m"
+          memory: "2Gi"
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: trust-model-pool
+
+  # --- connector-ingestion: 5 replicas -------------------------------------
+  - target:
+      kind: Deployment
+      name: ios-plus-connector
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 5
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests
+        value:
+          cpu: "250m"
+          memory: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits
+        value:
+          cpu: "2000m"
+          memory: "2Gi"
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: connector-pool
+
+  # --- rules-workflow: 3 replicas ------------------------------------------
+  - target:
+      kind: Deployment
+      name: ios-plus-rules-workflow
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests
+        value:
+          cpu: "250m"
+          memory: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits
+        value:
+          cpu: "2000m"
+          memory: "2Gi"
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: rules-workflow-pool
+
+  # --- frontend-apps: 3 replicas -------------------------------------------
+  - target:
+      kind: Deployment
+      name: ios-plus-frontend
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests
+        value:
+          cpu: "100m"
+          memory: "128Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits
+        value:
+          cpu: "500m"
+          memory: "512Mi"
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: frontend-pool
+
+  # --- monitoring: 2 replicas, larger storage -------------------------------
+  - target:
+      kind: Deployment
+      name: ios-plus-prometheus
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests
+        value:
+          cpu: "500m"
+          memory: "2Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits
+        value:
+          cpu: "2000m"
+          memory: "4Gi"
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: monitoring-pool
+  - target:
+      kind: PersistentVolumeClaim
+      name: ios-plus-prometheus-pvc
+    patch: |
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 100Gi
+  - target:
+      kind: Deployment
+      name: ios-plus-grafana
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests
+        value:
+          cpu: "250m"
+          memory: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits
+        value:
+          cpu: "1000m"
+          memory: "1Gi"
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: monitoring-pool
+  - target:
+      kind: PersistentVolumeClaim
+      name: ios-plus-grafana-pvc
+    patch: |
+      - op: replace
+        path: /spec/resources/requests/storage
+        value: 20Gi
+
+  # --- ingress: production host only ---------------------------------------
+  - target:
+      kind: Ingress
+      name: ios-plus-api-ingress
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: app.ioscos.com
+      - op: remove
+        path: /spec/rules/1
+
+  # --- frontend config: production API URL ---------------------------------
+  - target:
+      kind: ConfigMap
+      name: ios-plus-frontend-config
+    patch: |
+      - op: replace
+        path: /data/API_BASE_URL
+        value: "https://app.ioscos.com/api/v2"
+      - op: replace
+        path: /data/ENV
+        value: "production"
+
+  # --- namespace labels: environment production -----------------------------
+  - target:
+      kind: Namespace
+      name: api-gateway
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: production
+  - target:
+      kind: Namespace
+      name: trust-model
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: production
+  - target:
+      kind: Namespace
+      name: connector-ingestion
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: production
+  - target:
+      kind: Namespace
+      name: normalization
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: production
+  - target:
+      kind: Namespace
+      name: rules-workflow
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: production
+  - target:
+      kind: Namespace
+      name: ml-jobs
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: production
+  - target:
+      kind: Namespace
+      name: frontend-apps
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: production
+  - target:
+      kind: Namespace
+      name: monitoring
+    patch: |
+      - op: replace
+        path: /metadata/labels/environment
+        value: production
+
+configMapGenerator:
+  - name: ios-plus-frontend-config
+    behavior: merge
+    literals:
+      - API_BASE_URL=https://app.ioscos.com/api/v2
+      - ENV=production

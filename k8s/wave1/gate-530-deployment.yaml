@@ -1,0 +1,99 @@
+# ------------------------------------------------------------------------
+# Wave 1 MVP — Kubernetes Deployment
+# gate-530 API: single-replica deployment with resource limits
+# ------------------------------------------------------------------------
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gate-530-api
+  namespace: api-gateway
+  labels:
+    app: gate-530-api
+    version: wave1
+    tier: api
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: gate-530-api
+      version: wave1
+  template:
+    metadata:
+      labels:
+        app: gate-530-api
+        version: wave1
+        tier: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3001"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: gate-530-api
+      containers:
+        - name: gate-530-api
+          image: gcr.io/PROJECT_ID/gate-530-api:WAVE1_TAG
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3001
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: gate-530-api-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: gate-530-db-credentials
+                  key: database-url
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gate-530-jwt-secret
+                  key: secret
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            runAsUser: 1001
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: evidence-keys
+              mountPath: /data/keys
+              readOnly: false
+      volumes:
+        - name: evidence-keys
+          emptyDir:
+            sizeLimit: 10Mi
+      terminationGracePeriodSeconds: 30

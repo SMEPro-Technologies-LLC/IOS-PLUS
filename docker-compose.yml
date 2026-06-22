@@ -1,0 +1,104 @@
+services:
+  ios-plus:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: ios-plus-dev
+    ports:
+      - "3001:3001"
+      - "9090:9090"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://iosplus:iosplus@postgres:5432/iosplus
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=dev-root-token
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vault:
+        condition: service_started
+    networks:
+      - ios-plus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: ios-plus-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: iosplus
+      POSTGRES_PASSWORD: iosplus
+      POSTGRES_DB: iosplus
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    networks:
+      - ios-plus
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iosplus -d iosplus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  vault:
+    image: hashicorp/vault:1.16
+    container_name: ios-plus-vault
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=dev-root-token
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    volumes:
+      - vault_data:/vault/file
+    networks:
+      - ios-plus
+    command: server -dev -dev-root-token-id="dev-root-token"
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: ios-plus-prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - ios-plus
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: ios-plus-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./infra/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - ios-plus
+
+networks:
+  ios-plus:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  vault_data:
+  prometheus_data:
+  grafana_data:

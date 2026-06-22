@@ -1,0 +1,29 @@
+# ------------------------------------------------------------------------
+# Wave 1 MVP — Kubernetes ConfigMap
+# Non-sensitive configuration for gate-530-api
+# ------------------------------------------------------------------------
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gate-530-api-config
+  namespace: api-gateway
+  labels:
+    app: gate-530-api
+    version: wave1
+data:
+  PORT: "3001"
+  HOST: "0.0.0.0"
+  NODE_ENV: "production"
+  JWT_ISSUER: "ios-plus-wave1"
+  JWT_CLOCK_TOLERANCE_SECONDS: "60"
+  CORS_ORIGINS: "*"
+  RATE_LIMIT_WINDOW_MS: "60000"
+  RATE_LIMIT_MAX_REQUESTS: "100"
+  ADMIN_RATE_LIMIT_WINDOW_MS: "60000"
+  ADMIN_RATE_LIMIT_MAX_REQUESTS: "10"
+  DB_MAX_CONNECTIONS: "10"
+  DB_CONNECTION_TIMEOUT_MS: "5000"
+  DB_IDLE_TIMEOUT_MS: "30000"
+  EVIDENCE_PRIVATE_KEY_PATH: "/data/keys/evidence.key"
+  EVIDENCE_ALGORITHM: "Ed25519"

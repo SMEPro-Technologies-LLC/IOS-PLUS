@@ -1,0 +1,65 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: ios-plus
+
+# --- Build configuration ---
+build:
+  artifacts:
+    - image: ios-plus
+      docker:
+        dockerfile: Dockerfile
+        buildArgs:
+          BUILDKIT_INLINE_CACHE: "1"
+  tagPolicy:
+    gitCommit: {}
+  local:
+    push: true
+    useBuildkit: true
+    concurrency: 0
+  platforms:
+    - linux/amd64
+
+# --- Deploy configuration ---
+deploy:
+  kubectl:
+    defaultNamespace: ios-plus
+
+# --- Kustomize overlays per profile ---
+profiles:
+  - name: staging
+    deploy:
+      kubectl:
+        manifests:
+          - ../k8s/overlays/staging/**
+        flags:
+          global:
+            - --namespace=ios-plus-staging
+
+  - name: production
+    deploy:
+      kubectl:
+        manifests:
+          - ../k8s/overlays/production/**
+        flags:
+          global:
+            - --namespace=ios-plus-production
+
+  - name: local
+    deploy:
+      kubectl:
+        manifests:
+          - ../k8s/overlays/local/**
+        flags:
+          global:
+            - --namespace=ios-plus-local
+
+# --- Local development dependencies ---
+# Cloud SQL Auth Proxy for local development database connectivity
+# port: 5432 → Cloud SQL instance
+portForward:
+  - resourceType: service
+    resourceName: cloud-sql-proxy
+    namespace: ios-plus-local
+    port: 5432
+    localPort: 5432

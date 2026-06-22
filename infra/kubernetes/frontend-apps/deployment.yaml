@@ -1,0 +1,191 @@
+# ============================================================================
+# IOS+ Platform — Frontend Apps Deployment (EDU Reporter React UI)
+# ============================================================================
+# Nginx serving the built React application. Talks to API Gateway only;
+# no direct database access. API_BASE_URL is injected via ConfigMap.
+# ============================================================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ios-plus-frontend-config
+  namespace: frontend-apps
+  labels:
+    app.kubernetes.io/name: ios-plus-frontend
+    cost-center: lamar-cos
+data:
+  API_BASE_URL: "https://app.ioscos.com/api/v2"
+  ENV: "production"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ios-plus-frontend
+  namespace: frontend-apps
+  labels:
+    app.kubernetes.io/name: ios-plus-frontend
+    app.kubernetes.io/component: frontend-apps
+    app.kubernetes.io/version: "v2.0.0"
+    cost-center: lamar-cos
+    tier: presentation
+spec:
+  replicas: 3
+  revisionHistoryLimit: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ios-plus-frontend
+        app.kubernetes.io/component: frontend-apps
+        app.kubernetes.io/version: "v2.0.0"
+        cost-center: lamar-cos
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: ios-plus-frontend-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ios-plus-frontend
+          image: ios-plus-frontend
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: API_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: ios-plus-frontend-config
+                  key: API_BASE_URL
+            - name: ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: ios-plus-frontend-config
+                  key: ENV
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /index.html
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /index.html
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 50Mi
+        - name: nginx-cache
+          emptyDir:
+            sizeLimit: 50Mi
+        - name: nginx-run
+          emptyDir:
+            sizeLimit: 10Mi
+        - name: nginx-config
+          configMap:
+            name: ios-plus-frontend-nginx-config
+            optional: true
+
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - ios-plus-frontend
+                topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ios-plus-frontend
+  namespace: frontend-apps
+  labels:
+    app.kubernetes.io/name: ios-plus-frontend
+    cost-center: lamar-cos
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"default": "ios-plus-frontend-backendconfig"}'
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ios-plus-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+
+---
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: ios-plus-frontend-backendconfig
+  namespace: frontend-apps
+spec:
+  timeoutSec: 60
+  connectionDraining:
+    drainingTimeoutSec: 30
+  healthCheck:
+    checkIntervalSec: 30
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /index.html
+    port: 80

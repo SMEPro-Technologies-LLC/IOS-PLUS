@@ -1,0 +1,16 @@
+type, code, title, description, parent_code
+CIP,51.3801,Registered Nursing/Registered Nurse,"Programs preparing individuals to practice as registered nurses in various settings.",51.38
+CIP,51.3802,Nursing Administration,"Programs focusing on nursing leadership and healthcare administration.",51.38
+CIP,51.3803,Adult Health Nursing,"Programs focusing on care for adult and geriatric patients.",51.38
+CIP,51.3804,Pediatric Nursing,"Programs focusing on nursing care for infants, children, and adolescents.",51.38
+CIP,51.3805,Psychiatric/Mental Health Nursing,"Programs focusing on mental health and psychiatric nursing.",51.38
+NAICS,621111,Offices of Physicians,"Establishments of health practitioners having the degree of M.D. or D.O.",621
+NAICS,621330,Offices of Mental Health Practitioners,"Establishments of independent mental health practitioners.",621
+NAICS,621410,Family Planning Centers,"Establishments providing family planning services.",621
+NAICS,621420,Outpatient Mental Health Centers,"Establishments providing outpatient mental health counseling.",621
+NAICS,621511,Medical Laboratories,"Establishments providing analytic or diagnostic services.",621
+SOC,29-1141,Registered Nurses,"Assess patient health problems and needs; develop and implement nursing care plans.",29-1140
+SOC,29-1171,Nurse Practitioners,"Diagnose and treat acute, episodic, or chronic illness.",29-1170
+SOC,29-1181,Audiologists,"Assess and treat persons with hearing and related disorders.",29-1180
+SOC,29-1199,Health Diagnosing and Treating Practitioners,"All other health diagnosing and treating practitioners.",29-1190
+SOC,29-2052,Pharmacy Technicians,"Prepare medications under the direction of a pharmacist.",29-2050

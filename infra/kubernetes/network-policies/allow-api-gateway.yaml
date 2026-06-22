@@ -1,0 +1,55 @@
+# ============================================================================
+# IOS+ Platform — Allow Ingress to API Gateway
+# ============================================================================
+# Permits external traffic from the GCE Ingress controller (managed by GKE)
+# and health-check probes to reach the api-gateway pods.
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-gateway-ingress
+  namespace: api-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: gke-managed-system
+      # GCE / GLB health checks originate from specific Google IPs; 
+      # allow GCE ingress controller pods (kube-system) plus
+      # any pods with the explicit ingress-proxy label.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: glbc
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: gke-metadata-server
+      ports:
+        - protocol: TCP
+          port: 3001
+        - protocol: TCP
+          port: 9090
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090

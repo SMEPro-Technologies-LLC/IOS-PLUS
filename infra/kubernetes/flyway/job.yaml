@@ -1,0 +1,180 @@
+# ============================================================================
+# IOS+ Platform — Flyway Database Migration Job
+# ============================================================================
+# Post-deployment migration job using Flyway with validateOnMigrate=true.
+# Cloud SQL Auth Proxy sidecar provides DB connectivity. Migrations are
+# mounted from a ConfigMap or fetched by an init container from GCS.
+# ============================================================================
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ios-plus-flyway-migrate
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: ios-plus-flyway
+    app.kubernetes.io/component: database-migration
+    app.kubernetes.io/version: "latest"
+    cost-center: lamar-cos
+    tier: core
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 3
+  activeDeadlineSeconds: 1800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ios-plus-flyway
+        app.kubernetes.io/component: database-migration
+        cost-center: lamar-cos
+    spec:
+      serviceAccountName: ios-plus-api-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        # Fetch migrations from GCS (or use ConfigMap for simpler cases)
+        - name: fetch-migrations
+          image: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+          imagePullPolicy: Always
+          command:
+            - "/bin/sh"
+            - "-c"
+            - |
+              mkdir -p /flyway/sql && \
+              gsutil -m cp -r gs://lamar-cos-ios-plus-db-migrations/* /flyway/sql/ || \
+              echo "No GCS migrations found; using baked-in image migrations"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: migrations
+              mountPath: /flyway/sql
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: flyway
+          image: flyway
+          imagePullPolicy: Always
+          command:
+            - "flyway"
+            - "-url=jdbc:postgresql://localhost:5432/cos"
+            - "-user=$(DB_USER)"
+            - "-password=$(DB_PASSWORD)"
+            - "-locations=filesystem:/flyway/sql"
+            - "-validateOnMigrate=true"
+            - "-baselineOnMigrate=true"
+            - "migrate"
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-flyway-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-flyway-secrets
+                  key: DB_PASSWORD
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: migrations
+              mountPath: /flyway/sql
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+
+        - name: cloudsql-auth-proxy
+          image: cloudsql-auth-proxy
+          imagePullPolicy: Always
+          command:
+            - "/cloud-sql-proxy"
+            - "--private-ip"
+            - "--structured-logs"
+            - "--port=5432"
+            - "lamar-cos:us-central1:cos-db"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          ports:
+            - name: cloudsql
+              containerPort: 5432
+              protocol: TCP
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: migrations
+          emptyDir:
+            sizeLimit: 500Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi
+      restartPolicy: OnFailure
+
+---
+# Alternative: ConfigMap-based migrations for lightweight environments
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ios-plus-flyway-migrations
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: ios-plus-flyway
+    cost-center: lamar-cos
+data:
+  # Placeholder: add actual migration SQL here or use GCS init container above
+  V1__baseline.sql: |
+    -- Baseline migration created by Flyway baselineOnMigrate
+    SELECT 1;
+  V2__create_udm_tables.sql: |
+    -- UDM canonical tables
+    CREATE SCHEMA IF NOT EXISTS udm;

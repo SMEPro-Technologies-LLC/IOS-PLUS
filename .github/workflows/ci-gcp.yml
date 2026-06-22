@@ -1,0 +1,248 @@
+name: CI — GCP
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ secrets.GCP_REGION }}
+  GAR_REPOSITORY: ${{ secrets.GAR_REPOSITORY }}
+  IMAGE_NAME: ios-plus
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+        working-directory: ios-plus/infra/terraform
+
+      - name: Terraform validate
+        run: |
+          terraform init -backend=false
+          terraform validate
+        working-directory: ios-plus/infra/terraform
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.50.0
+
+      - name: Init TFLint
+        run: tflint --init
+        working-directory: ios-plus/infra/terraform
+
+      - name: Run TFLint
+        run: tflint -f compact
+        working-directory: ios-plus/infra/terraform
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.14.0'
+
+      - name: Helm lint
+        run: |
+          for chart in ios-plus/infra/helm/charts/*/; do
+            helm lint "$chart"
+          done
+
+      - name: YAML lint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          config_file: .yamllint.yml
+          file_or_dir: |
+            ios-plus/infra/k8s
+            ios-plus/infra/helm
+            ios-plus/infra/cloud-deploy
+
+  test:
+    name: Test & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ios-plus/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ios-plus
+
+      - name: Run typecheck
+        run: npm run typecheck
+        working-directory: ios-plus
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+        working-directory: ios-plus
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ios-plus/coverage/
+          retention-days: 7
+
+      - name: Upload lcov
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov-report
+          path: ios-plus/coverage/lcov.info
+          retention-days: 7
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ios-plus/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ios-plus
+
+      - name: Snyk scan — npm dependencies
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --file=ios-plus/package.json --json-file-output=snyk-report.json
+
+      - name: Upload Snyk report
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-report
+          path: snyk-report.json
+          retention-days: 7
+
+      - name: Build Docker image for Trivy
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:scan \
+            -f ios-plus/Dockerfile ios-plus/
+
+      - name: Trivy scan — Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '${{ env.IMAGE_NAME }}:scan'
+          format: 'sarif'
+          output: 'trivy-report.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy report to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-report.sarif'
+
+      - name: Upload Trivy report artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-report
+          path: trivy-report.sarif
+          retention-days: 7
+
+      - name: Checkov — Terraform security scan
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: ios-plus/infra/terraform
+          framework: terraform
+          output_format: cli,sarif
+          output_file_path: checkov-report.sarif
+          soft_fail: true
+
+      - name: Upload Checkov report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: checkov-report
+          path: checkov-report.sarif
+          retention-days: 7
+
+  build:
+    name: Build & Push to GAR
+    runs-on: ubuntu-latest
+    needs: [lint, test, security]
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup GCP Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for GAR
+        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ios-plus
+          file: ios-plus/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Output image digest
+        run: |
+          echo "Image pushed: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"

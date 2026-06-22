@@ -1,0 +1,61 @@
+cip_code,soc_code,state_abbrev,state_name,license_type,compact_member,compact_status,endorsement_required,reciprocity_available,exam_required,ce_hours_per_cycle,cycle_length_years,source_url,last_verified
+51.3801,29-1141,TX,Texas,Registered Nurse (RN),TRUE,Fully Active,FALSE,FALSE,NCLEX-RN,20,2,https://www.bon.texas.gov,2026-06-20
+51.3801,29-1141,CA,California,Registered Nurse (RN),FALSE,Non-Compact,TRUE,FALSE,NCLEX-RN,30,2,https://www.rn.ca.gov,2026-06-20
+51.3801,29-1141,NY,New York,Registered Nurse (RN),FALSE,Non-Compact,TRUE,FALSE,NCLEX-RN,3 courses,3,https://www.op.nysed.gov/prof/nurse,2026-06-20
+51.3801,29-1141,FL,Florida,Registered Nurse (RN),TRUE,Fully Active,FALSE,FALSE,NCLEX-RN,24,2,https://floridasnursing.gov,2026-06-20
+51.3801,29-1141,PA,Pennsylvania,Registered Nurse (RN),TRUE,Fully Active,FALSE,FALSE,NCLEX-RN,30,2,https://www.dos.pa.gov/nursing,2026-06-20
+51.3801,29-1141,WA,Washington,Registered Nurse (RN),TRUE,Fully Active,FALSE,FALSE,NCLEX-RN,45,3,https://www.doh.wa.gov/Nursing,2026-06-20
+51.3801,29-1141,OR,Oregon,Registered Nurse (RN),FALSE,Non-Compact,TRUE,FALSE,NCLEX-RN,30,2,https://www.oregon.gov/osbn,2026-06-20
+51.3801,29-1141,IL,Illinois,Registered Nurse (RN),FALSE,Pending Legislation,TRUE,FALSE,NCLEX-RN,20,2,https://www.idfpr.com/profs/nursing,2026-06-20
+51.3801,29-1141,OH,Ohio,Registered Nurse (RN),TRUE,Fully Active,FALSE,FALSE,NCLEX-RN,24,2,https://nursing.ohio.gov,2026-06-20
+51.3801,29-1141,MI,Michigan,Registered Nurse (RN),FALSE,Pending Legislation,TRUE,FALSE,NCLEX-RN,25,2,https://www.michigan.gov/lara/nursing,2026-06-20
+51.3801,29-1141,NC,North Carolina,Registered Nurse (RN),TRUE,Fully Active,FALSE,FALSE,NCLEX-RN,24,2,https://www.ncbon.com,2026-06-20
+51.3801,29-1141,GA,Georgia,Registered Nurse (RN),TRUE,Fully Active,FALSE,FALSE,NCLEX-RN,20,2,https://sos.ga.gov/nursing,2026-06-20
+51.3801,29-1141,AZ,Arizona,Registered Nurse (RN),TRUE,Fully Active,FALSE,FALSE,NCLEX-RN,NR,4,https://www.azbn.gov,2026-06-20
+51.3801,29-1141,CO,Colorado,Registered Nurse (RN),TRUE,Fully Active,FALSE,FALSE,NCLEX-RN,NR,2,https://www.dora.colorado.gov/nursing,2026-06-20
+51.3801,29-1141,MA,Massachusetts,Registered Nurse (RN),TRUE,Enacted Pending,FALSE,FALSE,NCLEX-RN,15,2,https://www.mass.gov/nursing,2026-06-20
+51.3801,29-1141,GU,Guam,Registered Nurse (RN),TRUE,Partial Implementation,FALSE,FALSE,NCLEX-RN,NR,2,https://dphss.guam.gov/board-of-nurse-examiners,2026-06-20
+51.3801,29-1141,VI,U.S. Virgin Islands,Registered Nurse (RN),TRUE,Enacted Pending,TRUE,FALSE,NCLEX-RN,NR,2,https://doh.vi.gov/nursing,2026-06-20
+51.3801,29-1141,NV,Nevada,Registered Nurse (RN),FALSE,Non-Compact,TRUE,FALSE,NCLEX-RN,30,2,https://www.nursingboard.nv.gov,2026-06-20
+51.3801,29-1141,AK,Alaska,Registered Nurse (RN),FALSE,Pending Legislation,TRUE,FALSE,NCLEX-RN,30,2,https://www.commerce.alaska.gov/web/cbpl/professionallicensing/boardofnursing.aspx,2026-06-20
+51.3801,29-1141,HI,Hawaii,Registered Nurse (RN),FALSE,Pending Legislation,TRUE,FALSE,NCLEX-RN,30,2,https://cca.hawaii.gov/pvl/boards/nursing,2026-06-20
+51.3801,29-1141,MN,Minnesota,Registered Nurse (RN),FALSE,Pending Legislation,TRUE,FALSE,NCLEX-RN,24,2,https://mn.gov/nursing-board,2026-06-20
+51.3801,29-1141,DC,District of Columbia,Registered Nurse (RN),FALSE,Pending Legislation,TRUE,FALSE,NCLEX-RN,18,2,https://dchealth.dc.gov/board-nursing,2026-06-20
+51.3801,29-1171,TX,Texas,Nurse Practitioner (APRN),TRUE,Fully Active,FALSE,FALSE,NCLEX-RN + National Cert,20,2,https://www.bon.texas.gov,2026-06-20
+51.3801,29-1171,CA,California,Nurse Practitioner (APRN),FALSE,Non-Compact,TRUE,FALSE,NCLEX-RN + National Cert,30,2,https://www.rn.ca.gov,2026-06-20
+51.3801,29-1171,NY,New York,Nurse Practitioner (APRN),FALSE,Non-Compact,TRUE,FALSE,NCLEX-RN + National Cert,3 courses,3,https://www.op.nysed.gov/prof/nurse,2026-06-20
+51.3801,29-1171,FL,Florida,Nurse Practitioner (APRN),TRUE,Fully Active,FALSE,FALSE,NCLEX-RN + National Cert,24,2,https://floridasnursing.gov,2026-06-20
+51.3801,29-1171,PA,Pennsylvania,Nurse Practitioner (APRN),TRUE,Fully Active,FALSE,FALSE,NCLEX-RN + National Cert,30,2,https://www.dos.pa.gov/nursing,2026-06-20
+51.1201,29-1218,TX,Texas,Physician (MD/DO),TRUE,Fully Active,FALSE,FALSE,USMLE Steps 1-3 + State Board,NR,1-3,https://www.tmb.state.tx.us,2026-06-20
+51.1201,29-1218,CA,California,Physician (MD/DO),FALSE,Non-Compact,TRUE,FALSE,USMLE Steps 1-3 + State Board,NR,2,https://www.mbc.ca.gov,2026-06-20
+51.1201,29-1218,NY,New York,Physician (MD/DO),FALSE,Non-Compact,TRUE,FALSE,USMLE Steps 1-3 + State Board,NR,2,https://www.op.nysed.gov/prof/med,2026-06-20
+51.1201,29-1218,FL,Florida,Physician (MD/DO),TRUE,Fully Active,FALSE,FALSE,USMLE Steps 1-3 + State Board,NR,2,https://www.flmedicalboard.gov,2026-06-20
+51.1201,29-1218,PA,Pennsylvania,Physician (MD/DO),TRUE,Fully Active,FALSE,FALSE,USMLE Steps 1-3 + State Board,NR,2,https://www.dos.pa.gov/medicalboard,2026-06-20
+51.1201,29-1218,WA,Washington,Physician (MD/DO),TRUE,Fully Active,FALSE,FALSE,USMLE Steps 1-3 + State Board,NR,3,https://www.doh.wa.gov/MedicalCommission,2026-06-20
+51.1201,29-1218,OR,Oregon,Physician (MD/DO),FALSE,Non-Compact,TRUE,FALSE,USMLE Steps 1-3 + State Board,NR,2,https://www.oregon.gov/OMB,2026-06-20
+51.1201,29-1218,OH,Ohio,Physician (MD/DO),TRUE,Fully Active,FALSE,FALSE,USMLE Steps 1-3 + State Board,NR,2,https://med.ohio.gov,2026-06-20
+51.1201,29-1218,NC,North Carolina,Physician (MD/DO),TRUE,Fully Active,FALSE,FALSE,USMLE Steps 1-3 + State Board,NR,3,https://www.ncmedboard.com,2026-06-20
+51.1201,29-1218,GA,Georgia,Physician (MD/DO),TRUE,Fully Active,FALSE,FALSE,USMLE Steps 1-3 + State Board,NR,2,https://medicalboard.georgia.gov,2026-06-20
+51.1201,29-1218,AZ,Arizona,Physician (MD/DO),TRUE,Fully Active,FALSE,FALSE,USMLE Steps 1-3 + State Board,NR,2,https://www.azmd.gov,2026-06-20
+51.1201,29-1218,CO,Colorado,Physician (MD/DO),TRUE,Fully Active,FALSE,FALSE,USMLE Steps 1-3 + State Board,NR,2,https://www.dora.colorado.gov/medical,2026-06-20
+51.1201,29-1218,MA,Massachusetts,Physician (MD/DO),FALSE,Pending Legislation,TRUE,FALSE,USMLE Steps 1-3 + State Board,NR,2,https://www.mass.gov/board-registration-medicine,2026-06-20
+51.1201,29-1218,GU,Guam,Physician (MD/DO),TRUE,Fully Active,FALSE,FALSE,USMLE Steps 1-3 + State Board,NR,2,https://dphss.guam.gov/board-of-medical-examiners,2026-06-20
+51.1201,29-1218,AK,Alaska,Physician (MD/DO),FALSE,Pending Legislation,TRUE,FALSE,USMLE Steps 1-3 + State Board,NR,2,https://www.commerce.alaska.gov/web/cbpl/professionallicensing/medical.aspx,2026-06-20
+51.1201,29-1218,HI,Hawaii,Physician (MD/DO),TRUE,Member Not SPL,TRUE,TRUE,USMLE Steps 1-3 + State Board,NR,2,https://cca.hawaii.gov/pvl/boards/medical,2026-06-20
+51.1201,29-1218,VT,Vermont,Physician (MD/DO),TRUE,Member Not SPL,TRUE,TRUE,USMLE Steps 1-3 + State Board,NR,2,https://www.healthvermont.gov/professionals-medical-practice-board,2026-06-20
+51.1201,29-1218,AR,Arkansas,Physician (MD/DO),TRUE,Implementation In Progress,TRUE,TRUE,USMLE Steps 1-3 + State Board,NR,2,https://www.armedicalboard.org,2026-06-20
+51.1201,29-1218,NM,New Mexico,Physician (MD/DO),TRUE,Implementation In Progress,TRUE,TRUE,USMLE Steps 1-3 + State Board,NR,2,https://www.rld.state.nm.us/boards/medical.aspx,2026-06-20
+51.1201,29-1218,RI,Rhode Island,Physician (MD/DO),TRUE,Implementation In Progress,TRUE,TRUE,USMLE Steps 1-3 + State Board,NR,2,https://health.ri.gov/licenses/detail.php?id=231,2026-06-20
+51.2001,19-3033,TX,Texas,Psychologist (PhD/PsyD),FALSE,Non-Compact,TRUE,TRUE,EPPP + State Board,NR,2,https://www.tsbep.texas.gov,2026-06-20
+51.2001,19-3033,CA,California,Psychologist (PhD/PsyD),FALSE,Non-Compact,TRUE,FALSE,EPPP + State Board,NR,2,https://www.psychology.ca.gov,2026-06-20
+51.2001,19-3033,NY,New York,Psychologist (PhD/PsyD),FALSE,Pending Legislation,TRUE,FALSE,EPPP + State Board,NR,2,https://www.op.nysed.gov/prof/psych,2026-06-20
+51.2001,19-3033,FL,Florida,Psychologist (PhD/PsyD),TRUE,Fully Active,FALSE,FALSE,EPPP + State Board + APIT,NR,2,https://floridaspsychology.gov,2026-06-20
+51.2001,19-3033,PA,Pennsylvania,Psychologist (PhD/PsyD),TRUE,Fully Active,FALSE,FALSE,EPPP + State Board + APIT,NR,2,https://www.dos.pa.gov/psychology,2026-06-20
+51.2001,19-3033,TX,Texas,Psychologist (PhD/PsyD),TRUE,Fully Active,FALSE,FALSE,EPPP + State Board + APIT,NR,2,https://www.tsbep.texas.gov,2026-06-20
+51.2001,19-3033,MT,Montana,Psychologist (PhD/PsyD),TRUE,Fully Active,FALSE,FALSE,EPPP + State Board + APIT,NR,2,https://boards.bsd.dli.mt.gov/psych,2026-06-20
+51.2001,19-3033,DC,District of Columbia,Psychologist (PhD/PsyD),TRUE,Fully Active,FALSE,FALSE,EPPP + State Board + APIT,NR,2,https://dchealth.dc.gov/board-psychology,2026-06-20
+51.2001,19-3033,CN,Commonwealth of Northern Mariana Islands,Psychologist (PhD/PsyD),TRUE,Fully Active,FALSE,FALSE,EPPP + State Board + APIT,NR,2,https://www.psypact.gov,2026-06-20
+51.2001,19-3033,HI,Hawaii,Psychologist (PhD/PsyD),FALSE,Pending Legislation,TRUE,FALSE,EPPP + State Board,NR,2,https://cca.hawaii.gov/pvl/boards/psychology,2026-06-20
+51.2001,19-3033,IA,Iowa,Psychologist (PhD/PsyD),FALSE,Pending Legislation,TRUE,FALSE,EPPP + State Board,NR,2,https://idph.iowa.gov/licensure/psychology,2026-06-20
+51.2001,19-3033,MA,Massachusetts,Psychologist (PhD/PsyD),FALSE,Pending Legislation,TRUE,FALSE,EPPP + State Board,NR,2,https://www.mass.gov/orgs/board-of-registration-of-psychologists,2026-06-20
+51.2001,19-3033,LA,Louisiana,Psychologist (PhD/PsyD),FALSE,Pending Legislation,TRUE,FALSE,EPPP + State Board,NR,2,https://www.lsbep.org,2026-06-20

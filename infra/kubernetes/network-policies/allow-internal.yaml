@@ -1,0 +1,347 @@
+# ============================================================================
+# IOS+ Platform — Allow Internal Inter-Namespace Communication
+# ============================================================================
+# Approved data-flow paths between engine layers. Deny by default;
+# allow only the specific communication paths required by the v2 architecture.
+# ============================================================================
+
+# api-gateway -> trust-model (canonical queries, UDM reads, evidence chain)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-gateway-to-trust-model
+  namespace: trust-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-trust-model
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+      ports:
+        - protocol: TCP
+          port: 3000
+
+---
+# api-gateway -> connector-ingestion (admin / trigger connectors)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-gateway-to-connector-ingestion
+  namespace: connector-ingestion
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-connector
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+      ports:
+        - protocol: TCP
+          port: 3000
+
+---
+# api-gateway -> rules-workflow (Gate 530 evaluations, approval queue APIs)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-gateway-to-rules-workflow
+  namespace: rules-workflow
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-rules-workflow
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+      ports:
+        - protocol: TCP
+          port: 3000
+
+---
+# api-gateway -> normalization (trigger ETL, status checks)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-gateway-to-normalization
+  namespace: normalization
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-normalization
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+      ports:
+        - protocol: TCP
+          port: 3000
+
+---
+# api-gateway -> ml-jobs (trigger scoring, fetch results)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-gateway-to-ml-jobs
+  namespace: ml-jobs
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-ml-jobs
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+      ports:
+        - protocol: TCP
+          port: 3000
+
+---
+# connector-ingestion -> trust-model (write raw evidence, canonical records)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-connector-to-trust-model
+  namespace: trust-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-trust-model
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: connector-ingestion
+      ports:
+        - protocol: TCP
+          port: 3000
+
+---
+# normalization -> trust-model (write normalized canonical data, UDM updates)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-normalization-to-trust-model
+  namespace: trust-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-trust-model
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: normalization
+      ports:
+        - protocol: TCP
+          port: 3000
+
+---
+# rules-workflow -> trust-model (policy evaluation results, evidence signing)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-rules-to-trust-model
+  namespace: trust-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-trust-model
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: rules-workflow
+      ports:
+        - protocol: TCP
+          port: 3000
+
+---
+# ml-jobs -> trust-model (write risk scores, drift flags, indexing metadata)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ml-jobs-to-trust-model
+  namespace: trust-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-trust-model
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: ml-jobs
+      ports:
+        - protocol: TCP
+          port: 3000
+
+---
+# frontend-apps -> api-gateway (React UI calls REST / GraphQL / webhooks)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-api-gateway
+  namespace: api-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: frontend-apps
+      ports:
+        - protocol: TCP
+          port: 3001
+
+---
+# monitoring -> all namespaces (Prometheus scrape, health probes)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-scrape
+  namespace: api-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-scrape
+  namespace: trust-model
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-trust-model
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-scrape
+  namespace: connector-ingestion
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-connector
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-scrape
+  namespace: rules-workflow
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-rules-workflow
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-scrape
+  namespace: ml-jobs
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-ml-jobs
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-scrape
+  namespace: frontend-apps
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+      ports:
+        - protocol: TCP
+          port: 9090

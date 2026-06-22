@@ -1,0 +1,192 @@
+name: Audit — Clean-Room GCP
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # Every Monday at 06:00 UTC
+  workflow_dispatch:
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ secrets.GCP_REGION }}
+  GAR_REPOSITORY: ${{ secrets.GAR_REPOSITORY }}
+  AUDIT_NAMESPACE: ios-plus-audit
+  COVERAGE_GATE: 80
+
+jobs:
+  audit:
+    name: Clean-Room Audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup GCP Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.29.0'
+
+      - name: Get GKE credentials
+        run: |
+          gcloud container clusters get-credentials ios-plus-staging \
+            --region="${{ secrets.GCP_REGION }}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}"
+
+      - name: Build audit image
+        run: |
+          docker build -t audit-image:latest \
+            -f ios-plus/Dockerfile.test ios-plus/
+
+      - name: Tag and push audit image to GAR
+        run: |
+          gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+          docker tag audit-image:latest \
+            ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/ios-plus-audit:${{ github.run_id }}
+          docker push \
+            ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/ios-plus-audit:${{ github.run_id }}
+
+      - name: Create ephemeral namespace
+        run: |
+          kubectl create namespace ${{ env.AUDIT_NAMESPACE }} || true
+          kubectl label namespace ${{ env.AUDIT_NAMESPACE }} purpose=audit --overwrite
+
+      - name: Apply Cloud SQL Auth Proxy sidecar
+        run: |
+          cat <<EOF | kubectl apply -n ${{ env.AUDIT_NAMESPACE }} -f -
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: cloudsql-instance-credentials
+          type: Opaque
+          stringData:
+            credentials.json: '${{ secrets.GCP_CLOUDSQL_SA_KEY }}'
+          ---
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: audit-config
+          data:
+            NODE_ENV: test
+            DB_HOST: "127.0.0.1"
+            DB_PORT: "5432"
+            DB_NAME: ios_plus_audit
+            DB_SSL: "false"
+          ---
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: ios-plus-audit
+          spec:
+            template:
+              spec:
+                restartPolicy: Never
+                serviceAccountName: ios-plus-audit-sa
+                containers:
+                  - name: audit
+                    image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/ios-plus-audit:${{ github.run_id }}
+                    command: ["npm", "run", "test:coverage"]
+                    envFrom:
+                      - configMapRef:
+                          name: audit-config
+                    env:
+                      - name: DB_USER
+                        valueFrom:
+                          secretKeyRef:
+                            name: audit-db-credentials
+                            key: username
+                      - name: DB_PASSWORD
+                        valueFrom:
+                          secretKeyRef:
+                            name: audit-db-credentials
+                            key: password
+                    volumeMounts:
+                      - name: coverage
+                        mountPath: /app/coverage
+                  - name: cloud-sql-proxy
+                    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.9.0
+                    args:
+                      - "--structured-logs"
+                      - "--port=5432"
+                      - "--credentials-file=/secrets/credentials.json"
+                      - "${{ secrets.GCP_PROJECT_ID }}:${{ secrets.GCP_REGION }}:ios-plus-audit"
+                    securityContext:
+                      runAsNonRoot: true
+                    volumeMounts:
+                      - name: cloudsql-credentials
+                        mountPath: /secrets
+                        readOnly: true
+                volumes:
+                  - name: cloudsql-credentials
+                    secret:
+                      secretName: cloudsql-instance-credentials
+                  - name: coverage
+                    emptyDir: {}
+            backoffLimit: 0
+          EOF
+
+      - name: Wait for audit job to complete
+        run: |
+          kubectl wait --for=condition=complete job/ios-plus-audit \
+            -n ${{ env.AUDIT_NAMESPACE }} --timeout=900s
+
+      - name: Copy coverage from audit pod
+        run: |
+          POD=$(kubectl get pods -n ${{ env.AUDIT_NAMESPACE }} \
+            -l job-name=ios-plus-audit -o jsonpath='{.items[0].metadata.name}')
+          kubectl cp ${{ env.AUDIT_NAMESPACE }}/${POD}:/app/coverage ./coverage
+
+      - name: Enforce coverage gate
+        run: |
+          if [ ! -f ./coverage/lcov.info ]; then
+            echo "Coverage report not found!"
+            exit 1
+          fi
+
+          # Extract coverage percentage from lcov summary
+          COVERAGE=$(grep -oP 'LF:\K[0-9]+' ./coverage/lcov.info | awk '{s+=$1} END {print s}')
+          HIT=$(grep -oP 'LH:\K[0-9]+' ./coverage/lcov.info | awk '{s+=$1} END {print s}')
+          PCT=$(awk "BEGIN {printf \"%.2f\", ($HIT/$COVERAGE)*100}")
+          echo "Coverage: $PCT%"
+
+          if (( $(echo "$PCT < ${{ env.COVERAGE_GATE }}" | bc -l) )); then
+            echo "Coverage gate failed: $PCT% < ${{ env.COVERAGE_GATE }}%"
+            exit 1
+          fi
+          echo "Coverage gate passed: $PCT% >= ${{ env.COVERAGE_GATE }}%"
+
+      - name: Upload coverage artifacts to GCS
+        run: |
+          gsutil -m cp -r ./coverage \
+            gs://${{ secrets.GCP_PROJECT_ID }}-audit-reports/ios-plus/${{ github.run_id }}/
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-coverage
+          path: ./coverage/
+          retention-days: 30
+
+      - name: Cleanup ephemeral namespace
+        if: always()
+        run: |
+          kubectl delete namespace ${{ env.AUDIT_NAMESPACE }} --ignore-not-found=true --wait=false
+
+      - name: Cleanup audit image from GAR
+        if: always()
+        run: |
+          gcloud artifacts docker images delete \
+            ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/ios-plus-audit:${{ github.run_id }} \
+            --quiet || true

@@ -1,0 +1,45 @@
+apiVersion: deploy.cloud.google.com/v1
+kind: DeliveryPipeline
+metadata:
+  name: ios-plus-pipeline
+  description: IOS+ Cloud Deploy delivery pipeline
+  labels:
+    app: ios-plus
+    managed-by: cloud-deploy
+spec:
+  # --- Skaffold integration ---
+  skaffoldModules:
+    - configs:
+        - ios-plus
+      source:
+        path: skaffold.yaml
+
+  # --- Promotion sequence ---
+  serialPipeline:
+    stages:
+      - targetId: staging
+        profiles:
+          - staging
+
+      - targetId: production
+        profiles:
+          - production
+        strategy:
+          canary:
+            runtimeConfig:
+              kubernetes:
+                serviceNetworking:
+                  service: "ios-plus"
+                  deployment: "ios-plus"
+            # --- Canary rollout for production ---
+            canaryDeployment:
+              # 25% → 50% → 75% → 100%
+              percentages: [25, 50, 75]
+              # Verify each canary phase before proceeding
+              verify: true
+
+---
+# --- Automated rollback on failed verification ---
+# Rollback is triggered automatically when verification fails.
+# This is enforced by the Cloud Deploy service when verify: true
+# and the verification job returns a non-zero exit code.

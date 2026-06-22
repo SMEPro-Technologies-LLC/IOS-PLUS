@@ -1,0 +1,70 @@
+# ============================================================================
+# IOS+ Platform — Base Kustomization
+# ============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: api-gateway
+
+commonLabels:
+  app.kubernetes.io/part-of: ios-plus
+  app.kubernetes.io/managed-by: kustomize
+  cost-center: lamar-cos
+
+commonAnnotations:
+  iosplus.io/platform-version: "v2"
+  iosplus.io/engine: "v2"
+
+resources:
+  - namespaces.yaml
+  - service-accounts/workload-identity.yaml
+  - network-policies/default-deny.yaml
+  - network-policies/allow-api-gateway.yaml
+  - network-policies/allow-internal.yaml
+  - api-gateway/deployment.yaml
+  - api-gateway/service.yaml
+  - api-gateway/ingress.yaml
+  - trust-model/deployment.yaml
+  - connector-ingestion/deployment.yaml
+  - normalization/job.yaml
+  - ml-jobs/cronjob.yaml
+  - rules-workflow/deployment.yaml
+  - frontend-apps/deployment.yaml
+  - monitoring/prometheus-deployment.yaml
+  - flyway/job.yaml
+
+images:
+  - name: ios-plus-api
+    newName: us-central1-docker.pkg.dev/lamar-cos/ios-plus/ios-plus-api
+    newTag: v2.0.0
+  - name: ios-plus-trust-model
+    newName: us-central1-docker.pkg.dev/lamar-cos/ios-plus/ios-plus-trust-model
+    newTag: v2.0.0
+  - name: ios-plus-connector
+    newName: us-central1-docker.pkg.dev/lamar-cos/ios-plus/ios-plus-connector
+    newTag: v2.0.0
+  - name: ios-plus-normalization
+    newName: us-central1-docker.pkg.dev/lamar-cos/ios-plus/ios-plus-normalization
+    newTag: v2.0.0
+  - name: ios-plus-ml-jobs
+    newName: us-central1-docker.pkg.dev/lamar-cos/ios-plus/ios-plus-ml-jobs
+    newTag: v2.0.0
+  - name: ios-plus-rules-workflow
+    newName: us-central1-docker.pkg.dev/lamar-cos/ios-plus/ios-plus-rules-workflow
+    newTag: v2.0.0
+  - name: ios-plus-frontend
+    newName: us-central1-docker.pkg.dev/lamar-cos/ios-plus/ios-plus-frontend
+    newTag: v2.0.0
+  - name: cloudsql-auth-proxy
+    newName: gcr.io/cloud-sql-connectors/cloud-sql-proxy
+    newTag: "2.10.1"
+  - name: flyway
+    newName: flyway/flyway
+    newTag: latest
+  - name: prometheus
+    newName: prom/prometheus
+    newTag: v2.52.0
+  - name: grafana
+    newName: grafana/grafana
+    newTag: "10.4.3"

@@ -1,0 +1,73 @@
+# ============================================================================
+# IOS+ Platform — API Gateway Ingress
+# ============================================================================
+# GCE Ingress (Container-native load balancing) with Google-managed SSL
+# certificate, Cloud Armor backend security policy, and IAP for admin routes.
+# 
+# Note: /metrics is NOT exposed via ingress; it is scraped internally by
+# Prometheus in the monitoring namespace via the ServiceMonitor.
+# ============================================================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ios-plus-api-ingress
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: ios-plus-api
+    app.kubernetes.io/component: ingress
+    cost-center: lamar-cos
+    tier: ingress
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.allow-http: "false"
+    kubernetes.io/ingress.global-static-ip-name: "ios-plus-api-ip"
+    networking.gke.io/managed-certificates: "ios-plus-api-cert"
+    networking.gke.io/v1beta1.FrontendConfig: "ios-plus-frontend-config"
+    # BackendConfig annotation is applied via Service annotation
+spec:
+  rules:
+    - host: app.ioscos.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ios-plus-api
+                port:
+                  number: 3001
+    - host: staging.app.ioscos.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ios-plus-api
+                port:
+                  number: 3001
+
+---
+# ManagedCertificate for Google-managed SSL (production)
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: ios-plus-api-cert
+  namespace: api-gateway
+spec:
+  domains:
+    - app.ioscos.com
+    - staging.app.ioscos.com
+
+---
+# FrontendConfig for HTTPS redirect and other GFE settings
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: ios-plus-frontend-config
+  namespace: api-gateway
+spec:
+  redirectToHttps:
+    enabled: true
+  sslPolicy: ios-plus-ssl-policy

@@ -1,0 +1,43 @@
+FROM node:20.19.0-alpine AS test-runner
+WORKDIR /app
+RUN apk add --no-cache python3 make g++ postgresql-client curl
+
+COPY package*.json tsconfig.json ./
+COPY packages ./packages
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+RUN mkdir -p coverage .audit-artifacts
+
+ENV NODE_ENV=test
+ENV FORCE_COLOR=1
+
+RUN echo '#!/bin/sh\n\
+set -e\n\
+echo "[AUDIT] Starting clean-room audit run..." > .audit-artifacts/audit-test.log\n\
+\n\
+echo "[AUDIT] Running Vitest suite with coverage..." >> .audit-artifacts/audit-test.log\n\
+npx vitest run --coverage --reporter=verbose 2>&1 | tee -a .audit-artifacts/audit-test.log\n\
+\n\
+COVERAGE=$(node -e "\n\
+  const fs = require('fs');\n\
+  const summary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));\n\
+  const total = summary.total;\n\
+  if (!total) { console.error('No coverage total found'); process.exit(1); }\n\
+  const pct = total.lines.pct;\n\
+  console.log(pct);\n\
+")\n\
+\n\
+echo "[AUDIT] Coverage: ${COVERAGE}%" >> .audit-artifacts/audit-test.log\n\
+\n\
+if [ $(echo "${COVERAGE} < 80" | bc -l) -eq 1 ]; then\n\
+  echo "[AUDIT] FAIL: Coverage ${COVERAGE}% is below 80% gate" >> .audit-artifacts/audit-test.log\n\
+  exit 1\n\
+fi\n\
+\n\
+echo "[AUDIT] PASS: All checks passed" >> .audit-artifacts/audit-test.log\n\
+' > /app/run-audit.sh && chmod +x /app/run-audit.sh
+
+CMD ["/app/run-audit.sh"]

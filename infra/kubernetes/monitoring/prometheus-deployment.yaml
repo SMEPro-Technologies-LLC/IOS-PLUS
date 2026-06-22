@@ -1,0 +1,522 @@
+# ============================================================================
+# IOS+ Platform — Monitoring Stack (Prometheus + Grafana)
+# ============================================================================
+# Uses Google Managed Prometheus (GMP) where possible, with a self-hosted
+# Prometheus deployment for custom scrape configs and recording rules.
+# Grafana provides dashboards with GKE auth proxy integration.
+#
+# Alert rules cover: HighErrorRate, HighLatency, DatabaseConnectionFailure,
+# VaultConnectionFailure, EvidenceSigningFailure, AuditWORMViolation,
+# Gate530Down, ReplicasBelowMinimum, NCLEXThresholdBreach, RegulatoryChangeAlert
+# ============================================================================
+
+# --- Prometheus ConfigMap (custom scrape configs) ---------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ios-plus-prometheus-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: ios-plus-prometheus
+    cost-center: lamar-cos
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: ios-plus-gke
+        environment: production
+        cost_center: lamar-cos
+
+    rule_files:
+      - /etc/prometheus/rules/*.yml
+
+    scrape_configs:
+      - job_name: 'prometheus-self'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+
+      - job_name: 'kubernetes-service-endpoints'
+        kubernetes_sd_configs:
+          - role: endpoints
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_service_name]
+            action: replace
+            target_label: service
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ios-plus-prometheus-rules
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: ios-plus-prometheus
+    cost-center: lamar-cos
+data:
+  ios-plus-alerts.yml: |
+    groups:
+      - name: ios-plus-platform
+        rules:
+          - alert: HighErrorRate
+            expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.05
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "High error rate in {{ $labels.namespace }}/{{ $labels.service }}"
+              description: "Error rate is above 5% for more than 5 minutes."
+
+          - alert: HighLatency
+            expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, namespace, service)) > 2
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High latency in {{ $labels.namespace }}/{{ $labels.service }}"
+              description: "P99 latency is above 2s for more than 5 minutes."
+
+          - alert: DatabaseConnectionFailure
+            expr: up{job=~".*cloudsql.*"} == 0 or pg_up == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Database connection failure"
+              description: "Cloud SQL proxy or PostgreSQL exporter is down."
+
+          - alert: VaultConnectionFailure
+            expr: up{job=~".*vault.*"} == 0 or vault_seal_status{sealed="true"} == 1
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Vault connection or seal failure"
+              description: "Vault is unreachable or sealed."
+
+          - alert: EvidenceSigningFailure
+            expr: rate(evidence_sign_failures_total[5m]) > 0
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Evidence signing failure in trust-model"
+              description: "Evidence chain signing is failing."
+
+          - alert: AuditWORMViolation
+            expr: rate(audit_worm_violations_total[5m]) > 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Audit WORM violation detected"
+              description: "An audit WORM violation has been triggered."
+
+          - alert: Gate530Down
+            expr: up{job=~".*rules-workflow.*"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Gate 530 service is down"
+              description: "Rules workflow (Gate 530) has no available pods."
+
+          - alert: ReplicasBelowMinimum
+            expr: kube_deployment_status_replicas_available < kube_deployment_spec_replicas * 0.5
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Deployment {{ $labels.deployment }} replicas below minimum"
+              description: "Available replicas are less than 50% of desired count."
+
+          - alert: NCLEXThresholdBreach
+            expr: nclex_pass_rate < 0.8
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "NCLEX pass rate below threshold"
+              description: "NCLEX pass rate has dropped below 80%."
+
+          - alert: RegulatoryChangeAlert
+            expr: rate(regulatory_changes_detected_total[1h]) > 0
+            for: 1m
+            labels:
+              severity: info
+            annotations:
+              summary: "New regulatory change detected"
+              description: "A regulatory change has been detected in the last hour."
+
+---
+# --- Prometheus Deployment ----------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ios-plus-prometheus
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: ios-plus-prometheus
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/version: "v2.52.0"
+    cost-center: lamar-cos
+    tier: observability
+spec:
+  replicas: 2
+  revisionHistoryLimit: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-prometheus
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ios-plus-prometheus
+        app.kubernetes.io/component: monitoring
+        app.kubernetes.io/version: "v2.52.0"
+        cost-center: lamar-cos
+    spec:
+      serviceAccountName: ios-plus-monitoring-sa
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: prometheus
+          image: prometheus
+          imagePullPolicy: Always
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=30d"
+            - "--web.enable-lifecycle"
+            - "--web.enable-admin-api"
+            - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+            - "--web.console.templates=/usr/share/prometheus/consoles"
+          ports:
+            - name: http
+              containerPort: 9090
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+            - name: prometheus-rules
+              mountPath: /etc/prometheus/rules
+            - name: prometheus-storage
+              mountPath: /prometheus
+      volumes:
+        - name: prometheus-config
+          configMap:
+            name: ios-plus-prometheus-config
+        - name: prometheus-rules
+          configMap:
+            name: ios-plus-prometheus-rules
+        - name: prometheus-storage
+          persistentVolumeClaim:
+            claimName: ios-plus-prometheus-pvc
+
+---
+# --- Prometheus Service -----------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: ios-plus-prometheus
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: ios-plus-prometheus
+    cost-center: lamar-cos
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ios-plus-prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: http
+
+---
+# --- Prometheus PVC ---------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ios-plus-prometheus-pvc
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: ios-plus-prometheus
+    cost-center: lamar-cos
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard-rwo
+
+---
+# --- Grafana Deployment -------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ios-plus-grafana
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: ios-plus-grafana
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/version: "10.4.3"
+    cost-center: lamar-cos
+    tier: observability
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ios-plus-grafana
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ios-plus-grafana
+        app.kubernetes.io/component: monitoring
+        app.kubernetes.io/version: "10.4.3"
+        cost-center: lamar-cos
+    spec:
+      serviceAccountName: ios-plus-monitoring-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        runAsGroup: 472
+        fsGroup: 472
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: grafana
+          image: grafana
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-grafana-secrets
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-grafana-secrets
+                  key: admin-password
+            - name: GF_AUTH_GOOGLE_ENABLED
+              value: "true"
+            - name: GF_AUTH_GOOGLE_ALLOW_SIGN_UP
+              value: "true"
+            - name: GF_AUTH_GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-grafana-secrets
+                  key: google-client-id
+            - name: GF_AUTH_GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: ios-plus-grafana-secrets
+                  key: google-client-secret
+            - name: GF_AUTH_GOOGLE_SCOPES
+              value: "https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email"
+            - name: GF_AUTH_GOOGLE_AUTH_URL
+              value: "https://accounts.google.com/o/oauth2/auth"
+            - name: GF_AUTH_GOOGLE_TOKEN_URL
+              value: "https://accounts.google.com/o/oauth2/token"
+            - name: GF_AUTH_GOOGLE_ALLOWED_DOMAINS
+              value: "ioscos.com"
+            - name: GF_SERVER_ROOT_URL
+              value: "https://grafana.ioscos.com"
+            - name: GF_INSTALL_PLUGINS
+              value: "grafana-googlesource-datasource"
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 472
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: grafana-storage
+              mountPath: /var/lib/grafana
+      volumes:
+        - name: grafana-storage
+          persistentVolumeClaim:
+            claimName: ios-plus-grafana-pvc
+
+---
+# --- Grafana Service --------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: ios-plus-grafana
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: ios-plus-grafana
+    cost-center: lamar-cos
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+    cloud.google.com/backend-config: '{"default": "ios-plus-grafana-backendconfig"}'
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ios-plus-grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+
+---
+# --- Grafana PVC ------------------------------------------------------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ios-plus-grafana-pvc
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: ios-plus-grafana
+    cost-center: lamar-cos
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard-rwo
+
+---
+# --- Grafana BackendConfig (IAP for GKE auth proxy) ------------------------
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: ios-plus-grafana-backendconfig
+  namespace: monitoring
+spec:
+  timeoutSec: 60
+  connectionDraining:
+    drainingTimeoutSec: 30
+  healthCheck:
+    checkIntervalSec: 30
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /api/health
+    port: 3000
+  iap:
+    enabled: true
+    oauthclientCredentials:
+      secretName: ios-plus-grafana-iap-oauth-secret

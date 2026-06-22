@@ -1,0 +1,754 @@
+# ============================================================================
+# IOS+ Platform — Namespace Configuration
+# ============================================================================
+# GKE production-grade namespaces aligned to the v2 engine architecture.
+# Each namespace includes: ResourceQuota, LimitRange, NetworkPolicy,
+# SecurityContext labels, and cost-center / environment metadata.
+# ============================================================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: connector-ingestion
+  labels:
+    cost-center: lamar-cos
+    environment: production
+    tier: ingestion
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    iosplus.io/layer: connector-ingestion
+    iosplus.io/purpose: "campus system connectors, regulatory crawlers, AI service connectors"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: connector-ingestion-quota
+  namespace: connector-ingestion
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "50"
+    services: "20"
+    persistentvolumeclaims: "0"
+    secrets: "20"
+    configmaps: "20"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: connector-ingestion-limits
+  namespace: connector-ingestion
+spec:
+  limits:
+    - default:
+        cpu: "1000m"
+        memory: "1Gi"
+      defaultRequest:
+        cpu: "250m"
+        memory: "256Mi"
+      max:
+        cpu: "4000m"
+        memory: "4Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      type: Container
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: connector-ingestion-netpol
+  namespace: connector-ingestion
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: trust-model
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+    - to: [] # Allow DNS and external APIs (Pub/Sub, Cloud SQL, etc.)
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: normalization
+  labels:
+    cost-center: lamar-cos
+    environment: production
+    tier: processing
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    iosplus.io/layer: normalization
+    iosplus.io/purpose: "ETL pipelines, schema mapping, deduplication"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: normalization-quota
+  namespace: normalization
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "50"
+    services: "10"
+    persistentvolumeclaims: "0"
+    secrets: "15"
+    configmaps: "15"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: normalization-limits
+  namespace: normalization
+spec:
+  limits:
+    - default:
+        cpu: "1000m"
+        memory: "1Gi"
+      defaultRequest:
+        cpu: "250m"
+        memory: "256Mi"
+      max:
+        cpu: "4000m"
+        memory: "4Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      type: Container
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: normalization-netpol
+  namespace: normalization
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: trust-model
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: connector-ingestion
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rules-workflow
+  labels:
+    cost-center: lamar-cos
+    environment: production
+    tier: processing
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    iosplus.io/layer: rules-workflow
+    iosplus.io/purpose: "Gate 530 evaluation, approval queues, policy enforcement"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: rules-workflow-quota
+  namespace: rules-workflow
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "30"
+    services: "10"
+    persistentvolumeclaims: "0"
+    secrets: "15"
+    configmaps: "15"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: rules-workflow-limits
+  namespace: rules-workflow
+spec:
+  limits:
+    - default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "250m"
+        memory: "256Mi"
+      max:
+        cpu: "2000m"
+        memory: "2Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      type: Container
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rules-workflow-netpol
+  namespace: rules-workflow
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: trust-model
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ml-jobs
+  labels:
+    cost-center: lamar-cos
+    environment: production
+    tier: analytics
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    iosplus.io/layer: ml-jobs
+    iosplus.io/purpose: "risk scoring, drift detection, load indexing, batch analytics"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ml-jobs-quota
+  namespace: ml-jobs
+spec:
+  hard:
+    requests.cpu: "16"
+    requests.memory: 32Gi
+    limits.cpu: "32"
+    limits.memory: 64Gi
+    pods: "60"
+    services: "10"
+    persistentvolumeclaims: "10"
+    secrets: "20"
+    configmaps: "20"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: ml-jobs-limits
+  namespace: ml-jobs
+spec:
+  limits:
+    - default:
+        cpu: "2000m"
+        memory: "2Gi"
+      defaultRequest:
+        cpu: "500m"
+        memory: "1Gi"
+      max:
+        cpu: "8000m"
+        memory: "8Gi"
+      min:
+        cpu: "100m"
+        memory: "128Mi"
+      type: Container
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ml-jobs-netpol
+  namespace: ml-jobs
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: trust-model
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trust-model
+  labels:
+    cost-center: lamar-cos
+    environment: production
+    tier: core
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    iosplus.io/layer: trust-model
+    iosplus.io/purpose: "canonical layer, UDM, evidence chain — the durable core"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: trust-model-quota
+  namespace: trust-model
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "20"
+    services: "10"
+    persistentvolumeclaims: "5"
+    secrets: "15"
+    configmaps: "15"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: trust-model-limits
+  namespace: trust-model
+spec:
+  limits:
+    - default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "250m"
+        memory: "256Mi"
+      max:
+        cpu: "2000m"
+        memory: "2Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      type: Container
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: trust-model-netpol
+  namespace: trust-model
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: rules-workflow
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: connector-ingestion
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: normalization
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: ml-jobs
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: api-gateway
+  labels:
+    cost-center: lamar-cos
+    environment: production
+    tier: ingress
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    iosplus.io/layer: api-gateway
+    iosplus.io/purpose: "REST API, GraphQL, webhooks, admin routes"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: api-gateway-quota
+  namespace: api-gateway
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "40"
+    services: "15"
+    persistentvolumeclaims: "0"
+    secrets: "20"
+    configmaps: "20"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: api-gateway-limits
+  namespace: api-gateway
+spec:
+  limits:
+    - default:
+        cpu: "1000m"
+        memory: "1Gi"
+      defaultRequest:
+        cpu: "500m"
+        memory: "512Mi"
+      max:
+        cpu: "4000m"
+        memory: "4Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      type: Container
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway-netpol
+  namespace: api-gateway
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from: [] # Ingress controller / GCE health checks
+      ports:
+        - protocol: TCP
+          port: 3001
+        - protocol: TCP
+          port: 9090
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: trust-model
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: connector-ingestion
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: rules-workflow
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: normalization
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: ml-jobs
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: frontend-apps
+  labels:
+    cost-center: lamar-cos
+    environment: production
+    tier: presentation
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    iosplus.io/layer: frontend-apps
+    iosplus.io/purpose: "EDU Reporter React UI, static assets"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: frontend-apps-quota
+  namespace: frontend-apps
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "20"
+    services: "10"
+    persistentvolumeclaims: "0"
+    secrets: "10"
+    configmaps: "10"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: frontend-apps-limits
+  namespace: frontend-apps
+spec:
+  limits:
+    - default:
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        cpu: "100m"
+        memory: "128Mi"
+      max:
+        cpu: "2000m"
+        memory: "2Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      type: Container
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-apps-netpol
+  namespace: frontend-apps
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from: [] # Ingress controller / GCE health checks
+      ports:
+        - protocol: TCP
+          port: 80
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: monitoring
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    cost-center: lamar-cos
+    environment: production
+    tier: observability
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+    iosplus.io/layer: monitoring
+    iosplus.io/purpose: "Prometheus, Grafana, Cloud Monitoring, alert-manager"
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: monitoring-quota
+  namespace: monitoring
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "40"
+    services: "15"
+    persistentvolumeclaims: "10"
+    secrets: "15"
+    configmaps: "15"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: monitoring-limits
+  namespace: monitoring
+spec:
+  limits:
+    - default:
+        cpu: "1000m"
+        memory: "1Gi"
+      defaultRequest:
+        cpu: "500m"
+        memory: "512Mi"
+      max:
+        cpu: "4000m"
+        memory: "4Gi"
+      min:
+        cpu: "50m"
+        memory: "64Mi"
+      type: Container
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-netpol
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: api-gateway
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: trust-model
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: connector-ingestion
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: normalization
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: rules-workflow
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: ml-jobs
+        - namespaceSelector:
+            matchLabels:
+              iosplus.io/layer: frontend-apps
+  egress:
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IOS+ Architecture v2 — Implementation Grade</title>
+<style>
+:root {
+  --bg: #f4f7f6;
+  --text: #1a1a2e;
+  --text-muted: #5a5a6a;
+  --campus-bg: #e8f4fd;
+  --campus-border: #b3d9f7;
+  --public-bg: #fff8e6;
+  --public-border: #f0d78c;
+  --ai-bg: #f0e6ff;
+  --ai-border: #c9a8f0;
+  --engine-bg: #e6f5e6;
+  --engine-border: #a8d5a2;
+  --exec-bg: #eef8e8;
+  --exec-border: #c5e1a5;
+  --trust-bg: #f0e6ff;
+  --trust-border: #c9a8f0;
+  --gov-bg: #e6f0fa;
+  --gov-border: #b3d9f7;
+  --outcome-bg: #e8f5e9;
+  --outcome-border: #a5d6a7;
+  --approval-bg: #fff3e0;
+  --approval-border: #f0d78c;
+  --accent: #2c5aa0;
+  --green: #2e7d32;
+  --orange: #e65100;
+  --gold: #f9a825;
+  --purple: #6a1b9a;
+  --shadow: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-hover: 0 8px 24px rgba(0,0,0,0.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 40px 20px;
+}
+.container { max-width: 1400px; margin: 0 auto; }
+h1 {
+  text-align: center;
+  font-size: 1.8rem;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-bottom: 6px;
+}
+.v2-badge {
+  display: inline-block;
+  background: var(--green);
+  color: #fff;
+  padding: 3px 12px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.section-title .right {
+  font-size: 0.75rem;
+  text-transform: none;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+/* Row styles */
+.source-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.source-block {
+  border-radius: 10px;
+  padding: 14px 20px;
+  min-width: 160px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+  font-size: 0.85rem;
+}
+.source-block:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+}
+.source-block h4 { font-size: 0.95rem; margin-bottom: 3px; font-weight: 600; }
+.source-block p { font-size: 0.75rem; color: var(--text-muted); }
+.source-block .tag {
+  position: absolute;
+  top: -7px;
+  right: 6px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 1px 7px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.campus { background: var(--campus-bg); border: 1.5px solid var(--campus-border); }
+.campus h4 { color: var(--accent); }
+.campus .tag { border: 1px solid var(--campus-border); }
+.public { background: var(--public-bg); border: 1.5px solid var(--public-border); }
+.public h4 { color: var(--orange); }
+.public .tag { border: 1px solid var(--public-border); }
+.ai { background: var(--ai-bg); border: 1.5px solid var(--ai-border); }
+.ai h4 { color: var(--purple); }
+.ai .tag { border: 1px solid var(--ai-border); }
+
+/* Engine */
+.engine-block {
+  background: var(--engine-bg);
+  border: 2px solid var(--engine-border);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 16px;
+  position: relative;
+}
+.engine-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #2d6a4f;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.engine-header .right { color: var(--text-muted); font-weight: 500; font-size: 0.75rem; text-transform: none; }
+
+/* Row inside engine */
+.engine-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.inner-block {
+  border-radius: 10px;
+  padding: 16px 18px;
+  min-width: 200px;
+  max-width: 280px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  position: relative;
+}
+.inner-block:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+}
+.inner-block h4 { font-size: 0.9rem; margin-bottom: 5px; font-weight: 600; }
+.inner-block p { font-size: 0.75rem; line-height: 1.4; color: var(--text-muted); }
+.inner-block .badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.exec { background: var(--exec-bg); border: 1.5px solid var(--exec-border); }
+.exec h4 { color: #558b2f; }
+.exec .badge { background: #558b2f; color: #fff; }
+.trust { background: var(--trust-bg); border: 1.5px solid var(--trust-border); }
+.trust h4 { color: var(--purple); }
+.trust .badge { background: var(--purple); color: #fff; }
+.gov { background: var(--gov-bg); border: 1.5px solid var(--gov-border); }
+.gov h4 { color: var(--accent); }
+.gov .badge { background: var(--accent); color: #fff; }
+
+/* Approval gate */
+.approval-block {
+  background: var(--approval-bg);
+  border: 2px solid var(--approval-border);
+  border-radius: 10px;
+  padding: 12px 20px;
+  text-align: center;
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.approval-block:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+.approval-block h4 { color: var(--orange); font-size: 0.95rem; }
+.approval-block p { color: var(--text-muted); font-size: 0.8rem; }
+
+/* Outcome layer */
+.outcome-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.outcome-block {
+  background: var(--outcome-bg);
+  border: 1.5px solid var(--outcome-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  min-width: 180px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.outcome-block:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+}
+.outcome-block h4 { color: var(--green); font-size: 0.85rem; margin-bottom: 3px; }
+.outcome-block p { color: var(--text-muted); font-size: 0.7rem; }
+.outcome-block .uc { display: inline-block; background: var(--green); color: #fff; padding: 1px 7px; border-radius: 8px; font-size: 0.6rem; font-weight: 600; margin-bottom: 4px; }
+
+/* Connector lines */
+.connector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: -4px 0;
+  position: relative;
+  z-index: 1;
+}
+.connector-line {
+  width: 2px;
+  height: 20px;
+  background: #ccc;
+  position: relative;
+}
+.connector-line::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: -4px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 8px solid #ccc;
+}
+
+/* Labels */
+.row-label {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+/* Detail overlay */
+.detail-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.45);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.detail-overlay.active { display: flex; }
+.detail-panel {
+  background: #fff;
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 700px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  animation: slideIn 0.3s ease;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.detail-panel h2 { margin-bottom: 8px; font-size: 1.4rem; color: var(--text); }
+.detail-panel .meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; }
+.detail-panel .close-btn {
+  float: right;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  line-height: 1;
+}
+.detail-panel .close-btn:hover { color: var(--text); }
+.detail-panel ul { margin-left: 20px; margin-bottom: 16px; }
+.detail-panel li { margin-bottom: 6px; line-height: 1.5; font-size: 0.9rem; }
+.detail-panel code {
+  background: #f0f0f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+.detail-panel .role-lens {
+  background: #e6f0fa;
+  border-left: 4px solid var(--accent);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 12px 0;
+  font-size: 0.9rem;
+}
+.detail-panel .trace-chain {
+  background: #e8f5e9;
+  border-left: 4px solid var(--green);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 12px 0;
+  font-size: 0.9rem;
+}
+.detail-panel .approval-flow {
+  background: #fff3e0;
+  border-left: 4px solid var(--orange);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 12px 0;
+  font-size: 0.9rem;
+}
+.footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+@media (max-width: 900px) {
+  .source-row, .engine-row, .outcome-row { flex-direction: column; align-items: center; }
+  .inner-block, .outcome-block, .source-block { max-width: 100%; width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>IOS+ Architecture v2 <span class="v2-badge">Implementation Grade</span></h1>
+  <p class="subtitle">Three connector classes · Two-layer on-prem engine · Outcome-aligned product layer</p>
+  <p class="subtitle">Lamar University — Education Compliance Platform</p>
+
+  <!-- LAYER 1: CAMPUS SYSTEMS -->
+  <div class="section-title">
+    <span>Campus Systems</span>
+    <span class="right">institutional data → canonical storage</span>
+  </div>
+  <div class="source-row">
+    <div class="source-block campus" onclick="openDetail('banner')">
+      <span class="tag">SIS</span>
+      <h4>Banner / Ethos</h4>
+      <p>Student records, enrollment</p>
+    </div>
+    <div class="source-block campus" onclick="openDetail('blackboard')">
+      <span class="tag">LMS</span>
+      <h4>Blackboard</h4>
+      <p>Gradebook, engagement</p>
+    </div>
+    <div class="source-block campus" onclick="openDetail('concourse')">
+      <span class="tag">Syllabi</span>
+      <h4>Concourse</h4>
+      <p>Syllabi of record, CLOs</p>
+    </div>
+  </div>
+
+  <!-- LAYER 2: PUBLIC REGULATORY SOURCES -->
+  <div class="section-title">
+    <span>Public Regulatory Sources</span>
+    <span class="right">standards & rules → watchtower layer</span>
+  </div>
+  <div class="source-row">
+    <div class="source-block public" onclick="openDetail('ipeds')">
+      <span class="tag">FED</span>
+      <h4>IPEDS</h4>
+      <p>Federal data collection</p>
+    </div>
+    <div class="source-block public" onclick="openDetail('cbm')">
+      <span class="tag">STATE</span>
+      <h4>CBM</h4>
+      <p>State reporting standards</p>
+    </div>
+    <div class="source-block public" onclick="openDetail('clery')">
+      <span class="tag">LAW</span>
+      <h4>Clery</h4>
+      <p>Safety & crime reporting</p>
+    </div>
+    <div class="source-block public" onclick="openDetail('accreditors')">
+      <span class="tag">ACCRED</span>
+      <h4>SACSCOC · ABET · AACSB</h4>
+      <p>Accreditation standards</p>
+    </div>
+    <div class="source-block public" onclick="openDetail('licensure')">
+      <span class="tag">BOARD</span>
+      <h4>State Licensure Boards</h4>
+      <p>NCLEX · RN · CPA</p>
+    </div>
+  </div>
+
+  <!-- LAYER 3: GOVERNED AI SERVICES -->
+  <div class="section-title">
+    <span>Governed AI Services</span>
+    <span class="right">orchestration boundary, not peer data</span>
+  </div>
+  <div class="source-row">
+    <div class="source-block ai" onclick="openDetail('copilot')">
+      <span class="tag">MSFT</span>
+      <h4>Microsoft Copilot</h4>
+      <p>Bounded by cited nodes</p>
+    </div>
+    <div class="source-block ai" onclick="openDetail('claude')">
+      <span class="tag">ANTH</span>
+      <h4>Claude MCP</h4>
+      <p>Future governed reasoning</p>
+    </div>
+    <div class="source-block ai" onclick="openDetail('firecrawl')">
+      <span class="tag">CRAWL</span>
+      <h4>Firecrawl MCP</h4>
+      <p>Regulatory web monitoring</p>
+    </div>
+  </div>
+
+  <div class="row-label">API connectors · ingestion workers · normalization pipelines</div>
+
+  <!-- APPROVAL GATE -->
+  <div class="approval-block" onclick="openDetail('approval')">
+    <h4>Approval Gate</h4>
+    <p>Detected change → Proposed update → Human approval → Deploy to rule/report layer</p>
+  </div>
+
+  <!-- ENGINE: EXECUTION + GOVERNANCE + TRUST -->
+  <div class="engine-block">
+    <div class="engine-header">
+      <span>IOS+ Engine — On Premises</span>
+      <span class="right">Data never leaves campus · Role-lens governance</span>
+    </div>
+
+    <!-- Row 1: Execution / Runtime -->
+    <div class="engine-row">
+      <div class="inner-block exec" onclick="openDetail('connectors')">
+        <h4>Connector Ingestion</h4>
+        <p>Pull/sync workers for Banner, Blackboard, Concourse, regulatory APIs</p>
+        <span class="badge">Execution</span>
+      </div>
+      <div class="inner-block exec" onclick="openDetail('normalization')">
+        <h4>Normalization Pipelines</h4>
+        <p>ETL, schema mapping, deduplication, pseudonymization</p>
+        <span class="badge">Execution</span>
+      </div>
+      <div class="inner-block exec" onclick="openDetail('rules')">
+        <h4>Rules / Workflow Engine</h4>
+        <p>Gate 530 policy evaluation, approval queues, routing logic</p>
+        <span class="badge">Execution</span>
+      </div>
+      <div class="inner-block exec" onclick="openDetail('scoring')">
+        <h4>Scoring & Analytics Jobs</h4>
+        <p>Risk scoring, drift detection, load indexing, batch processing</p>
+        <span class="badge">Execution</span>
+      </div>
+      <div class="inner-block exec" onclick="openDetail('api')">
+        <h4>API / Web Services</h4>
+        <p>REST endpoints, GraphQL, webhooks, EDU Reporter UI</p>
+        <span class="badge">Execution</span>
+      </div>
+    </div>
+
+    <!-- Governance Layer -->
+    <div class="engine-row">
+      <div class="inner-block gov" onclick="openDetail('rbac')">
+        <h4>RBAC</h4>
+        <p>Role-based access: advisor, faculty, registrar, compliance</p>
+        <span class="badge">Governance</span>
+      </div>
+      <div class="inner-block gov" onclick="openDetail('pseudonymization')">
+        <h4>Pseudonymization</h4>
+        <p>SYN IDs, field-level hashing, salt management</p>
+        <span class="badge">Governance</span>
+      </div>
+      <div class="inner-block gov" onclick="openDetail('audit')">
+        <h4>Audit</h4>
+        <p>WORM PostgreSQL, SHA-256 evidence, trace IDs</p>
+        <span class="badge">Governance</span>
+      </div>
+      <div class="inner-block gov" onclick="openDetail('depseudonymization')">
+        <h4>De-Pseudonymization Control</h4>
+        <p>Controlled re-identification, approval gates, logging</p>
+        <span class="badge">Governance</span>
+      </div>
+      <div class="inner-block gov" onclick="openDetail('policy')">
+        <h4>Policy Enforcement</h4>
+        <p>Gate 530 rules, sector-aware logic, fail-closed</p>
+        <span class="badge">Governance</span>
+      </div>
+    </div>
+
+    <!-- Row 2: Trust Layer -->
+    <div class="engine-row">
+      <div class="inner-block trust" onclick="openDetail('canonical')">
+        <h4>Canonical Layer</h4>
+        <p>One student, one record, pseudonymized, SYN-consistent</p>
+        <span class="badge">Trust</span>
+      </div>
+      <div class="inner-block trust" onclick="openDetail('matrix')">
+        <h4>Universal Decoding Matrix</h4>
+        <p>CIP · SOC · NAICS · License, cited node + policy action</p>
+        <span class="badge">Trust</span>
+      </div>
+      <div class="inner-block trust" onclick="openDetail('evidence')">
+        <h4>Evidence Chain</h4>
+        <p>Ed25519 · JCS · SHA-256 · trace ID, lineage + audit</p>
+        <span class="badge">Trust</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"><div class="connector-line"></div></div>
+  <div class="row-label">Trace chain connects to every output: model factors, transcript decisions, accreditation narratives, regulatory updates</div>
+
+  <!-- OUTCOME LAYER -->
+  <div class="section-title">
+    <span>Outcome Applications</span>
+    <span class="right">Buyer-visible capabilities</span>
+  </div>
+  <div class="outcome-row">
+    <div class="outcome-block" onclick="openDetail('uc01')">
+      <span class="uc">UC-01</span>
+      <h4>Predictive Persistence Markers</h4>
+      <p>Early warning, advisor queue</p>
+    </div>
+    <div class="outcome-block" onclick="openDetail('uc02')">
+      <span class="uc">UC-02</span>
+      <h4>Transcript Evaluation Crosswalk</h4>
+      <p>2 weeks → 2 days</p>
+    </div>
+    <div class="outcome-block" onclick="openDetail('uc03')">
+      <span class="uc">UC-03</span>
+      <h4>Accreditation Gap Analysis</h4>
+      <p>Heat map, continuous readiness</p>
+    </div>
+    <div class="outcome-block" onclick="openDetail('uc04')">
+      <span class="uc">UC-04</span>
+      <h4>Outcome Alignment Auditor</h4>
+      <p>Drift detection, SACSCOC</p>
+    </div>
+    <div class="outcome-block" onclick="openDetail('uc05')">
+      <span class="uc">UC-05</span>
+      <h4>Grading Load Index</h4>
+      <p>Workload quantification</p>
+    </div>
+    <div class="outcome-block" onclick="openDetail('uc06')">
+      <span class="uc">UC-06</span>
+      <h4>Allied Health Dashboard</h4>
+      <p>NCLEX threshold protection</p>
+    </div>
+    <div class="outcome-block" onclick="openDetail('uc08')">
+      <span class="uc">UC-08</span>
+      <h4>Regulatory Watchtower</h4>
+      <p>Change detection, approvals</p>
+    </div>
+    <div class="outcome-block" onclick="openDetail('edu-reporter')">
+      <span class="uc" style="background:#2c5aa0">REPORT</span>
+      <h4>EDU Reporter</h4>
+      <p>Reporting surface, all UCs</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Click any block for implementation detail</span>
+    <span>v2 · Implementation-grade architecture</span>
+  </div>
+</div>
+
+<!-- Detail Overlay -->
+<div class="detail-overlay" id="detailOverlay" onclick="closeDetail(event)">
+  <div class="detail-panel" id="detailPanel" onclick="event.stopPropagation()">
+    <button class="close-btn" onclick="closeDetail()">&times;</button>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<script>
+const details = {
+  banner: {
+    title: 'Banner / Ethos (Campus System)',
+    meta: 'Institutional System Connector — Student Information System',
+    body: `
+      <p><strong>Connector class:</strong> Campus Systems (institutional data → canonical storage)</p>
+      <ul>
+        <li><strong>Integration:</strong> Ellucian Ethos REST API with SSO token exchange</li>
+        <li><strong>Data pulled:</strong> Student demographics, enrollment, academic standing, transcripts, degree plans</li>
+        <li><strong>Sync cadence:</strong> Every 15 minutes during business hours, hourly overnight</li>
+        <li><strong>Pseudonymization:</strong> All PII hashed with campus-specific salt before entering canonical layer</li>
+        <li><strong>Direction:</strong> Read-only from Banner. No write-back.</li>
+      </ul>
+      <p><strong>Repo mapping:</strong> <code>packages/cos-plus/src/connection.ts</code> (pool), <code>scripts/db/migrate.js</code> (Banner schema)</p>
+    `
+  },
+  blackboard: {
+    title: 'Blackboard (Campus System)',
+    meta: 'Institutional System Connector — Learning Management System',
+    body: `
+      <p><strong>Connector class:</strong> Campus Systems (institutional data → canonical storage)</p>
+      <ul>
+        <li><strong>Integration:</strong> Blackboard REST API (Learn)</li>
+        <li><strong>Data pulled:</strong> Gradebook assessments, course engagement, assignment submission rates, discussion participation</li>
+        <li><strong>Used for:</strong> UC-01 (risk scoring), UC-04 (CLO ↔ assessment alignment), UC-05 (grading load)</li>
+        <li><strong>Sync cadence:</strong> Hourly incremental, nightly full</li>
+      </ul>
+    `
+  },
+  concourse: {
+    title: 'Concourse (Campus System)',
+    meta: 'Institutional System Connector — Curriculum Management',
+    body: `
+      <p><strong>Connector class:</strong> Campus Systems (institutional data → canonical storage)</p>
+      <ul>
+        <li><strong>Integration:</strong> Concourse API for syllabus-of-record</li>
+        <li><strong>Data pulled:</strong> Approved course-level outcomes (CLOs), CIP mappings, learning objectives</li>
+        <li><strong>Used for:</strong> UC-03 (accreditation), UC-04 (drift detection), UC-06 (programmatic compliance)</li>
+        <li><strong>Key feature:</strong> Every syllabus revision is timestamped and signed in the evidence chain</li>
+      </ul>
+    `
+  },
+  ipeds: {
+    title: 'IPEDS (Public Regulatory Source)',
+    meta: 'Federal Data Collection Standard',
+    body: `
+      <p><strong>Connector class:</strong> Public Regulatory Sources (standards → watchtower layer)</p>
+      <ul>
+        <li><strong>Source:</strong> National Center for Education Statistics (NCES)</li>
+        <li><strong>Data type:</strong> Federal reporting standards, submission schedules, field definitions</li>
+        <li><strong>Feeds:</strong> Regulatory Watchtower (UC-08) for change detection</li>
+        <li><strong>Not student data:</strong> These are standards and rules, not individual records</li>
+      </ul>
+    `
+  },
+  cbm: {
+    title: 'CBM (Public Regulatory Source)',
+    meta: 'State Reporting Standard',
+    body: `
+      <p><strong>Connector class:</strong> Public Regulatory Sources</p>
+      <ul>
+        <li><strong>Source:</strong> State higher education coordinating board</li>
+        <li><strong>Data type:</strong> Budget and enrollment reporting standards, submission timelines</li>
+        <li><strong>Feeds:</strong> Regulatory Watchtower (UC-08) and EDU Reporter monitored filings</li>
+      </ul>
+    `
+  },
+  clery: {
+    title: 'Clery (Public Regulatory Source)',
+    meta: 'Federal Safety Law',
+    body: `
+      <p><strong>Connector class:</strong> Public Regulatory Sources</p>
+      <ul>
+        <li><strong>Source:</strong> Clery Act guidance and updates from Dept. of Education</li>
+        <li><strong>Data type:</strong> Reporting requirements, crime categories, geographic definitions</li>
+        <li><strong>Feeds:</strong> Regulatory Watchtower (UC-08) for change detection</li>
+      </ul>
+    `
+  },
+  accreditors: {
+    title: 'SACSCOC · ABET · AACSB (Public Regulatory Sources)',
+    meta: 'Accreditation Standards',
+    body: `
+      <p><strong>Connector class:</strong> Public Regulatory Sources</p>
+      <ul>
+        <li><strong>Sources:</strong> SACSCOC Principles, ABET Criteria, AACSB Standards</li>
+        <li><strong>Data type:</strong> Standards text, criteria mappings, evidence requirements</li>
+        <li><strong>Feeds:</strong> Universal Decoding Matrix (standards → evidence mapping) and UC-03 (gap analysis)</li>
+        <li><strong>Current index:</strong> 414 existing SACSCOC files already loaded as core evidence set</li>
+      </ul>
+    `
+  },
+  licensure: {
+    title: 'State Licensure Boards (Public Regulatory Source)',
+    meta: 'Occupational Regulatory Data',
+    body: `
+      <p><strong>Connector class:</strong> Public Regulatory Sources</p>
+      <ul>
+        <li><strong>Sources:</strong> NCSBN, FSBPT, state nursing boards, CPA boards</li>
+        <li><strong>Data type:</strong> Exam requirements, pass rate thresholds, reciprocity rules, effective dates</li>
+        <li><strong>Feeds:</strong> UDM (CIP→SOC→NAICS→state licensure) and UC-06 (allied health)</li>
+        <li><strong>Live check:</strong> Query at inference time to confirm current requirements</li>
+      </ul>
+    `
+  },
+  copilot: {
+    title: 'Microsoft Copilot (Governed AI Service)',
+    meta: 'Orchestration Boundary — Not Peer Data System',
+    body: `
+      <p><strong>Connector class:</strong> Governed AI Services (orchestration boundary)</p>
+      <div class="role-lens">
+        <strong>Critical distinction:</strong> Copilot does NOT sit as a peer to Banner/Blackboard. It is a <strong>constrained reasoning consumer</strong> of the UDM output.
+      </div>
+      <ul>
+        <li><strong>User asks question</strong> in app → orchestration layer resolves allowed context</li>
+        <li><strong>UDM returns cited nodes</strong> with provenance and confidence</li>
+        <li><strong>Copilot synthesizes</strong> natural language within that bounded context only</li>
+        <li><strong>Response is logged</strong> with references in the evidence chain</li>
+      </ul>
+      <p><strong>Bounded by:</strong> cited nodes, role lens (faculty sees aggregate, advisor sees section, registrar sees authoritative), and trace policy</p>
+      <p><strong>Future-proof:</strong> Same architecture works with Claude, GPT, or any approved model. Not vendor-locked.</p>
+    `
+  },
+  claude: {
+    title: 'Claude MCP (Governed AI Service)',
+    meta: 'Future Governed Reasoning Layer',
+    body: `
+      <p><strong>Connector class:</strong> Governed AI Services</p>
+      <p>Planned for Phase 3 as an alternative governed reasoning model. Same architecture as Copilot:</p>
+      <ul>
+        <li>Orchestration layer resolves context</li>
+        <li>UDM returns cited nodes</li>
+        <li>Claude synthesizes within bounded context</li>
+        <li>All responses logged with evidence</li>
+      </ul>
+      <p>Enables A/B testing of model providers without changing the trust boundary.</p>
+    `
+  },
+  firecrawl: {
+    title: 'Firecrawl MCP (Governed AI Service)',
+    meta: 'Regulatory Web Monitoring',
+    body: `
+      <p><strong>Connector class:</strong> Governed AI Services</p>
+      <p>Automated web monitoring for regulatory changes:</p>
+      <ul>
+        <li>Crawls accreditor websites, state board pages, federal register</li>
+        <li>Detects changes to standards, thresholds, or effective dates</li>
+        <li>Feeds Regulatory Watchtower (UC-08) with proposed updates</li>
+        <li>Requires approval gate before deployment to rule layer</li>
+      </ul>
+    `
+  },
+  approval: {
+    title: 'Approval Gate',
+    meta: 'Human-in-the-Loop Control Point',
+    body: `
+      <div class="approval-flow">
+        <strong>Flow:</strong> Detected change → Proposed update → Human approval → Deploy to rule/report layer
+      </div>
+      <p>Every change to the UDM, regulatory standards, or policy rules requires explicit human approval before it affects downstream outputs:</p>
+      <ul>
+        <li><strong>Regulatory updates:</strong> Firecrawl detects change → compliance officer reviews → approves → updates UDM</li>
+        <li><strong>Transcript decisions:</strong> System proposes equivalency → registrar approves → writes to student record</li>
+        <li><strong>Policy changes:</strong> Admin proposes rule → evidence chain records before/after → compliance approves → Gate 530 applies</li>
+      </ul>
+      <p>This is a major trust differentiator. The system never autonomously changes what students or faculty see.</p>
+    `
+  },
+  connectors: {
+    title: 'Connector Ingestion Workers',
+    meta: 'Execution Layer — packages/gate-530/src/transport.ts',
+    body: `
+      <p><strong>Execution layer component:</strong> Pull/sync workers for all three connector classes</p>
+      <ul>
+        <li><strong>Campus system workers:</strong> Banner/Ethos, Blackboard, Concourse API polling</li>
+        <li><strong>Regulatory workers:</strong> IPEDS, CBM, Clery, accreditor standards, licensure board APIs</li>
+        <li><strong>AI service workers:</strong> Copilot usage log ingestion, MCP protocol handlers</li>
+        <li><strong>Resilience:</strong> Exponential backoff, circuit breakers, dead-letter queues</li>
+      </ul>
+      <p><strong>Code:</strong> <code>packages/gate-530/src/transport.ts</code> (HTTP/2 + IPC), <code>packages/middleware-engine/src/layers/retrieval.ts</code></p>
+    `
+  },
+  normalization: {
+    title: 'Normalization Pipelines',
+    meta: 'Execution Layer — ETL & Schema Mapping',
+    body: `
+      <p><strong>Execution layer component:</strong> Data transformation from source schemas to canonical model</p>
+      <ul>
+        <li><strong>Schema mapping:</strong> Banner student → canonical student, Blackboard grade → canonical assessment</li>
+        <li><strong>Deduplication:</strong> Identity resolution across sources (Banner + Blackboard = one student)</li>
+        <li><strong>Pseudonymization:</strong> PII fields hashed with SHA-256 + campus salt → SYN ID</li>
+        <li><strong>Validation:</strong> Data quality checks, constraint enforcement, referential integrity</li>
+      </ul>
+      <p><strong>Code:</strong> <code>packages/cos-plus/src/</code> (connection, audit, WORM), <code>packages/shared/src/utils/validation.ts</code></p>
+    `
+  },
+  rules: {
+    title: 'Rules / Workflow Engine',
+    meta: 'Execution Layer — Gate 530 Policy Evaluation',
+    body: `
+      <p><strong>Execution layer component:</strong> Core policy evaluation and routing logic</p>
+      <ul>
+        <li><strong>Gate 530 Engine:</strong> Evaluates every request against compliance dimensions (regulatory, security, privacy, operational, ethical, sector-specific)</li>
+        <li><strong>Rule engine:</strong> 9 condition operators (eq, ne, gt, lt, gte, lte, in, contains, regex, exists)</li>
+        <li><strong>Sector-aware:</strong> Healthcare, finance, education, energy, government rules</li>
+        <li><strong>Fail-closed:</strong> Any error returns DENY with escalation reason</li>
+        <li><strong>Approval queues:</strong> Routes decisions requiring human review to the right role</li>
+      </ul>
+      <p><strong>Code:</strong> <code>packages/gate-530/src/engine.ts</code>, <code>packages/gate-530/src/rules.ts</code></p>
+    `
+  },
+  scoring: {
+    title: 'Scoring & Analytics Jobs',
+    meta: 'Execution Layer — Batch Processing & ML',
+    body: `
+      <p><strong>Execution layer component:</strong> Background jobs for risk detection, drift analysis, and workload quantification</p>
+      <ul>
+        <li><strong>UC-01:</strong> Risk scoring from Banner + Blackboard signals → advisor intervention queue</li>
+        <li><strong>UC-04:</strong> CLO ↔ assessment cross-reference → drift flags</li>
+        <li><strong>UC-05:</strong> Grading Load Index from LMS assessment count + Banner enrollment</li>
+        <li><strong>UC-08:</strong> Regulatory change detection from crawled sources</li>
+        <li><strong>Scheduling:</strong> Cron jobs, event-driven triggers, manual runs</li>
+      </ul>
+      <p><strong>Code:</strong> <code>packages/middleware-engine/src/layers/</code> (evaluation, evidence, retrieval)</p>
+    `
+  },
+  api: {
+    title: 'API / Web Services',
+    meta: 'Execution Layer — REST, GraphQL, Webhooks',
+    body: `
+      <p><strong>Execution layer component:</strong> External-facing services</p>
+      <ul>
+        <li><strong>REST API:</strong> <code>/v1/evaluate</code>, <code>/v1/inference</code>, <code>/v1/evidence/:id</code>, <code>/v1/retrieve</code>, <code>/v1/compliance/licensure/state-lookup</code></li>
+        <li><strong>Admin routes:</strong> Rule CRUD with admin authentication and mutation audit logging</li>
+        <li><strong>Health/ready:</strong> Dependency-aware diagnostics, Prometheus metrics</li>
+        <li><strong>Webhooks:</strong> Event-driven notifications for regulatory changes, threshold breaches</li>
+      </ul>
+      <p><strong>Code:</strong> <code>packages/middleware-engine/src/server.ts</code> (pure Node.js http, no Express)</p>
+    `
+  },
+  rbac: {
+    title: 'RBAC (Governance Layer)',
+    meta: 'Role-Based Access Control',
+    body: `
+      <div class="role-lens">
+        <strong>Role-Lens Governance:</strong> The same data looks different depending on who is asking.
+      </div>
+      <ul>
+        <li><strong>Advisor lens:</strong> Sees section-level aggregates, risk scores, intervention queue for assigned students</li>
+        <li><strong>Faculty aggregate lens:</strong> Sees course-level outcomes, assessment alignment, grading load — no individual student PII</li>
+        <li><strong>Registrar authoritative lens:</strong> Sees full student records with controlled de-pseudonymization for transcript decisions</li>
+        <li><strong>Compliance lens:</strong> Sees audit trail, evidence chain, policy coverage — no student data at all</li>
+      </ul>
+      <p>This is not just security. It is <strong>product behavior</strong> — the system adapts its output to the viewer's role.</p>
+    `
+  },
+  pseudonymization: {
+    title: 'Pseudonymization (Governance Layer)',
+    meta: 'Field-Level Hashing & SYN ID Management',
+    body: `
+      <p><strong>Governance layer component:</strong> Data privacy enforcement</p>
+      <ul>
+        <li><strong>SYN ID:</strong> Synthetic UUID assigned to each student, consistent across all systems</li>
+        <li><strong>Hashing:</strong> SHA-256 with campus-specific salt for names, SSNs, DOBs, addresses</li>
+        <li><strong>Irreversibility:</strong> Without the salt (held in Vault), pseudonymized data cannot be re-identified</li>
+        <li><strong>Audit:</strong> Every pseudonymization and de-pseudonymization event is logged in the evidence chain</li>
+      </ul>
+      <p><strong>Code:</strong> <code>packages/shared/src/utils/validation.ts</code>, <code>packages/cos-plus/src/audit.ts</code></p>
+    `
+  },
+  audit: {
+    title: 'Audit (Governance Layer)',
+    meta: 'WORM-Protected Append-Only Evidence',
+    body: `
+      <p><strong>Governance layer component:</strong> Immutable compliance record</p>
+      <ul>
+        <li><strong>WORM enforcement:</strong> PostgreSQL triggers block UPDATE and DELETE on audit tables</li>
+        <li><strong>Ed25519 signing:</strong> Every evidence record cryptographically signed</li>
+        <li><strong>JCS canonicalization:</strong> RFC 8785 ensures deterministic verification</li>
+        <li><strong>Retention:</strong> 7 years (2555 days) for audit events and evidence records</li>
+        <li><strong>Triple publication:</strong> Evidence verified against 3 independent keys</li>
+      </ul>
+      <p><strong>Code:</strong> <code>packages/cos-plus/src/worm.ts</code>, <code>packages/evidence-fabric/src/</code></p>
+    `
+  },
+  depseudonymization: {
+    title: 'De-Pseudonymization Control (Governance Layer)',
+    meta: 'Controlled Re-Identification',
+    body: `
+      <p><strong>Governance layer component:</strong> Controlled access to real identities</p>
+      <ul>
+        <li><strong>Approval required:</strong> Every de-pseudonymization request requires explicit authorization</li>
+        <li><strong>Role-gated:</strong> Only registrar and compliance officers can request re-identification</li>
+        <li><strong>Logging:</strong> Who, when, why, and for what purpose — all logged in the evidence chain</li>
+        <li><strong>Time-limited:</strong> Re-identified access expires after session; no persistent storage</li>
+      </ul>
+    `
+  },
+  policy: {
+    title: 'Policy Enforcement (Governance Layer)',
+    meta: 'Gate 530 Rules & Sector-Aware Logic',
+    body: `
+      <p><strong>Governance layer component:</strong> Active compliance controls</p>
+      <ul>
+        <li><strong>Gate 530:</strong> Runtime compliance evaluation for every request</li>
+        <li><strong>Sectors:</strong> general, healthcare, finance, education, energy, government</li>
+        <li><strong>Fail-closed:</strong> Missing credentials = DENY; error = DENY; timeout = DENY</li>
+        <li><strong>Live check:</strong> Regulatory data confirmed current at query time</li>
+      </ul>
+      <p><strong>Code:</strong> <code>packages/gate-530/src/engine.ts</code>, <code>packages/gate-530/src/sector.ts</code></p>
+    `
+  },
+  canonical: {
+    title: 'Canonical Layer (Trust Layer)',
+    meta: 'One Student · One Record · Pseudonymized',
+    body: `
+      <p><strong>Trust layer component:</strong> Single source of truth for all student data</p>
+      <ul>
+        <li><strong>One student, one record:</strong> Deduplicates data from Banner, Blackboard, and other sources into a unified profile</li>
+        <li><strong>Pseudonymization:</strong> All PII hashed. Original IDs never stored in the engine.</li>
+        <li><strong>SYN (Synthetic ID):</strong> Consistent UUID across all downstream systems</li>
+        <li><strong>Provenance:</strong> Every field knows its source system and last sync time</li>
+        <li><strong>Change detection:</strong> Differential sync triggers downstream re-evaluation</li>
+      </ul>
+      <p><strong>Code:</strong> <code>packages/cos-plus/src/</code> (connection, evidence-store, vector-store)</p>
+    `
+  },
+  matrix: {
+    title: 'Universal Decoding Matrix (Trust Layer)',
+    meta: 'CIP · SOC · NAICS · License — Cited Node + Policy Action',
+    body: `
+      <p><strong>Trust layer component:</strong> Governed ontology mapping</p>
+      <ul>
+        <li><strong>CIP:</strong> Classification of Instructional Programs (NCES)</li>
+        <li><strong>SOC:</strong> Standard Occupational Classification (BLS)</li>
+        <li><strong>NAICS:</strong> North American Industry Classification (Census)</li>
+        <li><strong>License:</strong> State-level regulatory obligations from uco_obligation_metadata</li>
+      </ul>
+      <p><strong>Traversal paths:</strong></p>
+      <ul>
+        <li>Direct: <code>CIP → NAICS → State Obligation</code></li>
+        <li>Two-hop: <code>CIP → SOC → NAICS → State Obligation</code></li>
+      </ul>
+      <p><strong>Ranking:</strong> Direct matches first, then confidence descending, then risk ascending.</p>
+      <p><strong>Code:</strong> <code>packages/uco-resolver/src/</code>, <code>db/migrations/004_udm_views.sql</code></p>
+    `
+  },
+  evidence: {
+    title: 'Evidence Chain (Trust Layer)',
+    meta: 'Ed25519 · JCS · SHA-256 · Trace ID',
+    body: `
+      <div class="trace-chain">
+        <strong>Trace chain connects to every output:</strong> model factors, transcript decisions, accreditation narratives, regulatory updates
+      </div>
+      <p><strong>Trust layer component:</strong> Cryptographic audit trail</p>
+      <ul>
+        <li><strong>Ed25519 signing:</strong> Local or Vault Transit key management</li>
+        <li><strong>JCS canonicalization:</strong> RFC 8785 deterministic JSON</li>
+        <li><strong>SHA-256 hashing:</strong> Every record includes hash of canonicalized payload</li>
+        <li><strong>Trace ID:</strong> Propagates across all layers for end-to-end lineage</li>
+        <li><strong>Chain integrity:</strong> Each record includes previous record's hash</li>
+      </ul>
+      <p><strong>Output connections:</strong></p>
+      <ul>
+        <li>Model factors → evidence chain (why was this student flagged?)</li>
+        <li>Transcript decisions → evidence chain (why was this course accepted?)</li>
+        <li>Accreditation narratives → evidence chain (what evidence supports this claim?)</li>
+        <li>Regulatory updates → evidence chain (who approved this change?)</li>
+      </ul>
+      <p><strong>Code:</strong> <code>packages/evidence-fabric/src/</code></p>
+    `
+  },
+  uc01: {
+    title: 'UC-01: Predictive Persistence Markers',
+    meta: 'Early Warning System for At-Risk Students',
+    body: `
+      <p><strong>Buyer-visible outcome:</strong> Unified Banner + Blackboard signals → prioritized advisor intervention queue</p>
+      <ul>
+        <li><strong>Data sources:</strong> Banner (GPA, enrollment status, SAP standing) + Blackboard (engagement, submission rates, time-on-task)</li>
+        <li><strong>Scoring:</strong> Risk algorithm refreshed on regular cadence</li>
+        <li><strong>Output:</strong> Ranked outreach queue in EDU Reporter</li>
+        <li><strong>Evidence:</strong> Every risk score is traceable to source signals</li>
+      </ul>
+      <p><strong>Value:</strong> 5–10% attrition reduction = $150K–$300K/year retained tuition</p>
+    `
+  },
+  uc02: {
+    title: 'UC-02: Transcript Evaluation Crosswalk',
+    meta: '2 Weeks → 2 Days',
+    body: `
+      <p><strong>Buyer-visible outcome:</strong> Automated catalog matching with human approval</p>
+      <ul>
+        <li><strong>Input:</strong> Digital transcript from incoming student</li>
+        <li><strong>Matching:</strong> Coursework matched against Lamar catalog with confidence band</li>
+        <li><strong>Approval:</strong> One-click human approval writes back to student record</li>
+        <li><strong>Evidence:</strong> Every decision carries traceable evidence (confidence score, match criteria, approver identity)</li>
+      </ul>
+      <p><strong>Value:</strong> Faster admissions, higher yield, defensible decisions</p>
+    `
+  },
+  uc03: {
+    title: 'UC-03: Accreditation Gap Analysis',
+    meta: 'Continuous Readiness, Not Deadline Scramble',
+    body: `
+      <p><strong>Buyer-visible outcome:</strong> Interactive Readiness Heat Map</p>
+      <ul>
+        <li><strong>Standards mapping:</strong> SACSCOC/ABET/AACSB criteria mapped to evidence</li>
+        <li><strong>Index:</strong> 414 existing SACSCOC files as core evidence set</li>
+        <li><strong>Heat map:</strong> Green = ready, Yellow = needs attention, Red = gap</li>
+        <li><strong>Shortfalls:</strong> Surface early, not during review</li>
+      </ul>
+      <p><strong>Value:</strong> No more deadline scramble; gaps caught before reviewers arrive</p>
+    `
+  },
+  uc04: {
+    title: 'UC-04: Course Outcome Alignment Auditor',
+    meta: 'Stop Instructional Drift',
+    body: `
+      <p><strong>Buyer-visible outcome:</strong> Automated CLO ↔ assessment cross-reference</p>
+      <ul>
+        <li><strong>Input:</strong> Concourse syllabus-of-record CLOs + Blackboard actual assessments</li>
+        <li><strong>Detection:</strong> Mismatches flagged automatically</li>
+        <li><strong>Output:</strong> Drift dashboard with correction recommendations</li>
+        <li><strong>Evidence:</strong> Every drift flag is traceable to specific CLO and assessment</li>
+      </ul>
+      <p><strong>Value:</strong> SACSCOC alignment by design, not by audit</p>
+    `
+  },
+  uc05: {
+    title: 'UC-05: Grading Load Index',
+    meta: 'Measure Workload, Allocate Fairly',
+    body: `
+      <p><strong>Buyer-visible outcome:</strong> Quantitative workload per course</p>
+      <ul>
+        <li><strong>Input:</strong> LMS assessment structure (count, type, rubric complexity) + Banner section data (enrollment, modality)</li>
+        <li><strong>Calculation:</strong> Grading Load Index = weighted function of assessments × students × complexity</li>
+        <li><strong>Output:</strong> Dean-level dashboard for support allocation</li>
+        <li><strong>Evidence:</strong> Auditable, formula-driven, no guesswork</li>
+      </ul>
+      <p><strong>Value:</strong> Rational support allocation; fairness as a number</p>
+    `
+  },
+  uc06: {
+    title: 'UC-06: Allied Health Dashboard',
+    meta: 'One Dashboard, Ten Programs, Zero Spreadsheets',
+    body: `
+      <p><strong>Buyer-visible outcome:</strong> Programmatic compliance tracking</p>
+      <ul>
+        <li><strong>Tracks:</strong> Accreditor requirements, licensure exam outcomes, outcome thresholds per program</li>
+        <li><strong>Replaces:</strong> 10 disconnected coordinator spreadsheets</li>
+        <li><strong>Alerting:</strong> NCLEX-RN threshold breach detection with early warning</li>
+      </ul>
+      <p><strong>Value:</strong> Prevents $500K program loss by catching threshold drift before breach</p>
+    `
+  },
+  uc08: {
+    title: 'UC-08: Regulatory Watchtower',
+    meta: 'Change Detection with Human Approval',
+    body: `
+      <p><strong>Buyer-visible outcome:</strong> Automated regulatory monitoring</p>
+      <ul>
+        <li><strong>Sources:</strong> IPEDS, CBM, Clery, accreditor standards, licensure boards</li>
+        <li><strong>Detection:</strong> Firecrawl + API polling for changes</li>
+        <li><strong>Approval gate:</strong> Proposed updates require human approval before deployment</li>
+        <li><strong>Output:</strong> Change log, impact assessment, proposed rule updates</li>
+      </ul>
+      <p><strong>Value:</strong> Never surprised by a regulatory change again</p>
+    `
+  },
+  'edu-reporter': {
+    title: 'EDU Reporter',
+    meta: 'Reporting Surface for All Use Cases',
+    body: `
+      <p><strong>Product layer:</strong> Unified reporting interface</p>
+      <ul>
+        <li><strong>Dashboards:</strong> Predictive Persistence, Transcript Eval, Accreditation Heat Map, Drift Detection, Grading Load, Allied Health, Regulatory Watchtower</li>
+        <li><strong>Monitored filings:</strong> IPEDS, CBM, NSLDS, FISAP, Clery</li>
+        <li><strong>Operational views:</strong> Degree-plan-to-licensure lookup, SAP monitoring, enrollment verification</li>
+        <li><strong>Evidence access:</strong> One-click drill-down to supporting evidence for every reported number</li>
+      </ul>
+      <p>EDU Reporter is the surface. IOS+ is the engine underneath.</p>
+    `
+  }
+};
+
+function openDetail(key) {
+  const d = details[key];
+  if (!d) return;
+  document.getElementById('detailContent').innerHTML = 
+    '<h2>' + d.title + '</h2>' +
+    '<div class="meta">' + d.meta + '</div>' +
+    d.body;
+  document.getElementById('detailOverlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDetail(e) {
+  if (e && e.target !== document.getElementById('detailOverlay')) return;
+  document.getElementById('detailOverlay').classList.remove('active');
+  document.body.style.overflow = '';
+}
+</script>
+</body>
+</html>

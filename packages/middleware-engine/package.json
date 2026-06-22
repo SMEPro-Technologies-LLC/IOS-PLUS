@@ -1,0 +1,22 @@
+{
+  "name": "@ios-plus/middleware-engine",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch"
+  },
+  "dependencies": {
+    "@ios-plus/shared": "1.0.0",
+    "@ios-plus/gate-530": "1.0.0",
+    "@ios-plus/evidence-fabric": "1.0.0",
+    "@ios-plus/cos-plus": "1.0.0",
+    "@ios-plus/rag-vault": "1.0.0",
+    "@ios-plus/uco-resolver": "1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

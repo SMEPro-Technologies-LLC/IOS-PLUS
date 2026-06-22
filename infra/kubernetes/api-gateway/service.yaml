@@ -1,0 +1,60 @@
+# ============================================================================
+# IOS+ Platform — API Gateway Service
+# ============================================================================
+# ClusterIP service exposing the REST API on port 3001 and the Prometheus
+# metrics endpoint on port 9090. Used by the GCE Ingress and internal
+# ServiceMonitor for monitoring.
+# ============================================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ios-plus-api
+  namespace: api-gateway
+  labels:
+    app.kubernetes.io/name: ios-plus-api
+    app.kubernetes.io/component: api-gateway
+    cost-center: lamar-cos
+    tier: ingress
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'  # Container-native LB (GCE Ingress)
+    cloud.google.com/backend-config: '{"default": "ios-plus-api-backendconfig"}'
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ios-plus-api
+  ports:
+    - name: http
+      port: 3001
+      targetPort: http
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+      protocol: TCP
+
+---
+# BackendConfig for Cloud Armor and IAP on the GCE Ingress
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: ios-plus-api-backendconfig
+  namespace: api-gateway
+spec:
+  securityPolicy:
+    name: ios-plus-cloud-armor-policy
+  timeoutSec: 60
+  connectionDraining:
+    drainingTimeoutSec: 60
+  healthCheck:
+    checkIntervalSec: 30
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 3
+    type: HTTP
+    requestPath: /health
+    port: 3001
+  iap:
+    enabled: true
+    oauthclientCredentials:
+      secretName: ios-plus-iap-oauth-secret

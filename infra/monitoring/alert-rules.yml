@@ -1,0 +1,192 @@
+groups:
+  - name: ios-plus.rules
+    interval: 30s
+    rules:
+      # Request Rate Aggregation
+      - record: job:ios_plus_http_requests_total:rate5m
+        expr: sum(rate(ios_plus_http_requests_total[5m])) by (job, status_code)
+      
+      # Error Rate Aggregation
+      - record: job:ios_plus_http_errors_total:rate5m
+        expr: sum(rate(ios_plus_http_requests_total{status_code=~"5.."}[5m])) by (job)
+      
+      # Latency Percentiles
+      - record: job:ios_plus_request_duration_seconds:p99
+        expr: histogram_quantile(0.99, sum(rate(ios_plus_request_duration_seconds_bucket[5m])) by (job, le))
+      
+      - record: job:ios_plus_request_duration_seconds:p95
+        expr: histogram_quantile(0.95, sum(rate(ios_plus_request_duration_seconds_bucket[5m])) by (job, le))
+      
+      - record: job:ios_plus_request_duration_seconds:p50
+        expr: histogram_quantile(0.50, sum(rate(ios_plus_request_duration_seconds_bucket[5m])) by (job, le))
+
+  - name: ios-plus.alerts
+    rules:
+      # High Error Rate
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(ios_plus_http_requests_total{status_code=~"5.."}[5m]))
+            /
+            sum(rate(ios_plus_http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+          service: ios-plus
+        annotations:
+          summary: "IOS+ High Error Rate"
+          description: "Error rate is {{ $value | humanizePercentage }} for the last 5 minutes."
+          runbook_url: "https://runbooks.ioscos.com/ios-plus/high-error-rate"
+          dashboard: "https://grafana.ioscos.com/d/ios-plus"
+
+      # High Latency
+      - alert: HighLatency
+        expr: histogram_quantile(0.99, sum(rate(ios_plus_request_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          service: ios-plus
+        annotations:
+          summary: "IOS+ High Latency (P99)"
+          description: "P99 latency is {{ $value }}s, exceeding 2s threshold for 10 minutes."
+          runbook_url: "https://runbooks.ioscos.com/ios-plus/high-latency"
+          dashboard: "https://grafana.ioscos.com/d/ios-plus"
+
+      # Database Connection Failure
+      - alert: DatabaseConnectionFailure
+        expr: ios_plus_database_connection_pool_active_connections == 0 or ios_plus_database_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+          service: ios-plus
+        annotations:
+          summary: "IOS+ Database Connection Failure"
+          description: "Database connection pool is empty or database is unreachable for 2 minutes."
+          runbook_url: "https://runbooks.ioscos.com/ios-plus/database-connection-failure"
+          dashboard: "https://grafana.ioscos.com/d/ios-plus"
+
+      # Vault Connection Failure
+      - alert: VaultConnectionFailure
+        expr: ios_plus_vault_sealed == 1 or up{job="vault"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          service: ios-plus
+        annotations:
+          summary: "IOS+ Vault Connection Failure"
+          description: "Vault is sealed or unreachable. Secret injection and signing may fail."
+          runbook_url: "https://runbooks.ioscos.com/ios-plus/vault-connection-failure"
+          dashboard: "https://grafana.ioscos.com/d/ios-plus"
+
+      # Evidence Signing Failure
+      - alert: EvidenceSigningFailure
+        expr: |
+          increase(ios_plus_evidence_signing_failures_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+          service: ios-plus
+        annotations:
+          summary: "IOS+ Evidence Signing Failure"
+          description: "Evidence signing failures detected in the last 5 minutes."
+          runbook_url: "https://runbooks.ioscos.com/ios-plus/evidence-signing-failure"
+          dashboard: "https://grafana.ioscos.com/d/ios-plus"
+
+      # Audit WORM Violation
+      - alert: AuditWORMViolation
+        expr: ios_plus_audit_worm_violations_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          team: compliance
+          service: ios-plus
+        annotations:
+          summary: "IOS+ Audit WORM Violation Detected"
+          description: "Audit WORM violation count: {{ $value }}. Tampering or integrity breach suspected."
+          runbook_url: "https://runbooks.ioscos.com/ios-plus/audit-worm-violation"
+          dashboard: "https://grafana.ioscos.com/d/ios-plus"
+          escalate: "security-team@ioscos.com"
+
+      # Gate530 Down / Rule Evaluation Failure
+      - alert: Gate530Down
+        expr: ios_plus_gate530_rules_loaded < 1 or ios_plus_gate530_evaluation_errors_total > 0
+        for: 2m
+        labels:
+          severity: critical
+          team: compliance
+          service: ios-plus
+        annotations:
+          summary: "IOS+ Gate530 Rule Engine Failure"
+          description: "Gate530 rules not loaded or evaluation errors detected."
+          runbook_url: "https://runbooks.ioscos.com/ios-plus/gate530-down"
+          dashboard: "https://grafana.ioscos.com/d/ios-plus"
+
+      # Replicas Below Minimum
+      - alert: ReplicasBelowMinimum
+        expr: |
+          kube_deployment_status_replicas_available{deployment="ios-plus"}
+          <
+          kube_deployment_spec_replicas{deployment="ios-plus"}
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          service: ios-plus
+        annotations:
+          summary: "IOS+ Replicas Below Minimum"
+          description: "Available replicas ({{ $value }}) are below the desired count for 5 minutes."
+          runbook_url: "https://runbooks.ioscos.com/ios-plus/replicas-below-minimum"
+          dashboard: "https://grafana.ioscos.com/d/ios-plus"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            container_memory_usage_bytes{container="ios-plus"}
+            /
+            container_spec_memory_limit_bytes{container="ios-plus"}
+          ) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          service: ios-plus
+        annotations:
+          summary: "IOS+ High Memory Usage"
+          description: "Memory usage is {{ $value | humanizePercentage }} for container ios-plus."
+          dashboard: "https://grafana.ioscos.com/d/ios-plus"
+
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: |
+          rate(container_cpu_usage_seconds_total{container="ios-plus"}[5m])
+          > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          service: ios-plus
+        annotations:
+          summary: "IOS+ High CPU Usage"
+          description: "CPU usage is above 80% for container ios-plus."
+          dashboard: "https://grafana.ioscos.com/d/ios-plus"
+
+      # Evidence Verification Failures
+      - alert: EvidenceVerificationFailure
+        expr: increase(ios_plus_evidence_verification_failures_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: compliance
+          service: ios-plus
+        annotations:
+          summary: "IOS+ Evidence Verification Failure"
+          description: "Evidence signature verification failed in the last 5 minutes."
+          runbook_url: "https://runbooks.ioscos.com/ios-plus/evidence-verification-failure"
+          dashboard: "https://grafana.ioscos.com/d/ios-plus"

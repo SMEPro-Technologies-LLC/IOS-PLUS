@@ -1,0 +1,49 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus.monitoring.svc.cluster.local:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+      httpMethod: POST
+      manageAlerts: true
+      alertmanagerUid: alertmanager
+      prometheusType: Prometheus
+      cacheLevel: 'High'
+      disableRecordingRules: false
+      incrementalQuerying: true
+      queryTimeout: 60s
+    secureJsonData: {}
+
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki.monitoring.svc.cluster.local:3100
+    isDefault: false
+    editable: false
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - name: TraceID
+          matcherRegex: '"trace_id":"(\w+)"'
+          url: 'https://jaeger.ioscos.com/trace/$1'
+          datasourceUid: jaeger
+
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger-query.monitoring.svc.cluster.local:16686
+    isDefault: false
+    editable: false
+    jsonData:
+      tracesToLogs:
+        datasourceUid: loki
+        tags: ['pod', 'namespace']
+        spanStartTimeShift: '1h'
+        spanEndTimeShift: '1h'
+        filterByTraceID: true
+        filterBySpanID: true

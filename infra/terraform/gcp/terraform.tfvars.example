@@ -1,0 +1,42 @@
+project_id = "lamar-smepro-cos-staging"
+region     = "us-central1"
+env        = "staging"
+
+network_cidr = {
+  vpc              = "10.0.0.0/16"
+  gke_pods         = "10.1.0.0/16"
+  gke_services     = "10.2.0.0/16"
+  private_services = "10.3.0.0/16"
+}
+
+cluster_name = "cos-gke-staging"
+node_count   = 2
+machine_type = "e2-standard-4"
+
+db_instance_name = "cos-postgres-staging"
+db_tier          = "db-g1-small"
+db_version       = "POSTGRES_16"
+db_ha_enabled    = false
+
+redis_tier      = "BASIC"
+redis_memory_gb = 5
+
+storage_bucket_names = {
+  evidence        = "lamar-cos-evidence-staging"
+  audit_archive   = "lamar-cos-audit-archive-staging"
+  regulatory      = "lamar-cos-regulatory-sources-staging"
+  transcript      = "lamar-cos-transcript-scans-staging"
+  reporting       = "lamar-cos-reporting-exports-staging"
+  terraform_state = "lamar-cos-terraform-state-staging"
+}
+
+waf_enabled = true
+iap_enabled = true
+
+cost_center = "smepro-cos-lamar"
+
+labels = {
+  university = "lamar"
+  platform   = "ios-plus"
+  compliance = "smepro"
+}

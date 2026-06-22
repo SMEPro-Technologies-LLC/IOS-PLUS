@@ -1,0 +1,122 @@
+replicaCount: 3
+
+image:
+  tag: stable
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 1000m
+    memory: 1Gi
+  limits:
+    cpu: 4000m
+    memory: 4Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: app.ioscos.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: ios-plus-tls
+      hosts:
+        - app.ioscos.com
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ios-plus
+      ports:
+        - protocol: TCP
+          port: 3001
+        - protocol: TCP
+          port: 9090
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: vault
+      ports:
+        - protocol: TCP
+          port: 8200
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: database
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+env:
+  NODE_ENV: "production"
+  LOG_LEVEL: "warn"
+  EVIDENCE_SIGNING_ENABLED: "true"
+  AUDIT_WORM_ENABLED: "true"
+  RAG_EMBEDDING_PROVIDER: "vertex"
+  COMPLIANCE_ENGINE_MODE: "enforcement"
+  GATE530_RULE_REFRESH_INTERVAL: "300"
+  LICENSURE_LOOKUP_TIMEOUT: "5000"
+  COS_PLUS_CACHE_TTL: "60"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector.ioscos.com:4317"
+  PROMETHEUS_SCRAPE_ENABLED: "true"
+
+nodeSelector:
+  kubernetes.io/os: linux
+  node-type: production
+
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "production"
+    effect: "NoSchedule"
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+                - ios-plus
+        topologyKey: kubernetes.io/hostname
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: node-type
+              operator: In
+              values:
+                - production

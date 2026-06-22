@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+.audit-artifacts
+.git
+.github
+*.md
+!README.md
+Dockerfile*
+docker-compose*
+.env*
+.vscode
+.idea
+.terraform

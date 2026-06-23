@@ -1,0 +1,52 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: gate-530
+
+build:
+  artifacts:
+    - image: gate-530-api
+      docker:
+        dockerfile: packages/gate-530/Dockerfile
+        buildArgs:
+          BUILDKIT_INLINE_CACHE: "1"
+  tagPolicy:
+    gitCommit: {}
+  local:
+    push: true
+    useBuildkit: true
+    concurrency: 0
+  platforms:
+    - linux/amd64
+
+deploy:
+  kubectl:
+    defaultNamespace: api-gateway
+
+profiles:
+  - name: staging
+    deploy:
+      kubectl:
+        manifests:
+          - k8s/wave1/overlays/staging/**
+        flags:
+          global:
+            - --namespace=api-gateway
+
+  - name: production
+    deploy:
+      kubectl:
+        manifests:
+          - k8s/wave1/overlays/production/**
+        flags:
+          global:
+            - --namespace=api-gateway
+
+  - name: local
+    deploy:
+      kubectl:
+        manifests:
+          - k8s/wave1/**
+        flags:
+          global:
+            - --namespace=api-gateway

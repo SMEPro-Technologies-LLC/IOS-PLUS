@@ -1,0 +1,58 @@
+# ============================================================================
+# Wave 1 MVP — Production Overlay
+# ============================================================================
+# gate-530-api with 3 replicas, HPA, PDB, stricter limits, production labels.
+# Canary deployment: 25% → 50% → 75% → 100%.
+# ============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namePrefix: prod-
+
+namespace: api-gateway
+
+commonLabels:
+  environment: production
+  cost-center: lamar-cos
+  wave: "1"
+
+commonAnnotations:
+  iosplus.io/environment: "production"
+  iosplus.io/wave: "1"
+
+resources:
+  - ../../
+
+patches:
+  # --- gate-530-api: 3 replicas, stricter limits, HPA, PDB -----------------
+  - target:
+      kind: Deployment
+      name: gate-530-api
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests
+        value:
+          cpu: "250m"
+          memory: "256Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits
+        value:
+          cpu: "1000m"
+          memory: "1Gi"
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: api-gateway-pool
+
+  # --- ingress: production host only -----------------------------------------
+  - target:
+      kind: Ingress
+      name: gate-530-api-ingress
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: app.ioscos.com

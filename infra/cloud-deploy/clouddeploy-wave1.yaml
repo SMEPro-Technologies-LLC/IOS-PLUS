@@ -1,0 +1,39 @@
+apiVersion: deploy.cloud.google.com/v1
+kind: DeliveryPipeline
+metadata:
+  name: ios-plus-wave1-pipeline
+  description: IOS+ Wave 1 MVP — gate-530 Cloud Deploy delivery pipeline
+  labels:
+    app: ios-plus
+    wave: wave1
+    managed-by: cloud-deploy
+spec:
+  skaffoldModules:
+    - configs:
+        - gate-530
+      source:
+        path: skaffold-wave1.yaml
+
+  serialPipeline:
+    stages:
+      - targetId: staging
+        profiles:
+          - staging
+
+      - targetId: production
+        profiles:
+          - production
+        strategy:
+          canary:
+            runtimeConfig:
+              kubernetes:
+                serviceNetworking:
+                  service: "gate-530-api"
+                  deployment: "gate-530-api"
+            canaryDeployment:
+              percentages: [25, 50, 75]
+              verify: true
+
+---
+# Automated rollback on failed verification is enforced by Cloud Deploy
+# when verify: true and the verification job returns a non-zero exit code.

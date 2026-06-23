@@ -1,0 +1,25 @@
+apiVersion: deploy.cloud.google.com/v1
+kind: Target
+metadata:
+  name: staging
+  labels:
+    app: ios-plus
+    wave: wave1
+    environment: staging
+    managed-by: cloud-deploy
+spec:
+  gke:
+    cluster: projects/${GCP_PROJECT_ID}/locations/${GCP_REGION}/clusters/ios-plus-staging
+  executionConfigs:
+    - usages:
+        - RENDER
+        - DEPLOY
+      artifactStorage:
+        defaultPool:
+          serviceAccount: ${GCP_SERVICE_ACCOUNT}
+      serviceAccount: ${GCP_SERVICE_ACCOUNT}
+  requireApproval: false
+  description: |
+    Wave 1 MVP staging target.
+    Single-replica gate-530-api deployment for integration testing.
+    No canary — direct 100% deployment.

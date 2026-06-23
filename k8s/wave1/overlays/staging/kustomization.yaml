@@ -1,0 +1,58 @@
+# ============================================================================
+# Wave 1 MVP — Staging Overlay
+# ============================================================================
+# Single gate-530-api replica, relaxed resource limits, staging labels.
+# No HPA or PDB for simplicity in Wave 1.
+# ============================================================================
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namePrefix: staging-
+
+namespace: api-gateway
+
+commonLabels:
+  environment: staging
+  cost-center: lamar-cos
+  wave: "1"
+
+commonAnnotations:
+  iosplus.io/environment: "staging"
+  iosplus.io/wave: "1"
+
+resources:
+  - ../../
+
+patches:
+  # --- gate-530-api: single replica, relaxed limits ------------------------
+  - target:
+      kind: Deployment
+      name: gate-530-api
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits
+        value:
+          cpu: "500m"
+          memory: "512Mi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests
+        value:
+          cpu: "100m"
+          memory: "128Mi"
+      - op: replace
+        path: /spec/template/spec/nodeSelector
+        value:
+          cloud.google.com/gke-nodepool: staging-pool
+
+  # --- ingress: staging host (if ingress exists) ---------------------------
+  - target:
+      kind: Ingress
+      name: gate-530-api-ingress
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: staging.app.ioscos.com

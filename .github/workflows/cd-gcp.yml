@@ -21,7 +21,6 @@ env:
   GAR_REPOSITORY: ${{ secrets.GAR_REPOSITORY }}
   IMAGE_NAME: ios-plus
   DELIVERY_PIPELINE: ios-plus-pipeline
-  SKAFFOLD_FILE: ios-plus/infra/cloud-deploy/skaffold.yaml
 
 jobs:
   determine-environment:
@@ -34,10 +33,10 @@ jobs:
       - name: Set environment
         id: set-env
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "environment=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
             echo "is_tag=false" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" == "push" ] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+          elif [ "${{ github.event_name }}" = "push" ] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "environment=staging" >> "$GITHUB_OUTPUT"
             echo "is_tag=true" >> "$GITHUB_OUTPUT"
           else
@@ -70,6 +69,13 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+      - name: Get GKE credentials — Staging
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ios-plus-staging
+          location: ${{ secrets.GCP_REGION }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -77,11 +83,11 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ios-plus/infra/terraform
+        working-directory: infra/terraform
 
       - name: Terraform Apply — Staging
         run: terraform apply -auto-approve -var="environment=staging"
-        working-directory: ios-plus/infra/terraform
+        working-directory: infra/terraform
 
       - name: Create Cloud Deploy release
         run: |
@@ -89,7 +95,7 @@ jobs:
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
             --images="ios-plus=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
-            --source="ios-plus/infra/cloud-deploy" \
+            --source="infra/cloud-deploy" \
             --description="Release ${{ github.sha }}"
 
       - name: Promote to Staging
@@ -105,24 +111,22 @@ jobs:
         run: |
           set -e
           echo "Running smoke tests against staging..."
-          # Health check
           kubectl run smoke-test --rm -i --restart=Never \
             --image=curlimages/curl:latest \
             -- curl -fsS --retry 5 --retry-delay 5 \
-            "https://staging.app.ioscos.com/health" || exit 1
+            "https://staging.app.ioscos.com/health"
 
-          # Ready check
           kubectl rollout status deployment/ios-plus -n ios-plus-staging --timeout=300s
 
-          # DB connectivity
           kubectl run db-smoke --rm -i --restart=Never \
             --image=postgres:16-alpine \
-            -- psql "$STAGING_DATABASE_URL" -c "SELECT 1;" || exit 1
+            --env="PGPASSWORD=${{ secrets.STAGING_DB_PASSWORD || '' }}" \
+            -- psql "$STAGING_DATABASE_URL" -c "SELECT 1;"
 
-          # WORM verification
           kubectl run worm-smoke --rm -i --restart=Never \
-            --image=busybox:1.36 \
-            -- wget -qO- "https://staging.app.ioscos.com/api/v1/worm/status" || exit 1
+            --image=curlimages/curl:latest \
+            -- curl -fsS --retry 5 --retry-delay 5 \
+            "https://staging.app.ioscos.com/api/v1/worm/status"
         env:
           STAGING_DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
 
@@ -130,35 +134,17 @@ jobs:
         if: failure()
         run: |
           echo "Smoke tests failed. Initiating rollback..."
-          gcloud deploy rollbacks start \
-            --release="release-${{ github.run_id }}" \
+          gcloud deploy rollouts abandon \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
+            --release="release-${{ github.run_id }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --to-target="staging" \
-            --quiet
-
-      # - name: Notify Slack — Success
-      #   if: success()
-      #   uses: slackapi/slack-github-action@v1
-      #   with:
-      #     payload: |
-      #       {"text": "✅ IOS+ deployed to staging: ${{ github.sha }}"}
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-      # - name: Notify Slack — Failure
-      #   if: failure()
-      #   uses: slackapi/slack-github-action@v1
-      #   with:
-      #     payload: |
-      #       {"text": "❌ IOS+ staging deployment FAILED: ${{ github.sha }}"}
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+            --rollout="release-${{ github.run_id }}-to-staging" \
+            --quiet || true
 
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [determine-environment, deploy-staging]
+    needs: determine-environment
     if: needs.determine-environment.outputs.environment == 'production'
     permissions:
       contents: read
@@ -181,6 +167,13 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+      - name: Get GKE credentials — Production
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ios-plus-production
+          location: ${{ secrets.GCP_REGION }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -188,11 +181,20 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ios-plus/infra/terraform
+        working-directory: infra/terraform
 
       - name: Terraform Apply — Production
         run: terraform apply -auto-approve -var="environment=production"
-        working-directory: ios-plus/infra/terraform
+        working-directory: infra/terraform
+
+      - name: Create Cloud Deploy release
+        run: |
+          gcloud deploy releases create "release-${{ github.run_id }}" \
+            --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
+            --region="${{ secrets.GCP_REGION }}" \
+            --images="ios-plus=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
+            --source="infra/cloud-deploy" \
+            --description="Release ${{ github.sha }}"
 
       - name: Promote to Production (Canary)
         run: |
@@ -213,17 +215,19 @@ jobs:
           kubectl run smoke-test --rm -i --restart=Never \
             --image=curlimages/curl:latest \
             -- curl -fsS --retry 5 --retry-delay 5 \
-            "https://app.ioscos.com/health" || exit 1
+            "https://app.ioscos.com/health"
 
           kubectl rollout status deployment/ios-plus -n ios-plus-production --timeout=300s
 
           kubectl run db-smoke --rm -i --restart=Never \
             --image=postgres:16-alpine \
-            -- psql "$PROD_DATABASE_URL" -c "SELECT 1;" || exit 1
+            --env="PGPASSWORD=${{ secrets.PROD_DB_PASSWORD || '' }}" \
+            -- psql "$PROD_DATABASE_URL" -c "SELECT 1;"
 
           kubectl run worm-smoke --rm -i --restart=Never \
-            --image=busybox:1.36 \
-            -- wget -qO- "https://app.ioscos.com/api/v1/worm/status" || exit 1
+            --image=curlimages/curl:latest \
+            -- curl -fsS --retry 5 --retry-delay 5 \
+            "https://app.ioscos.com/api/v1/worm/status"
         env:
           PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
 
@@ -231,12 +235,12 @@ jobs:
         if: failure()
         run: |
           echo "Smoke tests failed. Initiating rollback..."
-          gcloud deploy rollbacks start \
-            --release="release-${{ github.run_id }}" \
+          gcloud deploy rollouts abandon \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
+            --release="release-${{ github.run_id }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --to-target="production" \
-            --quiet
+            --rollout="release-${{ github.run_id }}-to-production" \
+            --quiet || true
 
       - name: Wait for canary 50%
         run: sleep 60
@@ -247,17 +251,7 @@ jobs:
           kubectl run smoke-test --rm -i --restart=Never \
             --image=curlimages/curl:latest \
             -- curl -fsS --retry 5 --retry-delay 5 \
-            "https://app.ioscos.com/health" || exit 1
-
-      - name: Rollback on failure (50%)
-        if: failure()
-        run: |
-          gcloud deploy rollbacks start \
-            --release="release-${{ github.run_id }}" \
-            --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
-            --region="${{ secrets.GCP_REGION }}" \
-            --to-target="production" \
-            --quiet
+            "https://app.ioscos.com/health"
 
       - name: Wait for canary 75%
         run: sleep 60
@@ -268,17 +262,7 @@ jobs:
           kubectl run smoke-test --rm -i --restart=Never \
             --image=curlimages/curl:latest \
             -- curl -fsS --retry 5 --retry-delay 5 \
-            "https://app.ioscos.com/health" || exit 1
-
-      - name: Rollback on failure (75%)
-        if: failure()
-        run: |
-          gcloud deploy rollbacks start \
-            --release="release-${{ github.run_id }}" \
-            --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
-            --region="${{ secrets.GCP_REGION }}" \
-            --to-target="production" \
-            --quiet
+            "https://app.ioscos.com/health"
 
       - name: Wait for canary 100%
         run: sleep 60
@@ -289,32 +273,16 @@ jobs:
           kubectl run smoke-test --rm -i --restart=Never \
             --image=curlimages/curl:latest \
             -- curl -fsS --retry 5 --retry-delay 5 \
-            "https://app.ioscos.com/health" || exit 1
+            "https://app.ioscos.com/health"
 
           kubectl run db-smoke --rm -i --restart=Never \
             --image=postgres:16-alpine \
-            -- psql "$PROD_DATABASE_URL" -c "SELECT 1;" || exit 1
+            --env="PGPASSWORD=${{ secrets.PROD_DB_PASSWORD || '' }}" \
+            -- psql "$PROD_DATABASE_URL" -c "SELECT 1;"
 
           kubectl run worm-smoke --rm -i --restart=Never \
-            --image=busybox:1.36 \
-            -- wget -qO- "https://app.ioscos.com/api/v1/worm/status" || exit 1
+            --image=curlimages/curl:latest \
+            -- curl -fsS --retry 5 --retry-delay 5 \
+            "https://app.ioscos.com/api/v1/worm/status"
         env:
           PROD_DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
-
-      # - name: Notify Slack — Production Success
-      #   if: success()
-      #   uses: slackapi/slack-github-action@v1
-      #   with:
-      #     payload: |
-      #       {"text": "🚀 IOS+ deployed to PRODUCTION: ${{ github.sha }}"}
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-
-      # - name: Notify Slack — Production Failure
-      #   if: failure()
-      #   uses: slackapi/slack-github-action@v1
-      #   with:
-      #     payload: |
-      #       {"text": "🚨 IOS+ PRODUCTION deployment FAILED: ${{ github.sha }}"}
-      #   env:
-      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

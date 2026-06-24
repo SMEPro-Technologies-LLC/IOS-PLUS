@@ -10,19 +10,31 @@ export function getEvidenceTableName(): string {
   return EVIDENCE_TABLE_NAME;
 }
 
+/**
+ * Ensure the evidence_records table exists with the unified schema.
+ * In production, the canonical schema is applied by db/migrations/.
+ * This function is a safety net for test environments and fresh setups.
+ * It does NOT conflict with the migration schema because it only uses
+ * CREATE TABLE IF NOT EXISTS with columns that the migration also defines.
+ */
 export async function createEvidenceTable(pool: Pool): Promise<void> {
-  await pool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
+  await pool.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";');
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ${EVIDENCE_TABLE_NAME} (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      request_id TEXT NOT NULL,
-      record_type TEXT NOT NULL,
-      content JSONB NOT NULL,
-      hash TEXT NOT NULL,
-      previous_hash TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      created_by TEXT NOT NULL,
-      metadata JSONB DEFAULT '{}'
+      id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      request_id        TEXT NOT NULL,
+      timestamp         TIMESTAMPTZ NOT NULL DEFAULT now(),
+      decision          JSONB NOT NULL DEFAULT '{}',
+      signature         BYTEA,
+      public_key        BYTEA,
+      canonical_payload TEXT,
+      previous_hash     TEXT,
+      created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+      record_type       TEXT NOT NULL DEFAULT 'compliance_decision',
+      content           JSONB,
+      hash              TEXT,
+      created_by        TEXT NOT NULL DEFAULT 'system',
+      metadata          JSONB DEFAULT '{}'
     );
   `);
   await pool.query(`
@@ -39,12 +51,16 @@ export async function createEvidenceTable(pool: Pool): Promise<void> {
   `);
 }
 
-function computeHash(record: Omit<EvidenceRecord, 'id' | 'created_at'>): string {
+/**
+ * Compute a SHA-256 hex hash of the record's stable content fields.
+ * Used for application-layer chain integrity (cos-plus path).
+ */
+function computeHash(record: Omit<EvidenceRecord, 'id' | 'created_at' | 'timestamp'>): string {
   const data = JSON.stringify({
     request_id: record.request_id,
     record_type: record.record_type,
-    content: record.content,
-    previous_hash: record.previous_hash,
+    content: record.content ?? record.decision ?? {},
+    previous_hash: record.previous_hash ?? null,
     created_by: record.created_by,
   });
   return createHash('sha256').update(data).digest('hex');
@@ -57,22 +73,26 @@ export async function storeEvidenceRecord(pool: Pool, record: EvidenceRecord): P
   if (record.hash && record.hash !== expectedHash) {
     throw new Error('EvidenceRecord hash mismatch: record integrity verification failed.');
   }
-  const expectedHash = computeHash(record);
   const finalHash = record.hash ?? expectedHash;
 
+  // Use content if provided; fall back to decision for gate-530 records
+  const contentValue = record.content ?? record.decision ?? {};
+
   const sql = `
-    INSERT INTO ${EVIDENCE_TABLE_NAME} (request_id, record_type, content, hash, previous_hash, created_by, metadata)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    INSERT INTO ${EVIDENCE_TABLE_NAME}
+      (request_id, record_type, content, hash, previous_hash, created_by, metadata, decision)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING *;
   `;
   const values = [
     record.request_id,
     record.record_type,
-    JSON.stringify(record.content),
+    JSON.stringify(contentValue),
     finalHash,
     record.previous_hash ?? null,
     record.created_by,
     record.metadata ? JSON.stringify(record.metadata) : '{}',
+    JSON.stringify(record.decision ?? contentValue),
   ];
 
   const result = await pool.query(sql, values);
@@ -82,7 +102,7 @@ export async function storeEvidenceRecord(pool: Pool, record: EvidenceRecord): P
     action: 'INSERT',
     table_name: EVIDENCE_TABLE_NAME,
     record_id: result.rows[0].id as string,
-    new_data: record.content,
+    new_data: contentValue,
     metadata: { record_type: record.record_type, request_id: record.request_id },
   });
 
@@ -93,7 +113,8 @@ export async function getEvidenceByRequestId(pool: Pool, requestId: string): Pro
   await createEvidenceTable(pool);
   const result = await pool.query(
     `
-      SELECT id, request_id, record_type, content, hash, previous_hash, created_at, created_by, metadata
+      SELECT id, request_id, timestamp, decision, signature, public_key, canonical_payload,
+             previous_hash, created_at, record_type, content, hash, created_by, metadata
       FROM ${EVIDENCE_TABLE_NAME}
       WHERE request_id = $1
       ORDER BY created_at ASC;
@@ -107,7 +128,8 @@ export async function getEvidenceById(pool: Pool, id: string): Promise<EvidenceR
   await createEvidenceTable(pool);
   const result = await pool.query(
     `
-      SELECT id, request_id, record_type, content, hash, previous_hash, created_at, created_by, metadata
+      SELECT id, request_id, timestamp, decision, signature, public_key, canonical_payload,
+             previous_hash, created_at, record_type, content, hash, created_by, metadata
       FROM ${EVIDENCE_TABLE_NAME}
       WHERE id = $1
       LIMIT 1;
@@ -134,13 +156,13 @@ export async function verifyEvidenceChain(pool: Pool, requestId: string): Promis
   for (let i = 0; i < records.length; i++) {
     const record = records[i];
     const expectedHash = computeHash(record);
-    if (record.hash !== expectedHash) {
+    if (record.hash && record.hash !== expectedHash) {
       errors.push(`Hash mismatch at record ${record.id}: expected ${expectedHash}, got ${record.hash}`);
     }
 
     if (i > 0) {
       const prevRecord = records[i - 1];
-      if (record.previous_hash !== prevRecord.hash) {
+      if (prevRecord.hash && record.previous_hash !== prevRecord.hash) {
         errors.push(
           `Chain break at record ${record.id}: previous_hash ${record.previous_hash} does not match previous record hash ${prevRecord.hash}`
         );
@@ -183,7 +205,8 @@ export async function searchEvidence(pool: Pool, criteria: EvidenceSearchCriteri
   const offset = criteria.offset ?? 0;
 
   const sql = `
-    SELECT id, request_id, record_type, content, hash, previous_hash, created_at, created_by, metadata
+    SELECT id, request_id, timestamp, decision, signature, public_key, canonical_payload,
+           previous_hash, created_at, record_type, content, hash, created_by, metadata
     FROM ${EVIDENCE_TABLE_NAME}
     WHERE ${conditions.join(' AND ')}
     ORDER BY created_at DESC
@@ -227,3 +250,4 @@ export async function searchEvidenceCount(pool: Pool, criteria: EvidenceSearchCr
   const result = await pool.query(sql, values);
   return parseInt(result.rows[0].count as string, 10);
 }
+

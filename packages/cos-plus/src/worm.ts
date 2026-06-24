@@ -54,17 +54,18 @@ export interface WormStatus {
 }
 
 export async function verifyWormStatus(pool: Pool): Promise<WormStatus[]> {
+  // Match both cos-plus trigger naming (worm_<table>) and migration naming (trg_<table>_worm)
   const result = await pool.query(`
     SELECT c.relname as table_name,
            EXISTS (
              SELECT 1 FROM pg_trigger t
              WHERE t.tgrelid = c.oid
-             AND t.tgname LIKE 'worm_%'
+             AND (t.tgname LIKE 'worm_%' OR t.tgname LIKE 'trg_%_worm')
            ) as has_worm,
            (
              SELECT t.tgname FROM pg_trigger t
              WHERE t.tgrelid = c.oid
-             AND t.tgname LIKE 'worm_%'
+             AND (t.tgname LIKE 'worm_%' OR t.tgname LIKE 'trg_%_worm')
              LIMIT 1
            ) as trigger_name
     FROM pg_class c
@@ -81,6 +82,38 @@ export async function verifyWormStatus(pool: Pool): Promise<WormStatus[]> {
     triggerName: (row.trigger_name as string | null) ?? null,
     isCompliant: row.has_worm as boolean,
   }));
+}
+
+export interface WormComplianceResult {
+  compliant: boolean;
+  violations: string[];
+  protectedTables: string[];
+  totalChecks: number;
+}
+
+/**
+ * Aggregate WORM status into a single compliance result suitable for
+ * deployment gates (e.g. scripts/db/verify-worm.js).
+ */
+export async function verifyWormCompliance(pool: Pool): Promise<WormComplianceResult> {
+  const statuses = await verifyWormStatus(pool);
+  const violations: string[] = [];
+  const protectedTables: string[] = [];
+
+  for (const s of statuses) {
+    if (s.isCompliant) {
+      protectedTables.push(s.tableName);
+    } else {
+      violations.push(`Table "${s.tableName}" is missing a WORM trigger`);
+    }
+  }
+
+  return {
+    compliant: violations.length === 0 && statuses.length > 0,
+    violations,
+    protectedTables,
+    totalChecks: statuses.length,
+  };
 }
 
 export async function createWormTable(

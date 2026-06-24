@@ -12,7 +12,6 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "composite": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
@@ -22,12 +21,12 @@
     "rootDir": ".",
     "baseUrl": ".",
     "paths": {
-      "@ios-plus/shared": ["packages/shared/src"],
-      "@ios-plus/gate-530": ["packages/gate-530/src"],
-      "@ios-plus/evidence-fabric": ["packages/evidence-fabric/src"],
-      "@ios-plus/cos-plus": ["packages/cos-plus/src"],
-      "@ios-plus/rag-vault": ["packages/rag-vault/src"],
-      "@ios-plus/uco-resolver": ["packages/uco-resolver/src"]
+      "@ios-plus/shared": ["packages/shared/src/index.ts"],
+      "@ios-plus/gate-530": ["packages/gate-530/src/index.ts"],
+      "@ios-plus/evidence-fabric": ["packages/evidence-fabric/src/index.ts"],
+      "@ios-plus/cos-plus": ["packages/cos-plus/src/index.ts"],
+      "@ios-plus/rag-vault": ["packages/rag-vault/src/index.ts"],
+      "@ios-plus/uco-resolver": ["packages/uco-resolver/src/index.ts"]
     }
   },
   "include": ["packages/*/src/**/*", "packages/*/tests/**/*"],

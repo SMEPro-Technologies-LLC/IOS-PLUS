@@ -8,6 +8,8 @@ import {
 import { RuleEngine } from './rules.js';
 import { SectorRegistry } from './sector.js';
 
+export type { EvaluationContext };
+
 export interface ComplianceDecision {
   action: 'allow' | 'deny' | 'escalate';
   reason: string;
@@ -28,7 +30,6 @@ export class Gate530Engine {
   private ruleEngine = new RuleEngine();
   private sectorRegistry: SectorRegistry;
   private failClosed: boolean;
-  private config: Gate530Config;
 
   constructor(config: Gate530Config) {
     const validation = validateConfig(config);
@@ -36,7 +37,6 @@ export class Gate530Engine {
       throw new Error(`Invalid Gate530Config: ${validation.errors.join(', ')}`);
     }
 
-    this.config = config;
     this.failClosed = config.failClosed;
     this.sectorRegistry = new SectorRegistry();
 

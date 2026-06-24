@@ -15,7 +15,6 @@ import {
   NaicsInfo,
   SocInfo,
   TraversalConfig,
-  ValidationResult,
 } from './types.js';
 
 import { UcoDatabaseQueries } from './database.js';
@@ -24,7 +23,6 @@ import { CrosswalkLoader, CrosswalkIndex } from './crosswalk.js';
 import {
   validateConfig,
   getDefaultTraversalConfig,
-  validateTraversalConfig,
 } from './config.js';
 
 /* ------------------------------------------------------------------ */

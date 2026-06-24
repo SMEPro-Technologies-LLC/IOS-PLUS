@@ -7,7 +7,7 @@ export type ComplianceDimension =
   | 'financial';
 
 export interface Condition {
-  operator:
+  operator?:
     | 'eq'
     | 'ne'
     | 'gt'
@@ -18,7 +18,7 @@ export interface Condition {
     | 'contains'
     | 'regex'
     | 'exists';
-  field: string;
+  field?: string;
   value?: unknown;
   conditions?: Condition[];
   logical?: 'and' | 'or';

@@ -12,14 +12,12 @@ import {
   Actor,
   ComplianceLevel,
   AuditEntry,
-  RankedDocument,
 } from './types.js';
 import type {
   UcoPartition,
-  PartitionStrategy,
 } from './partition.js';
 import { UcoPartitionManager } from './partition.js';
-import { SectorKnowledgeMap, SectorAwareFilter } from './sector.js';
+import { SectorAwareFilter } from './sector.js';
 import {
   VectorRetriever,
   RetrievalRanker,
@@ -36,7 +34,6 @@ import { validateConfig } from './config.js';
 export class RagVault {
   private config: RagVaultConfig;
   private partitionManager: UcoPartitionManager;
-  private sectorKnowledgeMap: SectorKnowledgeMap;
   private sectorFilter: SectorAwareFilter;
   private vectorRetriever: VectorRetriever;
   private ranker: RetrievalRanker;
@@ -65,7 +62,7 @@ export class RagVault {
     this.partitionManager = new UcoPartitionManager(
       this.config.partitionStrategy
     );
-    this.sectorKnowledgeMap = new SectorKnowledgeMap();
+
     this.sectorFilter = new SectorAwareFilter();
     this.vectorRetriever = new VectorRetriever(
       this.config.databasePool,
@@ -121,7 +118,7 @@ export class RagVault {
 
     // 4. Perform vector similarity search within partition
     const searchResult = await this.vectorRetriever.search(embedding, {
-      limit: (query.maxResults ?? this.config.maxResults) * 2,
+      limit: (query.maxResults ?? this.config.maxResults ?? 10) * 2,
       similarityThreshold: this.config.similarityThreshold,
       filters: {
         partition: partition.id,

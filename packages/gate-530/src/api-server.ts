@@ -9,8 +9,7 @@ import { URL } from 'node:url';
 import type { ApiServerConfig } from './api-config.js';
 import type { ApiDatabase } from './api-db.js';
 import type { ApiAuth, AuthResult } from './api-auth.js';
-import { Gate530Engine, type ComplianceDecision, type EvaluationContext } from './engine.js';
-import { SectorRegistry } from './sector.js';
+import { Gate530Engine, type EvaluationContext } from './engine.js';
 import { LocalSigner } from '@ios-plus/evidence-fabric';
 import type { PolicyRule } from './config.js';
 
@@ -80,7 +79,7 @@ export class Gate530ApiServer {
         dimension: 'data_privacy',
         priority: 100,
         condition: {
-          operator: 'and',
+          logical: 'and',
           conditions: [
             { operator: 'eq', field: 'resource.classification', value: 'pii' },
             { operator: 'eq', field: 'action', value: 'access' },

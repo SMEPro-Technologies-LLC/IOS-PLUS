@@ -17,7 +17,12 @@ export interface DbEvidenceRecord {
   signature: string;
   publicKey: string;
   canonicalPayload: string;
+  /** Hex-encoded SHA-256 of previous record (TEXT after migration 003). */
   previousHash?: string;
+  /** cos-plus supplemental field; defaults to 'compliance_decision'. */
+  recordType?: string;
+  /** cos-plus supplemental field; defaults to 'gate-530'. */
+  createdBy?: string;
 }
 
 export interface DbAuditEvent {
@@ -37,10 +42,8 @@ export interface DbAuditEvent {
 
 export class ApiDatabase {
   private pool: pg.Pool;
-  private config: DatabaseConfig;
 
   constructor(config: DatabaseConfig) {
-    this.config = config;
     this.pool = new Pool({
       host: config.host,
       port: config.port,
@@ -96,8 +99,9 @@ export class ApiDatabase {
     try {
       await client.query(
         `INSERT INTO evidence_records (
-          id, request_id, timestamp, decision, signature, public_key, canonical_payload, previous_hash
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          id, request_id, timestamp, decision, signature, public_key, canonical_payload,
+          previous_hash, record_type, content, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           record.id,
           record.requestId,
@@ -106,7 +110,11 @@ export class ApiDatabase {
           Buffer.from(record.signature, 'base64'),
           Buffer.from(record.publicKey, 'base64'),
           record.canonicalPayload,
-          record.previousHash ? Buffer.from(record.previousHash, 'base64') : null,
+          // previous_hash is now TEXT (hex); store as-is from caller
+          record.previousHash ?? null,
+          record.recordType ?? 'compliance_decision',
+          JSON.stringify(record.decision),
+          record.createdBy ?? 'gate-530',
         ]
       );
     } finally {
@@ -118,7 +126,8 @@ export class ApiDatabase {
     const client = await this.pool.connect();
     try {
       const result = await client.query(
-        `SELECT id, request_id, timestamp, decision, signature, public_key, canonical_payload, previous_hash
+        `SELECT id, request_id, timestamp, decision, signature, public_key, canonical_payload,
+                previous_hash, record_type, created_by
          FROM evidence_records WHERE request_id = $1 ORDER BY timestamp DESC LIMIT 1`,
         [requestId]
       );
@@ -129,10 +138,13 @@ export class ApiDatabase {
         requestId: row.request_id,
         timestamp: row.timestamp,
         decision: typeof row.decision === 'string' ? JSON.parse(row.decision) : row.decision,
-        signature: Buffer.from(row.signature).toString('base64'),
-        publicKey: Buffer.from(row.public_key).toString('base64'),
-        canonicalPayload: row.canonical_payload,
-        previousHash: row.previous_hash ? Buffer.from(row.previous_hash).toString('base64') : undefined,
+        signature: row.signature ? Buffer.from(row.signature).toString('base64') : '',
+        publicKey: row.public_key ? Buffer.from(row.public_key).toString('base64') : '',
+        canonicalPayload: row.canonical_payload ?? '',
+        // previous_hash is TEXT (hex) after migration 003
+        previousHash: row.previous_hash ?? undefined,
+        recordType: row.record_type ?? 'compliance_decision',
+        createdBy: row.created_by ?? 'gate-530',
       };
     } finally {
       client.release();
@@ -145,8 +157,9 @@ export class ApiDatabase {
       await client.query(
         `INSERT INTO audit_events (
           id, table_name, operation, record_id, old_data, new_data, actor_id, actor_type,
-          session_id, ip_address, user_agent, timestamp
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          session_id, ip_address, user_agent, timestamp,
+          actor, action
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
         [
           event.id,
           event.tableName,
@@ -160,6 +173,9 @@ export class ApiDatabase {
           event.ipAddress ?? null,
           event.userAgent ?? null,
           event.timestamp,
+          // Supplemental cos-plus columns for cross-layer query compatibility
+          event.actorId ?? null,
+          event.operation,
         ]
       );
     } finally {

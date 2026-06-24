@@ -1,14 +1,15 @@
-import canonicalize from 'canonicalize';
-
 /**
  * JCS Canonicalization (RFC 8785) utilities
+ *
+ * Uses deep-sorted JSON.stringify which is compatible with JCS RFC 8785 for
+ * well-formed JSON objects (no NaN, Infinity, or other non-JSON-safe values).
  */
 
 /**
- * Canonicalize a JSON payload using JCS (RFC 8785)
+ * Canonicalize a JSON payload using RFC 8785-compatible key sorting
  */
 export function canonicalize(payload: Record<string, unknown>): string {
-  const result = canonicalize(payload);
+  const result = jcsSerialize(payload);
   if (result === undefined) {
     throw new Error('Canonicalization failed: payload cannot be serialized');
   }
@@ -34,14 +35,38 @@ export function canonicalizeOrdered(payload: Record<string, unknown>): string {
 /**
  * Verify that a canonical string round-trips correctly
  */
-export function verifyCanonicalization(payload: Record<string, unknown>, canonical: string): boolean {
+export function verifyCanonicalization(_payload: Record<string, unknown>, canonical: string): boolean {
   try {
-    const reparsed = JSON.parse(canonical);
+    const reparsed = JSON.parse(canonical) as Record<string, unknown>;
     const recanonicalized = canonicalize(reparsed);
     return canonical === recanonicalized;
   } catch {
     return false;
   }
+}
+
+/**
+ * RFC 8785-compatible serialization (deep-sorted keys, deterministic output)
+ */
+function jcsSerialize(obj: unknown): string | undefined {
+  if (obj === null || typeof obj !== 'object') {
+    const s = JSON.stringify(obj);
+    return s;
+  }
+
+  if (Array.isArray(obj)) {
+    const items = obj.map((item) => jcsSerialize(item) ?? 'null');
+    return '[' + items.join(',') + ']';
+  }
+
+  const record = obj as Record<string, unknown>;
+  const keys = Object.keys(record).sort();
+  const parts = keys.map((k) => {
+    const v = jcsSerialize(record[k]);
+    if (v === undefined) return undefined;
+    return JSON.stringify(k) + ':' + v;
+  }).filter((p): p is string => p !== undefined);
+  return '{' + parts.join(',') + '}';
 }
 
 /**
@@ -82,7 +107,7 @@ export class JcsCanonicalizer {
       return cached;
     }
 
-    const result = canonicalize(payload);
+    const result = jcsSerialize(payload);
     if (result === undefined) {
       throw new Error('Canonicalization failed: payload cannot be serialized');
     }
@@ -107,9 +132,9 @@ export class JcsCanonicalizer {
     return JSON.stringify(ordered);
   }
 
-  verifyCanonicalization(payload: Record<string, unknown>, canonical: string): boolean {
+  verifyCanonicalization(_payload: Record<string, unknown>, canonical: string): boolean {
     try {
-      const reparsed = JSON.parse(canonical);
+      const reparsed = JSON.parse(canonical) as Record<string, unknown>;
       const recanonicalized = canonicalize(reparsed);
       return canonical === recanonicalized;
     } catch {

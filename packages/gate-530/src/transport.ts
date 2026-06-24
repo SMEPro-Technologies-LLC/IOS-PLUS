@@ -2,7 +2,7 @@ import http2 from 'http2';
 import net from 'net';
 import fs from 'fs';
 import { EvaluationContext } from './config.js';
-import { ComplianceDecision, Gate530Engine } from './engine.js';
+import { Gate530Engine } from './engine.js';
 
 export interface TransportConfig {
   type: 'http2' | 'ipc';
@@ -11,13 +11,13 @@ export interface TransportConfig {
   socketPath?: string;
 }
 
-export interface ServerRequest {
+export interface TransportRequest {
   method: string;
   url: string;
   body: string;
 }
 
-export interface ServerResponse {
+export interface TransportResponse {
   statusCode: number;
   headers: Record<string, string>;
   body: string;
@@ -111,7 +111,7 @@ export class Http2Transport {
     });
   }
 
-  private async handleRequest(method: string, url: string, body: string): Promise<ServerResponse> {
+  private async handleRequest(method: string, url: string, body: string): Promise<TransportResponse> {
     if (method === 'GET' && url === '/health') {
       return {
         statusCode: 200,
@@ -292,7 +292,7 @@ export class IpcTransport {
     });
   }
 
-  private async handleRequest(method: string, url: string, body: string): Promise<ServerResponse> {
+  private async handleRequest(method: string, url: string, body: string): Promise<TransportResponse> {
     if (method === 'GET' && url === '/health') {
       return {
         statusCode: 200,

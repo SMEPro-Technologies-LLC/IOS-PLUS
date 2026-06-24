@@ -28,8 +28,8 @@ export function keyFromBase64(key: string): Uint8Array {
  * Local Ed25519 signer that loads keys from files or generates new ones
  */
 export class LocalSigner implements Signer {
-  private secretKey: Uint8Array;
-  private publicKey: Uint8Array;
+  private secretKey!: Uint8Array;
+  private publicKey!: Uint8Array;
   private privateKeyPath: string;
   private publicKeyPath: string;
   private archiveDir: string;

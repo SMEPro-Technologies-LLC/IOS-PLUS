@@ -53,40 +53,45 @@ function computeHash(record: Omit<EvidenceRecord, 'id' | 'created_at'>): string 
 export async function storeEvidenceRecord(pool: Pool, record: EvidenceRecord): Promise<QueryResult> {
   await createEvidenceTable(pool);
 
-  const expectedHash = computeHash(record);
-  if (record.hash && record.hash !== expectedHash) {
-    throw new Error('EvidenceRecord hash mismatch: record integrity verification failed.');
+  {
+    const expectedHash = computeHash(record);
+    if (record.hash && record.hash !== expectedHash) {
+      throw new Error('EvidenceRecord hash mismatch: record integrity verification failed.');
+    }
   }
-  const expectedHash = computeHash(record);
-  const finalHash = record.hash ?? expectedHash;
+  {
+    const expectedHash = computeHash(record);
+    const finalHash = record.hash ?? expectedHash;
 
-  const sql = `
-    INSERT INTO ${EVIDENCE_TABLE_NAME} (request_id, record_type, content, hash, previous_hash, created_by, metadata)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
-    RETURNING *;
-  `;
-  const values = [
-    record.request_id,
-    record.record_type,
-    JSON.stringify(record.content),
-    finalHash,
-    record.previous_hash ?? null,
-    record.created_by,
-    record.metadata ? JSON.stringify(record.metadata) : '{}',
-  ];
+    const sql = `
+      INSERT INTO ${EVIDENCE_TABLE_NAME} (request_id, record_type, content, hash, previous_hash, created_by, metadata)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *;
+    `;
+    const values = [
+      record.request_id,
+      record.record_type,
+      JSON.stringify(record.content),
+      finalHash,
+      record.previous_hash ?? null,
+      record.created_by,
+      record.metadata ? JSON.stringify(record.metadata) : '{}',
+    ];
 
-  const result = await pool.query(sql, values);
+    const result = await pool.query(sql, values);
 
-  await insertAuditEvent(pool, {
-    actor: record.created_by,
-    action: 'INSERT',
-    table_name: EVIDENCE_TABLE_NAME,
-    record_id: result.rows[0].id as string,
-    new_data: record.content,
-    metadata: { record_type: record.record_type, request_id: record.request_id },
-  });
+    await insertAuditEvent(pool, {
+      actor: record.created_by,
+      action: 'INSERT',
+      table_name: EVIDENCE_TABLE_NAME,
+      record_id: result.rows[0].id as string,
+      new_data: record.content,
+      metadata: { record_type: record.record_type, request_id: record.request_id },
+    });
 
-  return result;
+    return result;
+  }
+
 }
 
 export async function getEvidenceByRequestId(pool: Pool, requestId: string): Promise<EvidenceRecord[]> {

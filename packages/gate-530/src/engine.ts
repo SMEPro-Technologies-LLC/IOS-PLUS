@@ -1,8 +1,8 @@
 import {
-  ComplianceDimension,
-  EvaluationContext,
-  Gate530Config,
-  PolicyRule,
+  type ComplianceDimension,
+  type EvaluationContext,
+  type Gate530Config,
+  type PolicyRule,
   validateConfig,
 } from './config.js';
 import { RuleEngine } from './rules.js';
@@ -28,7 +28,6 @@ export class Gate530Engine {
   private ruleEngine = new RuleEngine();
   private sectorRegistry: SectorRegistry;
   private failClosed: boolean;
-  private config: Gate530Config;
 
   constructor(config: Gate530Config) {
     const validation = validateConfig(config);
@@ -36,7 +35,6 @@ export class Gate530Engine {
       throw new Error(`Invalid Gate530Config: ${validation.errors.join(', ')}`);
     }
 
-    this.config = config;
     this.failClosed = config.failClosed;
     this.sectorRegistry = new SectorRegistry();
 
@@ -293,3 +291,5 @@ export class Gate530Engine {
     };
   }
 }
+
+export type { EvaluationContext } from './config.js';

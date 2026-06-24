@@ -9,8 +9,7 @@ import { URL } from 'node:url';
 import type { ApiServerConfig } from './api-config.js';
 import type { ApiDatabase } from './api-db.js';
 import type { ApiAuth, AuthResult } from './api-auth.js';
-import { Gate530Engine, type ComplianceDecision, type EvaluationContext } from './engine.js';
-import { SectorRegistry } from './sector.js';
+import { Gate530Engine, type EvaluationContext } from './engine.js';
 import { LocalSigner } from '@ios-plus/evidence-fabric';
 import type { PolicyRule } from './config.js';
 
@@ -80,7 +79,9 @@ export class Gate530ApiServer {
         dimension: 'data_privacy',
         priority: 100,
         condition: {
-          operator: 'and',
+          operator: 'exists',
+          field: 'resource.classification',
+          logical: 'and',
           conditions: [
             { operator: 'eq', field: 'resource.classification', value: 'pii' },
             { operator: 'eq', field: 'action', value: 'access' },
@@ -483,7 +484,7 @@ export class Gate530ApiServer {
       name: body.name?.toString() || 'Unnamed Rule',
       dimension: (body.dimension as PolicyRule['dimension']) || 'operational',
       priority: typeof body.priority === 'number' ? body.priority : 100,
-      condition: (body.condition as Record<string, unknown>) || {},
+      condition: (body.condition as PolicyRule['condition']) || { operator: 'exists', field: 'requestId' },
       action: (body.action as PolicyRule['action']) || 'allow',
       enabled: body.enabled !== false,
       sector: body.sector?.toString(),

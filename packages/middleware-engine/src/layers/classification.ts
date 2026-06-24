@@ -140,7 +140,7 @@ export class ClassificationLayer {
     return Math.min(1, score);
   }
 
-  private fallbackHighSensitivity(error: Error): ClassificationResult {
+  private fallbackHighSensitivity(_error: Error): ClassificationResult {
     return {
       intent: 'unknown',
       sector: this.config.defaultSector,

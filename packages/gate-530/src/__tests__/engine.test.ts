@@ -217,7 +217,7 @@ describe('Gate530Engine', () => {
 
     it('should reject rule without id', () => {
       const engine = new Gate530Engine(baseConfig);
-      expect(() => engine.addRule({ id: '', name: 'Bad', dimension: 'operational', priority: 1, condition: {}, action: 'allow', enabled: true })).toThrow();
+      expect(() => engine.addRule({ id: '', name: 'Bad', dimension: 'operational', priority: 1, condition: { operator: 'exists', field: 'requestId' }, action: 'allow', enabled: true })).toThrow();
     });
   });
 

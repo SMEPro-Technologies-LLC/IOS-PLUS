@@ -9,10 +9,7 @@ import {
   type OrchestratorResult,
   type AiRequest,
   type ComplianceDecision,
-  type EvaluationContext,
   type Actor,
-  type ClassificationResult,
-  type PolicyRule,
 } from './config.js';
 import { AuthLayer } from './layers/auth.js';
 import { ClassificationLayer } from './layers/classification.js';

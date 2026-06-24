@@ -4,7 +4,6 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import http from 'node:http';
 import { Gate530ApiServer } from '../api-server.js';
 import { ApiDatabase } from '../api-db.js';
 import { ApiAuth } from '../api-auth.js';

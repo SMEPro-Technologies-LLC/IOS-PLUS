@@ -24,7 +24,7 @@
     "paths": {
       "@ios-plus/shared": ["packages/shared/src"],
       "@ios-plus/gate-530": ["packages/gate-530/src"],
-      "@ios-plus/evidence-fabric": ["packages/evidence-fabric/src"],
+      "@ios-plus/evidence-fabric": ["packages/evidence-fabric/src/index.ts"],
       "@ios-plus/cos-plus": ["packages/cos-plus/src"],
       "@ios-plus/rag-vault": ["packages/rag-vault/src"],
       "@ios-plus/uco-resolver": ["packages/uco-resolver/src"]

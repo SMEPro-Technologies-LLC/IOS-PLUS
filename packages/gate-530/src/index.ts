@@ -6,7 +6,8 @@ export * from './config.js';
 export * from './sector.js';
 export * from './rules.js';
 export * from './engine.js';
-export * from './transport.js';
+export { createTransport, Http2Transport, IpcTransport } from './transport.js';
+export type { TransportConfig, ServerRequest as TransportServerRequest, ServerResponse } from './transport.js';
 export * from './diagnostics.js';
 
 // Wave 1 MVP API exports

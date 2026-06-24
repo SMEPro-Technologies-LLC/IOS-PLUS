@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'crypto';
-import type { Signer, AsyncSigner, EvidenceRecord, EvidenceConfig } from './types.js';
+import type { Signer, AsyncSigner, EvidenceRecord } from './types.js';
 
 /**
  * Evidence record builder for constructing cryptographically signed audit evidence
@@ -130,7 +130,7 @@ export function createEvidenceHash(evidence: EvidenceRecord): string {
 /**
  * Verify evidence signature and integrity
  */
-export function verifyEvidence(evidence: EvidenceRecord, signer?: Signer | AsyncSigner): boolean {
+export async function verifyEvidence(evidence: EvidenceRecord, signer?: Signer | AsyncSigner): Promise<boolean> {
   try {
     const computedHash = createEvidenceHash(evidence);
     if (computedHash !== evidence.hash) {

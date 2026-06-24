@@ -142,11 +142,11 @@ export class CrosswalkLoader {
 
     for (const row of data) {
       const key =
-        'socCode' in row
-          ? `${row.socCode}-${row.naicsCode}`
-          : 'cipCode' in row && 'naicsCode' in row
-            ? `${row.cipCode}-${row.naicsCode}`
-            : `${(row as CipSocMapping).cipCode}-${(row as CipSocMapping).socCode}`;
+        'naicsCode' in row
+          ? 'socCode' in row
+            ? `${row.socCode}-${row.naicsCode}`
+            : `${row.cipCode}-${row.naicsCode}`
+          : `${row.cipCode}-${row.socCode}`;
 
       if (seen.has(key)) warnings.push(`Duplicate mapping: ${key}`);
       seen.add(key);
@@ -166,18 +166,8 @@ export class CrosswalkLoader {
   buildIndex(data: SocNaicsMapping[] | CipNaicsMapping[] | CipSocMapping[]): Map<string, string[]> {
     const index = new Map<string, string[]>();
     for (const row of data) {
-      const leftCode =
-        'socCode' in row
-          ? row.socCode
-          : 'cipCode' in row
-            ? row.cipCode
-            : (row as CipSocMapping).cipCode;
-      const rightCode =
-        'socCode' in row
-          ? row.naicsCode
-          : 'naicsCode' in row
-            ? row.naicsCode
-            : (row as CipSocMapping).socCode;
+      const leftCode = 'socCode' in row ? row.socCode : row.cipCode;
+      const rightCode = 'naicsCode' in row ? row.naicsCode : row.socCode;
 
       const list = index.get(leftCode) ?? [];
       list.push(rightCode);

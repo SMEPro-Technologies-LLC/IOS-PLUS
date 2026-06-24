@@ -6,6 +6,15 @@ export type ComplianceDimension =
   | 'regulatory'
   | 'financial';
 
+/**
+ * A policy condition for rule evaluation.
+ * Two forms are supported:
+ *   1. Simple scalar check: set `operator` and `field` (and optionally `value`).
+ *   2. Logical grouping: set `logical` ('and'|'or') and `conditions`. In this form
+ *      `operator` and `field` are not required. Pre-existing rules using
+ *      `operator: 'and'` as a grouping operator should be migrated to use
+ *      `logical: 'and'` with no `operator` field.
+ */
 export interface Condition {
   operator?:
     | 'eq'

@@ -21,7 +21,8 @@ env:
   GAR_REPOSITORY: ${{ secrets.GAR_REPOSITORY }}
   IMAGE_NAME: ios-plus
   DELIVERY_PIPELINE: ios-plus-pipeline
-  SKAFFOLD_FILE: ios-plus/infra/cloud-deploy/skaffold.yaml
+  RELEASE_NAME: release-${{ github.run_id }}
+  SKAFFOLD_FILE: infra/cloud-deploy/skaffold.yaml
 
 jobs:
   determine-environment:
@@ -77,29 +78,36 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ios-plus/infra/terraform
+        working-directory: infra/terraform
 
       - name: Terraform Apply — Staging
         run: terraform apply -auto-approve -var="environment=staging"
-        working-directory: ios-plus/infra/terraform
+        working-directory: infra/terraform
 
       - name: Create Cloud Deploy release
         run: |
-          gcloud deploy releases create "release-${{ github.run_id }}" \
+          gcloud deploy releases create "${{ env.RELEASE_NAME }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
             --images="ios-plus=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
-            --source="ios-plus/infra/cloud-deploy" \
+            --source="infra/cloud-deploy" \
             --description="Release ${{ github.sha }}"
 
       - name: Promote to Staging
         run: |
           gcloud deploy releases promote \
-            --release="release-${{ github.run_id }}" \
+            --release="${{ env.RELEASE_NAME }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
             --to-target="staging" \
             --quiet
+
+      - name: Get GKE credentials — Staging
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          cluster_name: ios-plus-staging
+          location: ${{ secrets.GCP_REGION }}
 
       - name: Smoke tests — Staging
         run: |
@@ -130,12 +138,21 @@ jobs:
         if: failure()
         run: |
           echo "Smoke tests failed. Initiating rollback..."
-          gcloud deploy rollbacks start \
-            --release="release-${{ github.run_id }}" \
+          ROLLOUT=$(gcloud deploy rollouts list \
+            --release="${{ env.RELEASE_NAME }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --to-target="staging" \
-            --quiet
+            --format='value(name)' | head -n 1)
+
+          if [ -n "$ROLLOUT" ]; then
+            gcloud deploy rollouts cancel "$ROLLOUT" \
+              --release="${{ env.RELEASE_NAME }}" \
+              --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
+              --region="${{ secrets.GCP_REGION }}" \
+              --quiet
+          else
+            echo "No rollout found for ${{ env.RELEASE_NAME }}; skipping rollback."
+          fi
 
       # - name: Notify Slack — Success
       #   if: success()
@@ -158,7 +175,7 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [determine-environment, deploy-staging]
+    needs: determine-environment
     if: needs.determine-environment.outputs.environment == 'production'
     permissions:
       contents: read
@@ -188,20 +205,36 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
-        working-directory: ios-plus/infra/terraform
+        working-directory: infra/terraform
 
       - name: Terraform Apply — Production
         run: terraform apply -auto-approve -var="environment=production"
-        working-directory: ios-plus/infra/terraform
+        working-directory: infra/terraform
+
+      - name: Create Cloud Deploy release
+        run: |
+          gcloud deploy releases create "${{ env.RELEASE_NAME }}" \
+            --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
+            --region="${{ secrets.GCP_REGION }}" \
+            --images="ios-plus=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
+            --source="infra/cloud-deploy" \
+            --description="Release ${{ github.sha }}"
 
       - name: Promote to Production (Canary)
         run: |
           gcloud deploy releases promote \
-            --release="release-${{ github.run_id }}" \
+            --release="${{ env.RELEASE_NAME }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
             --to-target="production" \
             --quiet
+
+      - name: Get GKE credentials — Production
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          cluster_name: ios-plus-production
+          location: ${{ secrets.GCP_REGION }}
 
       - name: Wait for canary 25%
         run: sleep 60
@@ -231,12 +264,21 @@ jobs:
         if: failure()
         run: |
           echo "Smoke tests failed. Initiating rollback..."
-          gcloud deploy rollbacks start \
-            --release="release-${{ github.run_id }}" \
+          ROLLOUT=$(gcloud deploy rollouts list \
+            --release="${{ env.RELEASE_NAME }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --to-target="production" \
-            --quiet
+            --format='value(name)' | head -n 1)
+
+          if [ -n "$ROLLOUT" ]; then
+            gcloud deploy rollouts cancel "$ROLLOUT" \
+              --release="${{ env.RELEASE_NAME }}" \
+              --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
+              --region="${{ secrets.GCP_REGION }}" \
+              --quiet
+          else
+            echo "No rollout found for ${{ env.RELEASE_NAME }}; skipping rollback."
+          fi
 
       - name: Wait for canary 50%
         run: sleep 60
@@ -252,12 +294,21 @@ jobs:
       - name: Rollback on failure (50%)
         if: failure()
         run: |
-          gcloud deploy rollbacks start \
-            --release="release-${{ github.run_id }}" \
+          ROLLOUT=$(gcloud deploy rollouts list \
+            --release="${{ env.RELEASE_NAME }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --to-target="production" \
-            --quiet
+            --format='value(name)' | head -n 1)
+
+          if [ -n "$ROLLOUT" ]; then
+            gcloud deploy rollouts cancel "$ROLLOUT" \
+              --release="${{ env.RELEASE_NAME }}" \
+              --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
+              --region="${{ secrets.GCP_REGION }}" \
+              --quiet
+          else
+            echo "No rollout found for ${{ env.RELEASE_NAME }}; skipping rollback."
+          fi
 
       - name: Wait for canary 75%
         run: sleep 60
@@ -273,12 +324,21 @@ jobs:
       - name: Rollback on failure (75%)
         if: failure()
         run: |
-          gcloud deploy rollbacks start \
-            --release="release-${{ github.run_id }}" \
+          ROLLOUT=$(gcloud deploy rollouts list \
+            --release="${{ env.RELEASE_NAME }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --to-target="production" \
-            --quiet
+            --format='value(name)' | head -n 1)
+
+          if [ -n "$ROLLOUT" ]; then
+            gcloud deploy rollouts cancel "$ROLLOUT" \
+              --release="${{ env.RELEASE_NAME }}" \
+              --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
+              --region="${{ secrets.GCP_REGION }}" \
+              --quiet
+          else
+            echo "No rollout found for ${{ env.RELEASE_NAME }}; skipping rollback."
+          fi
 
       - name: Wait for canary 100%
         run: sleep 60

@@ -82,6 +82,8 @@ function parseVector(raw: unknown): number[] {
   }
   return [];
 }
+
+export interface VectorSearchResult {
   id: string;
   content: string;
   embedding: number[];

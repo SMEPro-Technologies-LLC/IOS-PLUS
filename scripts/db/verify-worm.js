@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import { createPool, verifyWormStatus } from '@ios-plus/cos-plus';
+import { createPool, verifyWormCompliance } from '@ios-plus/cos-plus';
 
 async function main() {
     const pool = createPool({ connectionString: process.env.DATABASE_URL });
     try {
         console.log('[VERIFY] Checking WORM status...');
-        const status = await verifyWormStatus(pool);
+        const status = await verifyWormCompliance(pool);
         if (!status.compliant) {
             console.error('[VERIFY] WORM verification FAILED:');
             status.violations.forEach(v => console.error(`  - ${v}`));

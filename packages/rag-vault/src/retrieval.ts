@@ -4,16 +4,12 @@ import {
   Document,
   SearchOptions,
   VectorSearchResult,
-  HybridSearchResult,
 } from './types.js';
 
 export class VectorRetriever {
-  private pool: unknown;
-  private vectorTable: string;
-
-  constructor(pool: unknown, vectorTable: string = 'rag_vault_vectors') {
-    this.pool = pool;
-    this.vectorTable = vectorTable;
+  // pool and vectorTable are reserved for future PostgreSQL/pgvector implementation
+  constructor(_pool: unknown, _vectorTable: string = 'rag_vault_vectors') {
+    // stored via parameters for future use
   }
 
   async search(

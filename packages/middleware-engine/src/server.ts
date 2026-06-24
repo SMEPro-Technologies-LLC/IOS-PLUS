@@ -6,15 +6,16 @@
 
 import http from 'node:http';
 import { URL } from 'node:url';
+import pg from 'pg';
 import {
   type ServerConfig,
   type AiRequest,
   type PolicyRule,
   type AuditFilters,
   validateServerConfig,
-  defaultServerConfig,
 } from './config.js';
 import { MiddlewareOrchestrator } from './orchestrator.js';
+import { UcoResolver, loadConfig as loadResolverConfig } from '@ios-plus/uco-resolver';
 
 export interface ServerRequest {
   method: string;
@@ -65,6 +66,11 @@ export class HttpServer {
     requestDurationMs: [] as number[],
     activeConnections: 0,
   };
+  /**
+   * UcoResolver instance for licensure lookups.
+   * Null when DATABASE_URL is not configured; routes fail-closed in that case.
+   */
+  private resolver: UcoResolver | null = null;
 
   constructor(
     orchestrator: MiddlewareOrchestrator,
@@ -72,9 +78,31 @@ export class HttpServer {
   ) {
     this.config = validateServerConfig(config);
     this.orchestrator = orchestrator;
+    this._initResolver();
     this.setupMiddlewares();
     this.setupRoutes();
     this.server = http.createServer(this.handleRequest.bind(this));
+  }
+
+  /**
+   * Initialise the UCO resolver if DATABASE_URL is present.
+   * The resolver is initialised lazily on first use so startup is non-blocking.
+   */
+  private _initResolver(): void {
+    const databaseUrl = process.env['DATABASE_URL'];
+    if (!databaseUrl) {
+      return;
+    }
+    const pgPool = new pg.Pool({ connectionString: databaseUrl });
+    // Adapt pg.Pool to the DatabasePool interface expected by UcoResolver
+    const pool = {
+      query: async <T = unknown>(sql: string, values?: unknown[]): Promise<T[]> => {
+        const result = await pgPool.query(sql, values);
+        return result.rows as T[];
+      },
+    };
+    const resolverConfig = loadResolverConfig(process.env as Record<string, string | undefined>, pool);
+    this.resolver = new UcoResolver(resolverConfig);
   }
 
   /**
@@ -406,18 +434,49 @@ export class HttpServer {
       return;
     }
 
-    // In production: import { UcoResolver } from '@ios-plus/uco-resolver';
-    const result = {
-      student_cip: studentCip,
-      destination_state: destinationState,
-      licensure_status: 'unknown',
-      requirements: [],
-      notes: 'UDM licensure lookup — integrate with @ios-plus/uco-resolver for production data',
-    };
+    if (!this.resolver) {
+      // Fail closed: resolver is not configured (DATABASE_URL missing).
+      // Return 503 rather than a stale stub so callers know the service is
+      // unavailable rather than receiving silently incorrect data.
+      res.statusCode = 503;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        error: 'Licensure lookup unavailable: DATABASE_URL is not configured.',
+        // Remaining constraint: this endpoint requires a PostgreSQL database
+        // seeded with UCO ontology data (uco_nodes, uco_crosswalk,
+        // uco_obligation_metadata). Run db:migrate && db:seed before use.
+      }));
+      return;
+    }
 
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify(result));
+    try {
+      const lookupResult = await this.resolver.lookupLicensure({
+        studentCip,
+        destinationState,
+      });
+
+      const requirements = lookupResult.rankedPaths.flatMap((p) => p.requirements);
+      const licensure_status =
+        requirements.length === 0 ? 'no_requirements_found'
+        : requirements.some((r) => r.enforcementType === 'mandatory') ? 'mandatory'
+        : 'informational';
+
+      res.statusCode = 200;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        student_cip: studentCip,
+        destination_state: destinationState,
+        licensure_status,
+        requirements,
+        candidates: lookupResult.candidates,
+        errors: lookupResult.errors,
+      }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ error: `Licensure lookup failed: ${message}` }));
+    }
   }
 
   private async handleHealth(_req: ServerRequest, res: http.ServerResponse): Promise<void> {

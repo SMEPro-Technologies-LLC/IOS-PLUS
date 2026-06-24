@@ -59,7 +59,9 @@ export class EvidenceLayer {
    */
   async verifyEvidence(evidence: EvidenceRecord): Promise<boolean> {
     try {
-      const expectedHash = await this.computeHash({ ...evidence, signature: '', hash: '' });
+      // Omit hash and signature to reproduce the canonical form for hashing
+      const { hash: _h, signature: _s, ...withoutHashSig } = evidence;
+      const expectedHash = await this.computeHash(withoutHashSig);
       if (expectedHash !== evidence.hash) return false;
       const expectedSig = await this.signWithKey(
         JSON.stringify({ ...evidence, signature: '', hash: '' }),

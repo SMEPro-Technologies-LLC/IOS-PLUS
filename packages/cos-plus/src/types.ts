@@ -25,26 +25,35 @@ export interface AuditQueryOptions {
   orderDirection?: 'ASC' | 'DESC';
 }
 
-export interface AuditRetentionPolicy {
-  retentionDays: number;
-  archiveBeforePrune: boolean;
-  autoPrune: boolean;
-}
-
-export interface PruneResult {
-  archivedCount: number;
-  deletedCount: number;
-  archivedUntil: Date;
-}
-
+/**
+ * Unified evidence record matching the converged evidence_records schema.
+ *
+ * Fields from the migration-defined schema (gate-530 primary path):
+ *   - decision, signature, public_key, canonical_payload, previous_hash
+ *
+ * Fields added for cos-plus application-layer usage:
+ *   - record_type, content, hash, created_by, metadata
+ *
+ * When inserting via cos-plus, set record_type/content/hash/created_by.
+ * When inserting via gate-530, set decision/signature/public_key/canonical_payload.
+ * previous_hash is shared between both paths (stored as hex string).
+ */
 export interface EvidenceRecord {
   id?: string;
   request_id: string;
-  record_type: string;
-  content: Record<string, unknown>;
-  hash: string;
+  timestamp?: Date;
+  // Migration-schema crypto fields (gate-530 path)
+  decision?: Record<string, unknown>;
+  signature?: string | null;
+  public_key?: string | null;
+  canonical_payload?: string | null;
+  // Shared chain field (hex-encoded SHA-256 of previous record)
   previous_hash?: string | null;
   created_at?: Date;
+  // cos-plus supplemental fields
+  record_type: string;
+  content?: Record<string, unknown>;
+  hash?: string | null;
   created_by: string;
   metadata?: Record<string, unknown>;
 }
@@ -57,12 +66,6 @@ export interface EvidenceSearchCriteria {
   endDate?: Date;
   limit?: number;
   offset?: number;
-}
-
-export interface EvidenceChainResult {
-  isValid: boolean;
-  records: EvidenceRecord[];
-  errors: string[];
 }
 
 export interface PoolConfig {
@@ -86,71 +89,3 @@ export interface PoolMetrics {
   waitingCount: number;
 }
 
-export interface VectorRecordInput {
-  id: string;
-  content: string;
-  embedding: number[];
-  metadata?: Record<string, unknown>;
-}
-
-export interface VectorSearchResult {
-  id: string;
-  content: string;
-  embedding: number[];
-  metadata: Record<string, unknown>;
-  distance: number;
-}
-
-export interface MigrationRecord {
-  id: number;
-  name: string;
-  applied_at: Date;
-  checksum: string;
-}
-
-export interface MigrationResult {
-  applied: string[];
-  skipped: string[];
-  failed: { name: string; error: string }[];
-}
-
-export interface GrantRecord {
-  role: string;
-  privilege: string;
-  schema: string;
-  table: string;
-}
-
-export interface WormStatus {
-  tableName: string;
-  hasWormTrigger: boolean;
-  triggerName: string | null;
-  isCompliant: boolean;
-}
-
-export interface WormTriggerConfig {
-  tableName: string;
-  triggerFunctionName: string;
-  triggerName: string;
-}
-
-export interface InvariantCheckResult {
-  name: string;
-  passed: boolean;
-  message: string;
-  details?: unknown;
-}
-
-export interface InvariantReport {
-  allPassed: boolean;
-  checks: InvariantCheckResult[];
-  timestamp: Date;
-}
-
-export interface WormIntegrityResult {
-  tableName: string;
-  isCompliant: boolean;
-  updateCount: number;
-  deleteCount: number;
-  details?: string;
-}

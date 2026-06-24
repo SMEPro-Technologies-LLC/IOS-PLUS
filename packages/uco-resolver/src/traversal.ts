@@ -9,11 +9,9 @@ import {
   SocCode,
   LicensureTraversalResult,
   TraversalPath,
-  LicensureRequirement,
   CipInfo,
   NaicsInfo,
   SocInfo,
-  LicensurePath,
   TraversalConfig,
 } from './types.js';
 
@@ -267,4 +265,4 @@ export class TraversalEngine {
   }
 }
 
-export { TraversalPath, LicensureTraversalResult };
+export type { TraversalPath, LicensureTraversalResult };

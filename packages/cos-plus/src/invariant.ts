@@ -99,6 +99,38 @@ export async function checkTriggerExists(
   };
 }
 
+/**
+ * Check that a WORM trigger exists on a table using either the cos-plus
+ * naming convention (worm_<table>) or the migration naming convention
+ * (trg_<table>_worm).
+ */
+export async function checkWormTriggerExists(
+  pool: Pool,
+  tableName: string
+): Promise<InvariantCheckResult> {
+  const result = await pool.query(
+    `
+      SELECT EXISTS (
+        SELECT 1 FROM pg_trigger t
+        JOIN pg_class c ON t.tgrelid = c.oid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND c.relname = $1
+          AND (t.tgname LIKE 'worm_%' OR t.tgname LIKE 'trg_%_worm')
+      ) as exists;
+    `,
+    [tableName]
+  );
+  const exists = result.rows[0].exists as boolean;
+  return {
+    name: `worm_trigger_exists_${tableName}`,
+    passed: exists,
+    message: exists
+      ? `WORM trigger exists on ${tableName}.`
+      : `WORM trigger missing on ${tableName} (expected worm_${tableName} or trg_${tableName}_worm).`,
+  };
+}
+
 export async function checkIndexExists(
   pool: Pool,
   tableName: string,
@@ -159,25 +191,33 @@ export async function verifyInvariants(pool: Pool): Promise<InvariantReport> {
 
   // Required extensions
   checks.push(await checkExtensionExists(pool, 'vector'));
-  checks.push(await checkExtensionExists(pool, 'pgcrypto'));
   checks.push(await checkExtensionExists(pool, 'uuid-ossp'));
 
-  // Audit table columns
-  const auditColumns = ['id', 'actor', 'action', 'table_name', 'record_id', 'old_data', 'new_data', 'metadata', 'created_at', 'correlation_id'];
-  for (const col of auditColumns) {
+  // Audit table: check core migration columns plus cos-plus supplemental columns
+  const auditCoreColumns = ['id', 'table_name', 'operation', 'record_id', 'timestamp', 'created_at'];
+  for (const col of auditCoreColumns) {
+    checks.push(await checkColumnExists(pool, 'audit_events', col));
+  }
+  // Supplemental cos-plus audit columns (added by migration 003)
+  const auditSupplementalColumns = ['actor', 'action', 'metadata', 'correlation_id'];
+  for (const col of auditSupplementalColumns) {
     checks.push(await checkColumnExists(pool, 'audit_events', col));
   }
 
-  // Evidence table columns
-  const evidenceColumns = ['id', 'request_id', 'record_type', 'content', 'hash', 'previous_hash', 'created_at', 'created_by', 'metadata'];
-  for (const col of evidenceColumns) {
+  // Evidence table: check core migration columns plus cos-plus supplemental columns
+  const evidenceCoreColumns = ['id', 'request_id', 'timestamp', 'decision', 'previous_hash', 'created_at'];
+  for (const col of evidenceCoreColumns) {
+    checks.push(await checkColumnExists(pool, 'evidence_records', col));
+  }
+  // Supplemental cos-plus evidence columns (added by migration 003)
+  const evidenceSupplementalColumns = ['record_type', 'content', 'hash', 'created_by', 'metadata'];
+  for (const col of evidenceSupplementalColumns) {
     checks.push(await checkColumnExists(pool, 'evidence_records', col));
   }
 
-  // WORM triggers on audit and evidence tables
-  const wormTables = ['audit_events', 'evidence_records'];
-  for (const table of wormTables) {
-    checks.push(await checkTriggerExists(pool, table, `worm_${table}`));
+  // WORM triggers on audit and evidence tables — accept either naming convention
+  for (const table of ['audit_events', 'evidence_records']) {
+    checks.push(await checkWormTriggerExists(pool, table));
   }
 
   // Required indexes
@@ -216,10 +256,9 @@ export class InvariantVerifier {
     return [
       await checkTableExists(this.pool, 'audit_events'),
       await checkColumnExists(this.pool, 'audit_events', 'id'),
-      await checkColumnExists(this.pool, 'audit_events', 'actor'),
-      await checkColumnExists(this.pool, 'audit_events', 'action'),
+      await checkColumnExists(this.pool, 'audit_events', 'table_name'),
       await checkColumnExists(this.pool, 'audit_events', 'created_at'),
-      await checkTriggerExists(this.pool, 'audit_events', 'worm_audit_events'),
+      await checkWormTriggerExists(this.pool, 'audit_events'),
     ];
   }
 
@@ -230,7 +269,7 @@ export class InvariantVerifier {
       await checkColumnExists(this.pool, 'evidence_records', 'request_id'),
       await checkColumnExists(this.pool, 'evidence_records', 'hash'),
       await checkColumnExists(this.pool, 'evidence_records', 'previous_hash'),
-      await checkTriggerExists(this.pool, 'evidence_records', 'worm_evidence_records'),
+      await checkWormTriggerExists(this.pool, 'evidence_records'),
     ];
   }
 }

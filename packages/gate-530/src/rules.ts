@@ -11,7 +11,7 @@ export class RuleEngine {
   }
 
   private evaluateSimpleCondition(condition: Condition, context: EvaluationContext): boolean {
-    const value = this.resolveField(condition.field, context);
+    const value = this.resolveField(condition.field ?? '', context);
     const { operator } = condition;
 
     try {

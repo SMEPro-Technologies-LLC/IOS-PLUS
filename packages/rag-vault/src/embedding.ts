@@ -7,11 +7,9 @@ export interface EmbeddingProvider {
 
 export class MockEmbeddingProvider implements EmbeddingProvider {
   private dimensions: number;
-  private seed: number;
 
   constructor(config: Pick<EmbeddingConfig, 'dimensions'>) {
     this.dimensions = config.dimensions ?? 384;
-    this.seed = 0;
   }
 
   async embed(text: string): Promise<number[]> {
@@ -102,4 +100,3 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
 }
 
 export type { EmbeddingConfig };
-export type { EmbeddingProvider };

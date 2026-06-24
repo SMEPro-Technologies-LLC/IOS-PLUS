@@ -59,10 +59,11 @@ export class EvidenceLayer {
    */
   async verifyEvidence(evidence: EvidenceRecord): Promise<boolean> {
     try {
-      const expectedHash = await this.computeHash({ ...evidence, signature: '', hash: '' });
+      const { hash: _hash, signature, ...record } = evidence;
+      const expectedHash = await this.computeHash(record);
       if (expectedHash !== evidence.hash) return false;
       const expectedSig = await this.signWithKey(
-        JSON.stringify({ ...evidence, signature: '', hash: '' }),
+        JSON.stringify({ ...record, signature: '' }),
         this.config.signingKey
       );
       return expectedSig === evidence.signature;

@@ -1,8 +1,8 @@
 import http2 from 'http2';
 import net from 'net';
 import fs from 'fs';
-import { EvaluationContext } from './config.js';
-import { ComplianceDecision, Gate530Engine } from './engine.js';
+import type { EvaluationContext } from './config.js';
+import { Gate530Engine } from './engine.js';
 
 export interface TransportConfig {
   type: 'http2' | 'ipc';

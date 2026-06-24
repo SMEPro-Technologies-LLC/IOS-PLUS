@@ -4,7 +4,7 @@
  * @module api-config
  */
 
-import { Gate530Config, PolicyRule, getDefaultConfig, loadConfig } from './config.js';
+import { Gate530Config, loadConfig } from './config.js';
 
 export interface ApiServerConfig {
   port: number;

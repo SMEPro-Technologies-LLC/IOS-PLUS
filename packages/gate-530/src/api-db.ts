@@ -37,10 +37,8 @@ export interface DbAuditEvent {
 
 export class ApiDatabase {
   private pool: pg.Pool;
-  private config: DatabaseConfig;
 
   constructor(config: DatabaseConfig) {
-    this.config = config;
     this.pool = new Pool({
       host: config.host,
       port: config.port,

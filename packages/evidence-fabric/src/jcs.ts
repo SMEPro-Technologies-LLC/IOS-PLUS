@@ -1,4 +1,6 @@
-import canonicalize from 'canonicalize';
+import canonicalizeModule from 'canonicalize';
+
+const canonicalizeJson = canonicalizeModule as unknown as (input: unknown) => string | undefined;
 
 /**
  * JCS Canonicalization (RFC 8785) utilities
@@ -8,7 +10,7 @@ import canonicalize from 'canonicalize';
  * Canonicalize a JSON payload using JCS (RFC 8785)
  */
 export function canonicalize(payload: Record<string, unknown>): string {
-  const result = canonicalize(payload);
+  const result = canonicalizeJson(payload);
   if (result === undefined) {
     throw new Error('Canonicalization failed: payload cannot be serialized');
   }
@@ -34,10 +36,10 @@ export function canonicalizeOrdered(payload: Record<string, unknown>): string {
 /**
  * Verify that a canonical string round-trips correctly
  */
-export function verifyCanonicalization(payload: Record<string, unknown>, canonical: string): boolean {
+export function verifyCanonicalization(_payload: Record<string, unknown>, canonical: string): boolean {
   try {
     const reparsed = JSON.parse(canonical);
-    const recanonicalized = canonicalize(reparsed);
+    const recanonicalized = canonicalizeJson(reparsed as Record<string, unknown>);
     return canonical === recanonicalized;
   } catch {
     return false;
@@ -82,7 +84,7 @@ export class JcsCanonicalizer {
       return cached;
     }
 
-    const result = canonicalize(payload);
+    const result = canonicalizeJson(payload);
     if (result === undefined) {
       throw new Error('Canonicalization failed: payload cannot be serialized');
     }
@@ -107,10 +109,10 @@ export class JcsCanonicalizer {
     return JSON.stringify(ordered);
   }
 
-  verifyCanonicalization(payload: Record<string, unknown>, canonical: string): boolean {
+  verifyCanonicalization(_payload: Record<string, unknown>, canonical: string): boolean {
     try {
       const reparsed = JSON.parse(canonical);
-      const recanonicalized = canonicalize(reparsed);
+      const recanonicalized = canonicalizeJson(reparsed as Record<string, unknown>);
       return canonical === recanonicalized;
     } catch {
       return false;

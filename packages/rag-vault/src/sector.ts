@@ -1,6 +1,5 @@
 import {
   RetrievalResult,
-  RankedDocument,
   SectorType,
   ComplianceLevel,
 } from './types.js';

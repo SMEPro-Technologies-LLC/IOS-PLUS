@@ -12,7 +12,6 @@ import {
   type PolicyRule,
   type AuditFilters,
   validateServerConfig,
-  defaultServerConfig,
 } from './config.js';
 import { MiddlewareOrchestrator } from './orchestrator.js';
 

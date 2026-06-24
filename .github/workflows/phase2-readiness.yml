@@ -1,0 +1,78 @@
+name: Phase 2 Readiness Gates
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  phase2-readiness:
+    name: Phase 2 Readiness Gates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Gate Walker — 100 synthetic Gate530 scenarios
+        id: gate_walker
+        run: npx vitest run tests/phase2-gates/gate-walker.test.ts --reporter=verbose
+        continue-on-error: true
+
+      - name: Accreditation Coverage — UC-03 corpus CR1–CR6
+        id: accreditation
+        run: npx vitest run tests/phase2-gates/accreditation-coverage.test.ts --reporter=verbose
+        continue-on-error: true
+
+      - name: EDU Reporter MVP — Phase 1 views with mock data
+        id: edu_reporter
+        run: npx vitest run tests/phase2-gates/edu-reporter-views.test.ts --reporter=verbose
+        continue-on-error: true
+
+      - name: Phase 2 Readiness Report
+        run: |
+          echo "## Phase 2 Readiness Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Gate | Trigger Condition | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------------------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          GW_STATUS="${{ steps.gate_walker.outcome }}"
+          ACC_STATUS="${{ steps.accreditation.outcome }}"
+          EDU_STATUS="${{ steps.edu_reporter.outcome }}"
+
+          [ "$GW_STATUS"  = "success" ] && GW_ICON="✅ PASS"  || GW_ICON="❌ FAIL"
+          [ "$ACC_STATUS" = "success" ] && ACC_ICON="✅ PASS" || ACC_ICON="❌ FAIL"
+          [ "$EDU_STATUS" = "success" ] && EDU_ICON="✅ PASS" || EDU_ICON="❌ FAIL"
+
+          echo "| Gate Walker          | 100 synthetic Gate530 scenarios all pass    | $GW_ICON  |" >> $GITHUB_STEP_SUMMARY
+          echo "| Accreditation UC-03  | 100% coverage for CR1–CR6                  | $ACC_ICON |" >> $GITHUB_STEP_SUMMARY
+          echo "| EDU Reporter MVP     | All Phase 1 views functional with mock data | $EDU_ICON |" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$GW_STATUS" = "success" ] && [ "$ACC_STATUS" = "success" ] && [ "$EDU_STATUS" = "success" ]; then
+            echo "### 🟢 Phase 2 kickoff criteria are MET — all gates GREEN" >> $GITHUB_STEP_SUMMARY
+            echo "PHASE2_READY=true" >> $GITHUB_ENV
+          else
+            echo "### 🔴 Phase 2 kickoff criteria are NOT MET — one or more gates RED" >> $GITHUB_STEP_SUMMARY
+            echo "PHASE2_READY=false" >> $GITHUB_ENV
+          fi
+
+      - name: Enforce all gates pass
+        run: |
+          if [ "$PHASE2_READY" != "true" ]; then
+            echo "Phase 2 readiness check FAILED: one or more gates did not pass."
+            exit 1
+          fi
+          echo "Phase 2 readiness check PASSED: all gates GREEN."

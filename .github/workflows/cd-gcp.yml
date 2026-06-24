@@ -36,9 +36,14 @@ jobs:
         id: set-env
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "environment=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
             echo "is_tag=false" >> "$GITHUB_OUTPUT"
-            echo "release_name=release-${{ github.run_id }}-${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
+            if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+              echo "environment=production" >> "$GITHUB_OUTPUT"
+              echo "release_name=release-${{ github.run_id }}-production" >> "$GITHUB_OUTPUT"
+            else
+              echo "environment=staging" >> "$GITHUB_OUTPUT"
+              echo "release_name=release-${{ github.run_id }}-staging" >> "$GITHUB_OUTPUT"
+            fi
           elif [ "${{ github.event_name }}" == "push" ] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "environment=staging" >> "$GITHUB_OUTPUT"
             echo "is_tag=true" >> "$GITHUB_OUTPUT"
@@ -145,7 +150,7 @@ jobs:
             --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --filter='targetId:staging' \
+            --filter='targetId=staging' \
             --sort-by=~createTime \
             --format='value(name)' | head -n 1)
 
@@ -273,7 +278,7 @@ jobs:
             --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --filter='targetId:production' \
+            --filter='targetId=production' \
             --sort-by=~createTime \
             --format='value(name)' | head -n 1)
 
@@ -305,7 +310,7 @@ jobs:
             --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --filter='targetId:production' \
+            --filter='targetId=production' \
             --sort-by=~createTime \
             --format='value(name)' | head -n 1)
 
@@ -337,7 +342,7 @@ jobs:
             --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --filter='targetId:production' \
+            --filter='targetId=production' \
             --sort-by=~createTime \
             --format='value(name)' | head -n 1)
 

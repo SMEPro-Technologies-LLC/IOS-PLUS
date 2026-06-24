@@ -150,7 +150,7 @@ jobs:
             --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --filter='targetId=staging' \
+            --filter='targetId="staging"' \
             --sort-by=~createTime \
             --format='value(name)' | head -n 1)
 
@@ -278,7 +278,7 @@ jobs:
             --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --filter='targetId=production' \
+            --filter='targetId="production"' \
             --sort-by=~createTime \
             --format='value(name)' | head -n 1)
 
@@ -310,7 +310,7 @@ jobs:
             --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --filter='targetId=production' \
+            --filter='targetId="production"' \
             --sort-by=~createTime \
             --format='value(name)' | head -n 1)
 
@@ -342,7 +342,7 @@ jobs:
             --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
-            --filter='targetId=production' \
+            --filter='targetId="production"' \
             --sort-by=~createTime \
             --format='value(name)' | head -n 1)
 

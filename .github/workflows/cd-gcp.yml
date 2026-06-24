@@ -21,7 +21,6 @@ env:
   GAR_REPOSITORY: ${{ secrets.GAR_REPOSITORY }}
   IMAGE_NAME: ios-plus
   DELIVERY_PIPELINE: ios-plus-pipeline
-  RELEASE_NAME: release-${{ github.run_id }}
   SKAFFOLD_FILE: infra/cloud-deploy/skaffold.yaml
 
 jobs:
@@ -31,6 +30,7 @@ jobs:
     outputs:
       environment: ${{ steps.set-env.outputs.environment }}
       is_tag: ${{ steps.set-env.outputs.is_tag }}
+      release_name: ${{ steps.set-env.outputs.release_name }}
     steps:
       - name: Set environment
         id: set-env
@@ -38,12 +38,15 @@ jobs:
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "environment=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
             echo "is_tag=false" >> "$GITHUB_OUTPUT"
+            echo "release_name=release-${{ github.run_id }}-${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" == "push" ] && [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "environment=staging" >> "$GITHUB_OUTPUT"
             echo "is_tag=true" >> "$GITHUB_OUTPUT"
+            echo "release_name=release-${{ github.run_id }}-staging" >> "$GITHUB_OUTPUT"
           else
             echo "environment=staging" >> "$GITHUB_OUTPUT"
             echo "is_tag=false" >> "$GITHUB_OUTPUT"
+            echo "release_name=release-${{ github.run_id }}-staging" >> "$GITHUB_OUTPUT"
           fi
 
   deploy-staging:
@@ -86,7 +89,7 @@ jobs:
 
       - name: Create Cloud Deploy release
         run: |
-          gcloud deploy releases create "${{ env.RELEASE_NAME }}" \
+          gcloud deploy releases create "${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
             --images="ios-plus=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
@@ -96,7 +99,7 @@ jobs:
       - name: Promote to Staging
         run: |
           gcloud deploy releases promote \
-            --release="${{ env.RELEASE_NAME }}" \
+            --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
             --to-target="staging" \
@@ -139,19 +142,21 @@ jobs:
         run: |
           echo "Smoke tests failed. Initiating rollback..."
           ROLLOUT=$(gcloud deploy rollouts list \
-            --release="${{ env.RELEASE_NAME }}" \
+            --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
+            --filter='targetId:staging' \
+            --sort-by=~createTime \
             --format='value(name)' | head -n 1)
 
           if [ -n "$ROLLOUT" ]; then
             gcloud deploy rollouts cancel "$ROLLOUT" \
-              --release="${{ env.RELEASE_NAME }}" \
+              --release="${{ needs.determine-environment.outputs.release_name }}" \
               --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
               --region="${{ secrets.GCP_REGION }}" \
               --quiet
           else
-            echo "No rollout found for ${{ env.RELEASE_NAME }}; skipping rollback."
+            echo "No staging rollout found for ${{ needs.determine-environment.outputs.release_name }}; skipping rollback."
           fi
 
       # - name: Notify Slack — Success
@@ -213,7 +218,7 @@ jobs:
 
       - name: Create Cloud Deploy release
         run: |
-          gcloud deploy releases create "${{ env.RELEASE_NAME }}" \
+          gcloud deploy releases create "${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
             --images="ios-plus=${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
@@ -223,7 +228,7 @@ jobs:
       - name: Promote to Production (Canary)
         run: |
           gcloud deploy releases promote \
-            --release="${{ env.RELEASE_NAME }}" \
+            --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
             --to-target="production" \
@@ -265,19 +270,21 @@ jobs:
         run: |
           echo "Smoke tests failed. Initiating rollback..."
           ROLLOUT=$(gcloud deploy rollouts list \
-            --release="${{ env.RELEASE_NAME }}" \
+            --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
+            --filter='targetId:production' \
+            --sort-by=~createTime \
             --format='value(name)' | head -n 1)
 
           if [ -n "$ROLLOUT" ]; then
             gcloud deploy rollouts cancel "$ROLLOUT" \
-              --release="${{ env.RELEASE_NAME }}" \
+              --release="${{ needs.determine-environment.outputs.release_name }}" \
               --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
               --region="${{ secrets.GCP_REGION }}" \
               --quiet
           else
-            echo "No rollout found for ${{ env.RELEASE_NAME }}; skipping rollback."
+            echo "No production rollout found for ${{ needs.determine-environment.outputs.release_name }}; skipping rollback."
           fi
 
       - name: Wait for canary 50%
@@ -295,19 +302,21 @@ jobs:
         if: failure()
         run: |
           ROLLOUT=$(gcloud deploy rollouts list \
-            --release="${{ env.RELEASE_NAME }}" \
+            --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
+            --filter='targetId:production' \
+            --sort-by=~createTime \
             --format='value(name)' | head -n 1)
 
           if [ -n "$ROLLOUT" ]; then
             gcloud deploy rollouts cancel "$ROLLOUT" \
-              --release="${{ env.RELEASE_NAME }}" \
+              --release="${{ needs.determine-environment.outputs.release_name }}" \
               --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
               --region="${{ secrets.GCP_REGION }}" \
               --quiet
           else
-            echo "No rollout found for ${{ env.RELEASE_NAME }}; skipping rollback."
+            echo "No production rollout found for ${{ needs.determine-environment.outputs.release_name }}; skipping rollback."
           fi
 
       - name: Wait for canary 75%
@@ -325,19 +334,21 @@ jobs:
         if: failure()
         run: |
           ROLLOUT=$(gcloud deploy rollouts list \
-            --release="${{ env.RELEASE_NAME }}" \
+            --release="${{ needs.determine-environment.outputs.release_name }}" \
             --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
             --region="${{ secrets.GCP_REGION }}" \
+            --filter='targetId:production' \
+            --sort-by=~createTime \
             --format='value(name)' | head -n 1)
 
           if [ -n "$ROLLOUT" ]; then
             gcloud deploy rollouts cancel "$ROLLOUT" \
-              --release="${{ env.RELEASE_NAME }}" \
+              --release="${{ needs.determine-environment.outputs.release_name }}" \
               --delivery-pipeline="${{ env.DELIVERY_PIPELINE }}" \
               --region="${{ secrets.GCP_REGION }}" \
               --quiet
           else
-            echo "No rollout found for ${{ env.RELEASE_NAME }}; skipping rollback."
+            echo "No production rollout found for ${{ needs.determine-environment.outputs.release_name }}; skipping rollback."
           fi
 
       - name: Wait for canary 100%

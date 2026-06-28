@@ -129,19 +129,19 @@ DECLARE
     v_uco_nodes VARCHAR[];
 BEGIN
     -- Gather UCO nodes that apply to this CIP→SOC→State path
-    SELECT ARRAY_AGG(DISTINCT uco.uco_node_id)
+    SELECT ARRAY_AGG(DISTINCT uco.id)
     INTO v_uco_nodes
     FROM (
-        SELECT uco_node_id FROM uco_nodes
+        SELECT id FROM uco_nodes
         WHERE type = 'CIP' AND code = p_student_cip
         UNION ALL
-        SELECT uco_node_id FROM uco_nodes
+        SELECT id FROM uco_nodes
         WHERE type = 'SOC' AND code IN (
             SELECT soc_code FROM staging_cip_soc_state_license
             WHERE cip_code = p_student_cip AND state_abbrev = p_destination_state
         )
         UNION ALL
-        SELECT uco_node_id FROM uco_nodes
+        SELECT id FROM uco_nodes
         WHERE type = 'NAICS' AND code IN (
             SELECT naics_code FROM uco_obligation_metadata
             WHERE state = p_destination_state

@@ -162,29 +162,34 @@ export async function verifyInvariants(pool: Pool): Promise<InvariantReport> {
   checks.push(await checkExtensionExists(pool, 'pgcrypto'));
   checks.push(await checkExtensionExists(pool, 'uuid-ossp'));
 
-  // Audit table columns
-  const auditColumns = ['id', 'actor', 'action', 'table_name', 'record_id', 'old_data', 'new_data', 'metadata', 'created_at', 'correlation_id'];
+  // Additional required tables
+  const additionalTables = ['compliance_rules', 'rag_documents', 'uco_nodes', 'uco_crosswalk', 'uco_obligation_metadata'];
+  for (const table of additionalTables) {
+    checks.push(await checkTableExists(pool, table));
+  }
+
+  // Audit table columns — matches 001_initial_schema.sql
+  const auditColumns = ['id', 'table_name', 'operation', 'record_id', 'old_data', 'new_data', 'actor_id', 'actor_type', 'session_id', 'timestamp', 'created_at'];
   for (const col of auditColumns) {
     checks.push(await checkColumnExists(pool, 'audit_events', col));
   }
 
-  // Evidence table columns
-  const evidenceColumns = ['id', 'request_id', 'record_type', 'content', 'hash', 'previous_hash', 'created_at', 'created_by', 'metadata'];
+  // Evidence table columns — matches 001_initial_schema.sql
+  const evidenceColumns = ['id', 'request_id', 'timestamp', 'decision', 'signature', 'public_key', 'canonical_payload', 'previous_hash', 'created_at'];
   for (const col of evidenceColumns) {
     checks.push(await checkColumnExists(pool, 'evidence_records', col));
   }
 
-  // WORM triggers on audit and evidence tables
-  const wormTables = ['audit_events', 'evidence_records'];
-  for (const table of wormTables) {
-    checks.push(await checkTriggerExists(pool, table, `worm_${table}`));
-  }
+  // WORM triggers — matches 002_worm_triggers.sql
+  checks.push(await checkTriggerExists(pool, 'audit_events', 'trg_audit_events_worm'));
+  checks.push(await checkTriggerExists(pool, 'evidence_records', 'trg_evidence_records_worm'));
+  checks.push(await checkTriggerExists(pool, 'schema_migrations', 'trg_schema_migrations_worm'));
 
-  // Required indexes
-  checks.push(await checkIndexExists(pool, 'audit_events', 'idx_audit_created_at'));
-  checks.push(await checkIndexExists(pool, 'audit_events', 'idx_audit_table_name'));
-  checks.push(await checkIndexExists(pool, 'evidence_records', 'idx_evidence_request_id'));
-  checks.push(await checkIndexExists(pool, 'evidence_records', 'idx_evidence_created_at'));
+  // Required indexes — matches 003_indexes.sql
+  checks.push(await checkIndexExists(pool, 'audit_events', 'idx_audit_events_timestamp'));
+  checks.push(await checkIndexExists(pool, 'audit_events', 'idx_audit_events_table_name'));
+  checks.push(await checkIndexExists(pool, 'evidence_records', 'idx_evidence_records_request_id'));
+  checks.push(await checkIndexExists(pool, 'evidence_records', 'idx_evidence_records_timestamp'));
 
   const allPassed = checks.every((c) => c.passed);
   return { allPassed, checks, timestamp: new Date() };
@@ -216,10 +221,12 @@ export class InvariantVerifier {
     return [
       await checkTableExists(this.pool, 'audit_events'),
       await checkColumnExists(this.pool, 'audit_events', 'id'),
-      await checkColumnExists(this.pool, 'audit_events', 'actor'),
-      await checkColumnExists(this.pool, 'audit_events', 'action'),
+      await checkColumnExists(this.pool, 'audit_events', 'actor_id'),
+      await checkColumnExists(this.pool, 'audit_events', 'actor_type'),
+      await checkColumnExists(this.pool, 'audit_events', 'operation'),
+      await checkColumnExists(this.pool, 'audit_events', 'table_name'),
       await checkColumnExists(this.pool, 'audit_events', 'created_at'),
-      await checkTriggerExists(this.pool, 'audit_events', 'worm_audit_events'),
+      await checkTriggerExists(this.pool, 'audit_events', 'trg_audit_events_worm'),
     ];
   }
 
@@ -228,9 +235,11 @@ export class InvariantVerifier {
       await checkTableExists(this.pool, 'evidence_records'),
       await checkColumnExists(this.pool, 'evidence_records', 'id'),
       await checkColumnExists(this.pool, 'evidence_records', 'request_id'),
-      await checkColumnExists(this.pool, 'evidence_records', 'hash'),
+      await checkColumnExists(this.pool, 'evidence_records', 'decision'),
+      await checkColumnExists(this.pool, 'evidence_records', 'signature'),
+      await checkColumnExists(this.pool, 'evidence_records', 'canonical_payload'),
       await checkColumnExists(this.pool, 'evidence_records', 'previous_hash'),
-      await checkTriggerExists(this.pool, 'evidence_records', 'worm_evidence_records'),
+      await checkTriggerExists(this.pool, 'evidence_records', 'trg_evidence_records_worm'),
     ];
   }
 }

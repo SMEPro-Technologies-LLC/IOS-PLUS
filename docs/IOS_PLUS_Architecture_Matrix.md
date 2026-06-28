@@ -9,7 +9,7 @@ Define a repo-ready architecture matrix that aligns each priority intelligence a
 - iOSLENS is the governance brain.
 - The Universal Compliance Decoding Matrix is the authoritative governance schema.
 - The PostgreSQL engine on the Lamar University VM is the on-prem governance substrate.
-- Microsoft is the enforcement body.
+- Microsoft is the enforcement body (identity/access and downstream policy enforcement surface).
 - IOS-PLUS is the implementation platform for governance core, MCP exposure, projection, and supporting intelligence services.
 
 ## Matrix
@@ -27,7 +27,7 @@ Define a repo-ready architecture matrix that aligns each priority intelligence a
 - Governance core must evaluate actor, system, domain, and action context before exposing capability outputs.
 - MCP endpoints must return rationale and traceability where appropriate.
 - Audit/evidence services must record decision, source domains, and reviewer overrides.
-- Microsoft projection should reflect governance classifications where downstream enforcement or identity posture is relevant.
+- Microsoft projection (downstream exposure of governance classifications to Microsoft-integrated controls and services) should reflect governance classifications where downstream enforcement or identity posture is relevant.
 
 ## Recommended implementation order
 

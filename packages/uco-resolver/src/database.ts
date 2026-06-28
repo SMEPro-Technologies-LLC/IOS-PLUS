@@ -98,6 +98,11 @@ export class UcoDatabaseQueries {
       `SELECT
          cip_code                                             AS cip,
          state_abbrev                                         AS state,
+         -- The V11 v_state_licensure_candidates view is built from
+         -- staging_cip_soc_state_license + uco_nodes (CIP/SOC) join only.
+         -- NAICS is not included in the V11 staging-based view; callers that
+         -- need NAICS resolution should use getObligationMetadata() or the
+         -- 004-era v_cip_naics view directly.
          NULL::VARCHAR                                        AS naics,
          COALESCE(soc_code, '')                               AS soc,
          license_type                                         AS title,
@@ -180,7 +185,7 @@ export class UcoDatabaseQueries {
       naics: r.naics_code,
       enforcementType: (r.enforcement_type as ObligationMetadata['enforcementType']) ?? 'informational',
       authority: r.authority ?? '',
-      effectiveDate: r.effective_date ?? new Date(0),
+      effectiveDate: r.effective_date ?? undefined,
     }));
   }
 }

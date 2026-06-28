@@ -129,7 +129,7 @@ export interface ObligationMetadata {
   naics: string;
   enforcementType: 'mandatory' | 'recommended' | 'informational';
   authority: string;
-  effectiveDate: Date;
+  effectiveDate?: Date;
 }
 
 /* ------------------------------------------------------------------

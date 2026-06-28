@@ -6,7 +6,8 @@
  * db/migrations/002_worm_triggers.sql.
  *
  * These tests require a live PostgreSQL instance with migrations applied.
- * In CI the DATABASE_URL env var is set by the workflow; locally, set it
+ * In CI the DATABASE_URL env var is set by the workflow pointing at
+ * `iosplus_test` (matches ci.yml: POSTGRES_DB: iosplus_test). Locally, set it
  * before running:
  *   DATABASE_URL=******localhost:5432/iosplus_test \
  *     npm run test --workspace=packages/cos-plus
